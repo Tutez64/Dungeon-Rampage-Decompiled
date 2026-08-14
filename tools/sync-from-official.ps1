@@ -38,6 +38,7 @@ $SteamLibToPlatform = @{
 function Convert-CopiedFiles {
     param([string]$Path)
     $textExt = @('.as', '.xml', '.json', '.txt', '.md', '.sha256')
+    $utf8 = New-Object System.Text.UTF8Encoding $false
     $items = @()
     if (Test-Path -LiteralPath $Path -PathType Leaf) {
         $items = @(Get-Item -LiteralPath $Path)
@@ -52,17 +53,9 @@ function Convert-CopiedFiles {
         if ($textExt -notcontains $file.Extension.ToLowerInvariant()) { continue }
         $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
         if ($bytes -notcontains [byte]13) { continue }
-        $out = New-Object System.Collections.Generic.List[byte] ($bytes.Length)
-        for ($i = 0; $i -lt $bytes.Length; $i++) {
-            if ($bytes[$i] -eq 13) {
-                if ($i + 1 -lt $bytes.Length -and $bytes[$i + 1] -eq 10) { $i++ }
-                $out.Add(10) | Out-Null
-            }
-            else {
-                $out.Add($bytes[$i]) | Out-Null
-            }
-        }
-        [System.IO.File]::WriteAllBytes($file.FullName, $out.ToArray())
+        $text = $utf8.GetString($bytes)
+        $converted = $text.Replace("`r`n", "`n").Replace("`r", "`n")
+        [System.IO.File]::WriteAllBytes($file.FullName, $utf8.GetBytes($converted))
     }
 }
 
