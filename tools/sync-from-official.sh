@@ -81,6 +81,32 @@ find_game_dir() {
   die "Official game not found. Install Dungeon Rampage or pass --game / DUNGEON_RAMPAGE_DIR."
 }
 
+normalize_copied() {
+  local root="$1"
+  if [[ -f "$root" ]]; then
+    chmod a-x "$root"
+    case "$root" in
+      *.as|*.xml|*.json|*.txt|*.md|*.sha256) sed -i 's/\r$//' "$root" ;;
+    esac
+    return
+  fi
+  [[ -d "$root" ]] || return 0
+  find "$root" -type f -exec chmod a-x {} +
+  find "$root" -type f \( -name '*.as' -o -name '*.xml' -o -name '*.json' -o -name '*.txt' -o -name '*.md' -o -name '*.sha256' \) \
+    -exec sed -i 's/\r$//' {} +
+}
+
+file_sha256() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    command -v openssl >/dev/null 2>&1 || die "sha256sum, shasum, or openssl is required"
+    openssl dgst -sha256 "$1" | awk '{print $NF}'
+  fi
+}
+
 find_ffdec() {
   local files=()
   if [[ -n "$FFDEC" ]]; then
@@ -146,6 +172,7 @@ export_scripts() {
 
 install_src() {
   local export_dir="$1"
+  local swf_path="$2"
   local scripts="$export_dir/scripts"
   [[ -d "$scripts" ]] || scripts="$export_dir"
 
@@ -153,12 +180,48 @@ install_src() {
     die "FFDec produced no ActionScript files under $export_dir"
   fi
 
+  # assets.swf is synthesized by FFDec (not a raw dump). Hash the official SWF
+  # instead: if those bytes did not change, sprite tags did not change.
+  local stamp_name="assets.swf.source.sha256"
+  local assets_keep=""
+  local old_stamp=""
+  if [[ -d "$SRC_DIR/_assets" ]]; then
+    assets_keep="$(mktemp -d "${TMPDIR:-/tmp}/dr-assets.XXXXXX")"
+    cp -a "$SRC_DIR/_assets" "$assets_keep/_assets"
+    if [[ -f "$SRC_DIR/_assets/$stamp_name" ]]; then
+      old_stamp="$(tr -d '[:space:]' < "$SRC_DIR/_assets/$stamp_name")"
+    fi
+  fi
+  local new_stamp
+  new_stamp="$(file_sha256 "$swf_path")"
+
   rm -rf "$SRC_DIR"
   mkdir -p "$SRC_DIR"
   cp -a "$scripts"/. "$SRC_DIR"/
-  if [[ -d "$export_dir/_assets" && ! -d "$SRC_DIR/_assets" ]]; then
-    cp -a "$export_dir/_assets" "$SRC_DIR/_assets"
+
+  local keep_assets=0
+  if [[ -n "$assets_keep" && -f "$assets_keep/_assets/assets.swf" ]]; then
+    if [[ -z "$old_stamp" || "$old_stamp" == "$new_stamp" ]]; then
+      keep_assets=1
+    fi
   fi
+
+  rm -rf "$SRC_DIR/_assets"
+  if [[ "$keep_assets" -eq 1 ]]; then
+    cp -a "$assets_keep/_assets" "$SRC_DIR/_assets"
+    echo "Keeping src/_assets (official SWF hash unchanged)"
+  elif [[ -d "$export_dir/_assets" ]]; then
+    cp -a "$export_dir/_assets" "$SRC_DIR/_assets"
+    echo "Updating src/_assets from FFDec (official SWF changed)"
+  elif [[ -n "$assets_keep" ]]; then
+    cp -a "$assets_keep/_assets" "$SRC_DIR/_assets"
+  fi
+  [[ -n "$assets_keep" ]] && rm -rf "$assets_keep"
+
+  if [[ -d "$SRC_DIR/_assets" ]]; then
+    printf '%s\n' "$new_stamp" > "$SRC_DIR/_assets/$stamp_name"
+  fi
+  normalize_copied "$SRC_DIR"
 }
 
 is_git_lfs_pointer() {
@@ -192,6 +255,7 @@ copy_game_folder() {
   rm -rf "$to"
   cp -a "$from" "$to"
   remove_vcs_leftovers "$to"
+  normalize_copied "$to"
   echo "Copied $label"
 }
 
@@ -201,6 +265,7 @@ install_application_xml() {
   [[ -f "$from" ]] || die "Official application.xml not found: $from"
   cp -a "$from" "$to"
   remove_vcs_leftovers "$to"
+  normalize_copied "$to"
   echo "Copied application.xml"
 }
 
@@ -218,6 +283,20 @@ add_steam_native_libs() {
     cp -a "$game/$lib" "$platform_dir/$lib"
     echo "Added $lib to $platform"
   done
+}
+
+ane_trees_match() {
+  local a="$1"
+  local b="$2"
+  local fa fb rel
+  fa="$(cd "$a" && find . -type f ! -name mimetype | sort)"
+  fb="$(cd "$b" && find . -type f ! -name mimetype | sort)"
+  [[ "$fa" == "$fb" ]] || return 1
+  while IFS= read -r rel; do
+    [[ -z "$rel" ]] && continue
+    cmp -s "$a/$rel" "$b/$rel" || return 1
+  done <<< "$fa"
+  return 0
 }
 
 pack_ane() {
@@ -244,6 +323,18 @@ build_ane() {
   trap 'rm -rf "$stage"' RETURN
   cp -a "$ext_dir"/. "$stage"/
   add_steam_native_libs "$game" "$stage"
+
+  if [[ -f "$ANE_OUT" ]] && command -v unzip >/dev/null 2>&1; then
+    local unpacked
+    unpacked="$(mktemp -d "${TMPDIR:-/tmp}/dr-ane-unpacked.XXXXXX")"
+    if unzip -qq -o "$ANE_OUT" -d "$unpacked" && ane_trees_match "$unpacked" "$stage"; then
+      rm -rf "$unpacked"
+      echo "ANE payloads unchanged, keeping $ANE_OUT"
+      return 0
+    fi
+    rm -rf "$unpacked"
+  fi
+
   echo "Packing $ANE_OUT ..."
   pack_ane "$stage" "$ANE_OUT"
 }
@@ -261,7 +352,7 @@ cleanup() { rm -rf "$EXPORT_DIR"; }
 trap cleanup EXIT
 
 export_scripts "$FFDEC_PATH" "$SWF" "$EXPORT_DIR"
-install_src "$EXPORT_DIR"
+install_src "$EXPORT_DIR" "$SWF"
 mkdir -p "$ROOT/data"
 copy_game_folder "$GAME/Resources" "$ROOT/data/Resources" "data/Resources"
 copy_game_folder "$GAME/DbConfiguration" "$ROOT/data/DbConfiguration" "data/DbConfiguration"
@@ -270,4 +361,4 @@ build_ane "$GAME"
 
 echo "Done."
 echo "  src/, data/, and application.xml refreshed from the official game"
-echo "  $ANE_OUT rebuilt from the official native extension"
+echo "  $ANE_OUT packed from the official native extension if payloads changed"

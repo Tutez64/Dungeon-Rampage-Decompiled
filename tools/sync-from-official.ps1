@@ -35,6 +35,37 @@ $SteamLibToPlatform = @{
     "libsteam_api.dylib" = "MacOS-x86-64"
 }
 
+function Convert-CopiedFiles {
+    param([string]$Path)
+    $textExt = @('.as', '.xml', '.json', '.txt', '.md', '.sha256')
+    $items = @()
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        $items = @(Get-Item -LiteralPath $Path)
+    }
+    elseif (Test-Path -LiteralPath $Path -PathType Container) {
+        $items = @(Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue)
+    }
+    else {
+        return
+    }
+    foreach ($file in $items) {
+        if ($textExt -notcontains $file.Extension.ToLowerInvariant()) { continue }
+        $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
+        if ($bytes -notcontains [byte]13) { continue }
+        $out = New-Object System.Collections.Generic.List[byte] ($bytes.Length)
+        for ($i = 0; $i -lt $bytes.Length; $i++) {
+            if ($bytes[$i] -eq 13) {
+                if ($i + 1 -lt $bytes.Length -and $bytes[$i + 1] -eq 10) { $i++ }
+                $out.Add(10) | Out-Null
+            }
+            else {
+                $out.Add($bytes[$i]) | Out-Null
+            }
+        }
+        [System.IO.File]::WriteAllBytes($file.FullName, $out.ToArray())
+    }
+}
+
 function Find-GameDir {
     param([string]$Hint)
     $candidates = @()
@@ -123,8 +154,16 @@ function Export-Scripts {
     )
 }
 
+function Get-FileSha256 {
+    param([string]$Path)
+    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
 function Install-Src {
-    param([string]$ExportDir)
+    param(
+        [string]$ExportDir,
+        [string]$SwfPath
+    )
     $scripts = Join-Path $ExportDir "scripts"
     if (-not (Test-Path -LiteralPath $scripts)) {
         $scripts = $ExportDir
@@ -134,16 +173,64 @@ function Install-Src {
         throw "FFDec produced no ActionScript files under $ExportDir"
     }
 
+    # assets.swf is synthesized by FFDec (not a raw dump). Hash the official SWF
+    # instead: if those bytes did not change, sprite tags did not change.
+    $stampName = "assets.swf.source.sha256"
+    $assetsKeep = $null
+    $oldStamp = ""
+    $existingAssets = Join-Path $SrcDir "_assets"
+    if (Test-Path -LiteralPath $existingAssets) {
+        $assetsKeep = Join-Path ([System.IO.Path]::GetTempPath()) ("dr-assets-" + [guid]::NewGuid().ToString("n"))
+        New-Item -ItemType Directory -Path $assetsKeep | Out-Null
+        Copy-Item -LiteralPath $existingAssets -Destination (Join-Path $assetsKeep "_assets") -Recurse -Force
+        $stampFile = Join-Path $existingAssets $stampName
+        if (Test-Path -LiteralPath $stampFile) {
+            $oldStamp = ([System.IO.File]::ReadAllText($stampFile)).Trim()
+        }
+    }
+    $newStamp = Get-FileSha256 -Path $SwfPath
+
     if (Test-Path -LiteralPath $SrcDir) {
         Remove-Item -LiteralPath $SrcDir -Recurse -Force
     }
     New-Item -ItemType Directory -Path $SrcDir | Out-Null
     Copy-Item -Path (Join-Path $scripts "*") -Destination $SrcDir -Recurse -Force
 
-    $assetsSrc = Join-Path $ExportDir "_assets"
-    if ((Test-Path -LiteralPath $assetsSrc) -and -not (Test-Path -LiteralPath (Join-Path $SrcDir "_assets"))) {
-        Copy-Item -LiteralPath $assetsSrc -Destination (Join-Path $SrcDir "_assets") -Recurse -Force
+    $keepAssets = $false
+    if ($assetsKeep) {
+        $keptSwf = Join-Path $assetsKeep "_assets\assets.swf"
+        if ((Test-Path -LiteralPath $keptSwf) -and (-not $oldStamp -or $oldStamp -eq $newStamp)) {
+            $keepAssets = $true
+        }
     }
+
+    $destAssets = Join-Path $SrcDir "_assets"
+    if (Test-Path -LiteralPath $destAssets) {
+        Remove-Item -LiteralPath $destAssets -Recurse -Force
+    }
+    if ($keepAssets) {
+        Copy-Item -LiteralPath (Join-Path $assetsKeep "_assets") -Destination $destAssets -Recurse -Force
+        Write-Host "Keeping src/_assets (official SWF hash unchanged)"
+    }
+    else {
+        $assetsSrc = Join-Path $ExportDir "_assets"
+        if (Test-Path -LiteralPath $assetsSrc) {
+            Copy-Item -LiteralPath $assetsSrc -Destination $destAssets -Recurse -Force
+            Write-Host "Updating src/_assets from FFDec (official SWF changed)"
+        }
+        elseif ($assetsKeep) {
+            Copy-Item -LiteralPath (Join-Path $assetsKeep "_assets") -Destination $destAssets -Recurse -Force
+        }
+    }
+    if ($assetsKeep) {
+        Remove-Item -LiteralPath $assetsKeep -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    if (Test-Path -LiteralPath $destAssets) {
+        $utf8 = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllText((Join-Path $destAssets $stampName), ($newStamp + "`n"), $utf8)
+    }
+    Convert-CopiedFiles -Path $SrcDir
 }
 
 function Test-GitLfsPointer {
@@ -191,6 +278,7 @@ function Copy-GameFolder {
     }
     Copy-Item -LiteralPath $From -Destination $To -Recurse -Force
     Remove-VcsLeftovers -Root $To
+    Convert-CopiedFiles -Path $To
     Write-Host "Copied $Label"
 }
 
@@ -203,6 +291,7 @@ function Install-ApplicationXml {
     }
     Copy-Item -LiteralPath $from -Destination $to -Force
     Remove-VcsLeftovers -Root $to
+    Convert-CopiedFiles -Path $to
     Write-Host "Copied application.xml"
 }
 
@@ -226,6 +315,36 @@ function Add-SteamNativeLibs {
             }
         }
     }
+}
+
+function Get-AneRelativeFiles {
+    param([string]$Root)
+    Get-ChildItem -LiteralPath $Root -Recurse -File -Force -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            $_.FullName.Substring($Root.Length).TrimStart('\', '/').Replace('\', '/')
+        } |
+        Where-Object { $_ -ne 'mimetype' } |
+        Sort-Object
+}
+
+function Test-AneTreesMatch {
+    param(
+        [string]$A,
+        [string]$B
+    )
+    $fa = @(Get-AneRelativeFiles -Root $A)
+    $fb = @(Get-AneRelativeFiles -Root $B)
+    if (($fa -join '|') -ne ($fb -join '|')) {
+        return $false
+    }
+    foreach ($rel in $fa) {
+        $pa = Join-Path $A ($rel.Replace('/', '\'))
+        $pb = Join-Path $B ($rel.Replace('/', '\'))
+        if ((Get-FileSha256 -Path $pa) -ne (Get-FileSha256 -Path $pb)) {
+            return $false
+        }
+    }
+    return $true
 }
 
 function New-AneZip {
@@ -276,8 +395,32 @@ function Build-Ane {
     try {
         Copy-Item -Path (Join-Path $extDir "*") -Destination $stage -Recurse -Force
         Add-SteamNativeLibs -Game $Game -Stage $stage
-        Write-Host "Packing $AneOut ..."
-        New-AneZip -Stage $stage -OutFile $AneOut
+
+        $keep = $false
+        if (Test-Path -LiteralPath $AneOut) {
+            $unpacked = Join-Path ([System.IO.Path]::GetTempPath()) ("dr-ane-unpacked-" + [guid]::NewGuid().ToString("n"))
+            try {
+                Add-Type -AssemblyName System.IO.Compression.FileSystem
+                [System.IO.Compression.ZipFile]::ExtractToDirectory($AneOut, $unpacked)
+                $keep = Test-AneTreesMatch -A $unpacked -B $stage
+            }
+            catch {
+                $keep = $false
+            }
+            finally {
+                if (Test-Path -LiteralPath $unpacked) {
+                    Remove-Item -LiteralPath $unpacked -Recurse -Force -ErrorAction SilentlyContinue
+                }
+            }
+        }
+
+        if ($keep) {
+            Write-Host "ANE payloads unchanged, keeping $AneOut"
+        }
+        else {
+            Write-Host "Packing $AneOut ..."
+            New-AneZip -Stage $stage -OutFile $AneOut
+        }
     }
     finally {
         Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
@@ -298,7 +441,7 @@ Write-Host "FFDec: $ffdec"
 
 try {
     Export-Scripts -FfdecPath $ffdec -SwfPath $swf -ExportDir $exportDir
-    Install-Src -ExportDir $exportDir
+    Install-Src -ExportDir $exportDir -SwfPath $swf
 }
 finally {
     Remove-Item -LiteralPath $exportDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -315,4 +458,4 @@ Build-Ane -Game $game
 
 Write-Host "Done."
 Write-Host "  src/, data/, and application.xml refreshed from the official game"
-Write-Host "  $AneOut rebuilt from the official native extension"
+Write-Host "  $AneOut packed from the official native extension if payloads changed"

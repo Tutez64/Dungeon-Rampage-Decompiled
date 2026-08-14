@@ -38,18 +38,17 @@ In IntelliJ, open **File > Project Structure**. Under **SDKs**, add the AIR SDK 
 
 ## Refresh from the official game
 
-Use the **`dev`** branch of [my JPEXS FFDec fork](https://github.com/Tutez64/jpexs-decompiler/tree/dev), not the latest upstream stable release. Fixes for this project land there first and are not always merged (or released) upstream yet. The Linux script also needs `zip` (usually already installed).
+Use the **`dev`** branch of [my JPEXS FFDec fork](https://github.com/Tutez64/jpexs-decompiler/tree/dev), not the latest upstream stable release. Fixes for this project land there first and are not always merged (or released) upstream yet. The Linux script also needs `zip` and `unzip` (usually already installed).
 
 ```powershell
 powershell -File tools/sync-from-official.ps1
 ```
 
 ```bash
-chmod +x tools/sync-from-official.sh
 ./tools/sync-from-official.sh
 ```
 
-This **replaces** `src/`, `data/Resources/`, `data/DbConfiguration/`, and `application.xml`. It decompiles `DungeonBustersProject.swf` with `paramNamesEnable=true`, copies assets and the AIR descriptor from the game install, and rebuilds `extensions/FRESteamWorks.ane` from the official native extension (every platform directory the game ships, plus the matching Steam API library next to each native binary). Leftover Git metadata from the official install (`.gitattributes` and [Git LFS](https://git-lfs.com) pointer files) is dropped.
+This **replaces** `src/`, `data/Resources/`, `data/DbConfiguration/`, and `application.xml`. It decompiles `DungeonBustersProject.swf` with `paramNamesEnable=true`, copies assets and the AIR descriptor from the game install, and rebuilds `extensions/FRESteamWorks.ane` only if the unpacked payloads differ from the official native extension (every platform directory the game ships, plus the matching Steam API library next to each native binary). `src/_assets/assets.swf` is kept unless the official SWF hash changed (FFDec reserializes that file, so the hash of `DungeonBustersProject.swf` is the stable check). Leftover Git metadata from the official install (`.gitattributes` and [Git LFS](https://git-lfs.com) pointer files) is dropped.
 
 `data/` is a Flex source folder (not ActionScript). On compile, IntelliJ copies those files next to the SWF as `out/Resources/` and `out/DbConfiguration/`.
 

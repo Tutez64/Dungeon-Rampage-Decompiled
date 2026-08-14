@@ -1,0 +1,25 @@
+# Working tree and git objects use LF on every OS. Overrides core.autocrlf.
+* text=auto eol=lf
+
+*.as   text eol=lf
+*.xml  text eol=lf
+*.json text eol=lf
+*.txt  text eol=lf
+*.md   text eol=lf
+*.sh   text eol=lf
+*.ps1  text eol=lf
+*.iml  text eol=lf
+*.sha256 text eol=lf
+*.gitignore text eol=lf
+.gitattributes text eol=lf
+
+*.swf  binary -eol
+*.ane  binary -eol
+*.png  binary -eol
+*.jpg  binary -eol
+*.jpeg binary -eol
+*.mp3  binary -eol
+*.flv  binary -eol
+*.dll  binary -eol
+*.so   binary -eol
+*.dylib binary -eol
