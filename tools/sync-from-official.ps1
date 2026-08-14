@@ -1,0 +1,289 @@
+#Requires -Version 5.1
+<#
+.SYNOPSIS
+  Decompile the official Steam SWF into src/, copy game assets and application.xml, and rebuild FRESteamWorks.ane.
+
+.PARAMETER GameDir
+  Official Dungeon Rampage install directory. Also accepted as DUNGEON_RAMPAGE_DIR.
+
+.PARAMETER Ffdec
+  Path to ffdec.bat, ffdec-cli.exe, or ffdec.jar. Also accepted as FFDEC_HOME (install dir or file).
+  Prefer the dev branch of https://github.com/Tutez64/jpexs-decompiler; upstream stable releases may lag behind.
+#>
+[CmdletBinding()]
+param(
+    [string]$GameDir = $env:DUNGEON_RAMPAGE_DIR,
+    [string]$Ffdec = $env:FFDEC_HOME
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$Root = Split-Path -Parent $PSScriptRoot
+$SrcDir = Join-Path $Root "src"
+$AneOut = Join-Path $Root "extensions\FRESteamWorks.ane"
+$MimeType = "application/vnd.adobe.air-native-extension-package+zip"
+$ExtensionId = "com.amanitadesign.steam.FRESteamWorks"
+
+# Steam redistributables live next to the official exe. Copy them into every
+# matching ANE platform directory that already exists in the official extension
+# (do not create platforms the game did not ship). Same mapping on every OS.
+$SteamLibToPlatform = @{
+    "steam_api.dll"      = "Windows-x86"
+    "steam_api64.dll"    = "Windows-x86-64"
+    "libsteam_api.so"    = "Linux-x86-64"
+    "libsteam_api.dylib" = "MacOS-x86-64"
+}
+
+function Find-GameDir {
+    param([string]$Hint)
+    $candidates = @()
+    if ($Hint) { $candidates += $Hint }
+    $candidates += @(
+        "C:\Program Files (x86)\Steam\steamapps\common\DungeonRampage",
+        "C:\Program Files\Steam\steamapps\common\DungeonRampage"
+    )
+    foreach ($dir in $candidates) {
+        $swf = Join-Path $dir "DungeonBustersProject.swf"
+        if (Test-Path -LiteralPath $swf) {
+            return (Resolve-Path -LiteralPath $dir).Path
+        }
+    }
+    throw "Official game not found. Install Dungeon Rampage or pass -GameDir / DUNGEON_RAMPAGE_DIR."
+}
+
+function Find-Ffdec {
+    param([string]$Hint)
+    $files = @()
+    if ($Hint) {
+        if (Test-Path -LiteralPath $Hint -PathType Leaf) {
+            $files += $Hint
+        }
+        else {
+            $files += @(
+                (Join-Path $Hint "ffdec.bat"),
+                (Join-Path $Hint "ffdec-cli.exe"),
+                (Join-Path $Hint "ffdec.jar")
+            )
+        }
+    }
+    $cmd = Get-Command ffdec.bat, ffdec-cli.exe, ffdec -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($cmd) { $files += $cmd.Source }
+    $files += @(
+        "C:\Program Files (x86)\FFDec\ffdec.bat",
+        "C:\Program Files\FFDec\ffdec.bat",
+        "C:\Program Files (x86)\FFDec\ffdec-cli.exe",
+        "C:\Program Files\FFDec\ffdec-cli.exe"
+    )
+    foreach ($file in $files) {
+        if ($file -and (Test-Path -LiteralPath $file -PathType Leaf)) {
+            return (Resolve-Path -LiteralPath $file).Path
+        }
+    }
+    throw "JPEXS FFDec not found. Prefer the dev branch of https://github.com/Tutez64/jpexs-decompiler (fixes for this project may not be in the latest upstream release yet). Pass -Ffdec / FFDEC_HOME."
+}
+
+function Invoke-Ffdec {
+    param(
+        [string]$FfdecPath,
+        [string[]]$FfdecArgs
+    )
+    $env:FFDEC_MEMORY = "2048m"
+    if ($FfdecPath -like "*.jar") {
+        $java = Get-Command java -ErrorAction SilentlyContinue
+        if (-not $java) { throw "java is required to run ffdec.jar" }
+        & $java.Source -Xmx2048m -jar $FfdecPath @FfdecArgs
+    }
+    else {
+        & $FfdecPath @FfdecArgs
+    }
+    if ($LASTEXITCODE -ne 0) {
+        throw "FFDec failed with exit code $LASTEXITCODE"
+    }
+}
+
+function Export-Scripts {
+    param(
+        [string]$FfdecPath,
+        [string]$SwfPath,
+        [string]$ExportDir
+    )
+    if (Test-Path -LiteralPath $ExportDir) {
+        Remove-Item -LiteralPath $ExportDir -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $ExportDir | Out-Null
+    Write-Host "Decompiling $SwfPath ..."
+    Invoke-Ffdec -FfdecPath $FfdecPath -FfdecArgs @(
+        "-config", "paramNamesEnable=true",
+        "-exportembed",
+        "-exportTimeout", "1800",
+        "-export", "script",
+        $ExportDir,
+        $SwfPath
+    )
+}
+
+function Install-Src {
+    param([string]$ExportDir)
+    $scripts = Join-Path $ExportDir "scripts"
+    if (-not (Test-Path -LiteralPath $scripts)) {
+        $scripts = $ExportDir
+    }
+    $asFiles = Get-ChildItem -LiteralPath $scripts -Recurse -Filter *.as -ErrorAction SilentlyContinue
+    if (-not $asFiles) {
+        throw "FFDec produced no ActionScript files under $ExportDir"
+    }
+
+    if (Test-Path -LiteralPath $SrcDir) {
+        Remove-Item -LiteralPath $SrcDir -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $SrcDir | Out-Null
+    Copy-Item -Path (Join-Path $scripts "*") -Destination $SrcDir -Recurse -Force
+
+    $assetsSrc = Join-Path $ExportDir "_assets"
+    if ((Test-Path -LiteralPath $assetsSrc) -and -not (Test-Path -LiteralPath (Join-Path $SrcDir "_assets"))) {
+        Copy-Item -LiteralPath $assetsSrc -Destination (Join-Path $SrcDir "_assets") -Recurse -Force
+    }
+}
+
+function Copy-GameFolder {
+    param(
+        [string]$From,
+        [string]$To,
+        [string]$Label
+    )
+    if (-not (Test-Path -LiteralPath $From)) {
+        throw "Official $Label folder not found: $From"
+    }
+    if (Test-Path -LiteralPath $To) {
+        Remove-Item -LiteralPath $To -Recurse -Force
+    }
+    Copy-Item -LiteralPath $From -Destination $To -Recurse -Force
+    Get-ChildItem -LiteralPath $To -Recurse -Force -Filter .gitattributes -ErrorAction SilentlyContinue |
+        Remove-Item -Force
+    Get-ChildItem -LiteralPath $To -Recurse -File -Filter *.json -ErrorAction SilentlyContinue | ForEach-Object {
+        $line = Get-Content -LiteralPath $_.FullName -TotalCount 1 -ErrorAction SilentlyContinue
+        if ($line -eq "version https://git-lfs.github.com/spec/v1") {
+            Remove-Item -LiteralPath $_.FullName -Force
+        }
+    }
+    Write-Host "Copied $Label"
+}
+
+function Install-ApplicationXml {
+    param([string]$Game)
+    $from = Join-Path $Game "META-INF\AIR\application.xml"
+    $to = Join-Path $Root "application.xml"
+    if (-not (Test-Path -LiteralPath $from)) {
+        throw "Official application.xml not found: $from"
+    }
+    Copy-Item -LiteralPath $from -Destination $to -Force
+    Write-Host "Copied application.xml"
+}
+
+function Add-SteamNativeLibs {
+    param(
+        [string]$Game,
+        [string]$Stage
+    )
+    $aneRoot = Join-Path $Stage "META-INF\ANE"
+    if (-not (Test-Path -LiteralPath $aneRoot)) {
+        return
+    }
+    Get-ChildItem -LiteralPath $aneRoot -Directory | ForEach-Object {
+        $platform = $_.Name
+        foreach ($lib in $SteamLibToPlatform.Keys) {
+            if ($SteamLibToPlatform[$lib] -ne $platform) { continue }
+            $from = Join-Path $Game $lib
+            if (Test-Path -LiteralPath $from) {
+                Copy-Item -LiteralPath $from -Destination (Join-Path $_.FullName $lib) -Force
+                Write-Host "Added $lib to $platform"
+            }
+        }
+    }
+}
+
+function New-AneZip {
+    param(
+        [string]$Stage,
+        [string]$OutFile
+    )
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $mimeFile = Join-Path $Stage "mimetype"
+    [System.IO.File]::WriteAllText($mimeFile, $MimeType)
+
+    $outDir = Split-Path -Parent $OutFile
+    if (-not (Test-Path -LiteralPath $outDir)) {
+        New-Item -ItemType Directory -Path $outDir | Out-Null
+    }
+    if (Test-Path -LiteralPath $OutFile) {
+        Remove-Item -LiteralPath $OutFile -Force
+    }
+
+    $zip = [System.IO.Compression.ZipFile]::Open($OutFile, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+            $zip, $mimeFile, "mimetype", [System.IO.Compression.CompressionLevel]::NoCompression
+        ) | Out-Null
+        Get-ChildItem -LiteralPath $Stage -Recurse -File | Where-Object { $_.Name -ne "mimetype" -or $_.DirectoryName -ne $Stage } | ForEach-Object {
+            $rel = $_.FullName.Substring($Stage.Length + 1).Replace("\", "/")
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $zip, $_.FullName, $rel, [System.IO.Compression.CompressionLevel]::Optimal
+            ) | Out-Null
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+}
+
+function Build-Ane {
+    param([string]$Game)
+    $extDir = Join-Path $Game "META-INF\AIR\extensions\$ExtensionId"
+    if (-not (Test-Path -LiteralPath $extDir)) {
+        throw "Official ANE folder not found: $extDir"
+    }
+
+    $stage = Join-Path ([System.IO.Path]::GetTempPath()) ("dr-ane-" + [guid]::NewGuid().ToString("n"))
+    New-Item -ItemType Directory -Path $stage | Out-Null
+    try {
+        Copy-Item -Path (Join-Path $extDir "*") -Destination $stage -Recurse -Force
+        Add-SteamNativeLibs -Game $Game -Stage $stage
+        Write-Host "Packing $AneOut ..."
+        New-AneZip -Stage $stage -OutFile $AneOut
+    }
+    finally {
+        Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+$game = Find-GameDir -Hint $GameDir
+$ffdec = Find-Ffdec -Hint $Ffdec
+$swf = Join-Path $game "DungeonBustersProject.swf"
+$exportDir = Join-Path ([System.IO.Path]::GetTempPath()) ("dr-as-" + [guid]::NewGuid().ToString("n"))
+
+Write-Host "Game:  $game"
+Write-Host "FFDec: $ffdec"
+
+try {
+    Export-Scripts -FfdecPath $ffdec -SwfPath $swf -ExportDir $exportDir
+    Install-Src -ExportDir $exportDir
+}
+finally {
+    Remove-Item -LiteralPath $exportDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+$dataDir = Join-Path $Root "data"
+if (-not (Test-Path -LiteralPath $dataDir)) {
+    New-Item -ItemType Directory -Path $dataDir | Out-Null
+}
+Copy-GameFolder -From (Join-Path $game "Resources") -To (Join-Path $dataDir "Resources") -Label "data/Resources"
+Copy-GameFolder -From (Join-Path $game "DbConfiguration") -To (Join-Path $dataDir "DbConfiguration") -Label "data/DbConfiguration"
+Install-ApplicationXml -Game $game
+Build-Ane -Game $game
+
+Write-Host "Done."
+Write-Host "  src/, data/, and application.xml refreshed from the official game"
+Write-Host "  $AneOut rebuilt from the official native extension"
