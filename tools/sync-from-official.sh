@@ -161,6 +161,29 @@ install_src() {
   fi
 }
 
+is_git_lfs_pointer() {
+  local path="$1"
+  [[ -f "$path" ]] || return 1
+  [[ "$(wc -c < "$path")" -le 1024 ]] || return 1
+  git lfs pointer --check --file="$path" >/dev/null 2>&1
+}
+
+remove_vcs_leftovers() {
+  local root="$1"
+  if [[ -d "$root" ]]; then
+    find "$root" -name .gitattributes -delete
+    find "$root" -type f -size -1025c -print0 | while IFS= read -r -d '' f; do
+      if is_git_lfs_pointer "$f"; then
+        rm -f "$f"
+      fi
+    done
+    return
+  fi
+  if is_git_lfs_pointer "$root"; then
+    rm -f "$root"
+  fi
+}
+
 copy_game_folder() {
   local from="$1"
   local to="$2"
@@ -168,12 +191,7 @@ copy_game_folder() {
   [[ -d "$from" ]] || die "Official $label folder not found: $from"
   rm -rf "$to"
   cp -a "$from" "$to"
-  find "$to" -name .gitattributes -delete
-  find "$to" -name '*.json' -type f -print0 | while IFS= read -r -d '' f; do
-    if IFS= read -r first < "$f" && [[ "$first" == "version https://git-lfs.github.com/spec/v1" ]]; then
-      rm -f "$f"
-    fi
-  done
+  remove_vcs_leftovers "$to"
   echo "Copied $label"
 }
 
@@ -182,6 +200,7 @@ install_application_xml() {
   local to="$ROOT/application.xml"
   [[ -f "$from" ]] || die "Official application.xml not found: $from"
   cp -a "$from" "$to"
+  remove_vcs_leftovers "$to"
   echo "Copied application.xml"
 }
 
@@ -231,6 +250,7 @@ build_ane() {
 
 GAME="$(find_game_dir)"
 FFDEC_PATH="$(find_ffdec)"
+git lfs version >/dev/null 2>&1 || die "git lfs is required to detect leftover Git LFS pointer files from the official install."
 SWF="$GAME/DungeonBustersProject.swf"
 EXPORT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/dr-as.XXXXXX")"
 

@@ -49,7 +49,7 @@ chmod +x tools/sync-from-official.sh
 ./tools/sync-from-official.sh
 ```
 
-This **replaces** `src/`, `data/Resources/`, `data/DbConfiguration/`, and `application.xml`. It decompiles `DungeonBustersProject.swf` with `paramNamesEnable=true`, copies assets and the AIR descriptor from the game install, and rebuilds `extensions/FRESteamWorks.ane` from the official native extension (every platform directory the game ships, plus the matching Steam API library next to each native binary).
+This **replaces** `src/`, `data/Resources/`, `data/DbConfiguration/`, and `application.xml`. It decompiles `DungeonBustersProject.swf` with `paramNamesEnable=true`, copies assets and the AIR descriptor from the game install, and rebuilds `extensions/FRESteamWorks.ane` from the official native extension (every platform directory the game ships, plus the matching Steam API library next to each native binary). Leftover Git metadata from the official install (`.gitattributes` and [Git LFS](https://git-lfs.com) pointer files) is dropped.
 
 `data/` is a Flex source folder (not ActionScript). On compile, IntelliJ copies those files next to the SWF as `out/Resources/` and `out/DbConfiguration/`.
 

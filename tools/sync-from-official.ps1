@@ -146,6 +146,37 @@ function Install-Src {
     }
 }
 
+function Test-GitLfsPointer {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $false
+    }
+    if ((Get-Item -LiteralPath $Path).Length -gt 1024) {
+        return $false
+    }
+    git lfs pointer --check --file="$Path" 2>$null | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Remove-VcsLeftovers {
+    param([string]$Root)
+    if (Test-Path -LiteralPath $Root -PathType Container) {
+        Get-ChildItem -LiteralPath $Root -Recurse -Force -Filter .gitattributes -ErrorAction SilentlyContinue |
+            Remove-Item -Force
+        Get-ChildItem -LiteralPath $Root -Recurse -File -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Length -le 1024 } |
+            ForEach-Object {
+                if (Test-GitLfsPointer $_.FullName) {
+                    Remove-Item -LiteralPath $_.FullName -Force
+                }
+            }
+        return
+    }
+    if (Test-GitLfsPointer $Root) {
+        Remove-Item -LiteralPath $Root -Force
+    }
+}
+
 function Copy-GameFolder {
     param(
         [string]$From,
@@ -159,14 +190,7 @@ function Copy-GameFolder {
         Remove-Item -LiteralPath $To -Recurse -Force
     }
     Copy-Item -LiteralPath $From -Destination $To -Recurse -Force
-    Get-ChildItem -LiteralPath $To -Recurse -Force -Filter .gitattributes -ErrorAction SilentlyContinue |
-        Remove-Item -Force
-    Get-ChildItem -LiteralPath $To -Recurse -File -Filter *.json -ErrorAction SilentlyContinue | ForEach-Object {
-        $line = Get-Content -LiteralPath $_.FullName -TotalCount 1 -ErrorAction SilentlyContinue
-        if ($line -eq "version https://git-lfs.github.com/spec/v1") {
-            Remove-Item -LiteralPath $_.FullName -Force
-        }
-    }
+    Remove-VcsLeftovers -Root $To
     Write-Host "Copied $Label"
 }
 
@@ -178,6 +202,7 @@ function Install-ApplicationXml {
         throw "Official application.xml not found: $from"
     }
     Copy-Item -LiteralPath $from -Destination $to -Force
+    Remove-VcsLeftovers -Root $to
     Write-Host "Copied application.xml"
 }
 
@@ -261,6 +286,10 @@ function Build-Ane {
 
 $game = Find-GameDir -Hint $GameDir
 $ffdec = Find-Ffdec -Hint $Ffdec
+git lfs version 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "git lfs is required to detect leftover Git LFS pointer files from the official install."
+}
 $swf = Join-Path $game "DungeonBustersProject.swf"
 $exportDir = Join-Path ([System.IO.Path]::GetTempPath()) ("dr-as-" + [guid]::NewGuid().ToString("n"))
 
