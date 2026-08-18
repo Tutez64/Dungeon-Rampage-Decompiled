@@ -183,14 +183,15 @@ install_src() {
   # assets.swf is synthesized by FFDec (not a raw dump). Hash the official SWF
   # instead: if those bytes did not change, sprite tags did not change.
   local stamp_name="assets.swf.source.sha256"
+  local stamp_file="$ROOT/tools/$stamp_name"
   local assets_keep=""
   local old_stamp=""
   if [[ -d "$SRC_DIR/_assets" ]]; then
     assets_keep="$(mktemp -d "${TMPDIR:-/tmp}/dr-assets.XXXXXX")"
     cp -a "$SRC_DIR/_assets" "$assets_keep/_assets"
-    if [[ -f "$SRC_DIR/_assets/$stamp_name" ]]; then
-      old_stamp="$(tr -d '[:space:]' < "$SRC_DIR/_assets/$stamp_name")"
-    fi
+  fi
+  if [[ -f "$stamp_file" ]]; then
+    old_stamp="$(tr -d '[:space:]' < "$stamp_file")"
   fi
   local new_stamp
   new_stamp="$(file_sha256 "$swf_path")"
@@ -219,7 +220,8 @@ install_src() {
   [[ -n "$assets_keep" ]] && rm -rf "$assets_keep"
 
   if [[ -d "$SRC_DIR/_assets" ]]; then
-    printf '%s\n' "$new_stamp" > "$SRC_DIR/_assets/$stamp_name"
+    printf '%s\n' "$new_stamp" > "$stamp_file"
+    normalize_copied "$stamp_file"
   fi
   normalize_copied "$SRC_DIR"
 }

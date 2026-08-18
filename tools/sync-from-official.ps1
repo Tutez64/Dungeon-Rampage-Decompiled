@@ -169,6 +169,7 @@ function Install-Src {
     # assets.swf is synthesized by FFDec (not a raw dump). Hash the official SWF
     # instead: if those bytes did not change, sprite tags did not change.
     $stampName = "assets.swf.source.sha256"
+    $stampFile = Join-Path $Root "tools\$stampName"
     $assetsKeep = $null
     $oldStamp = ""
     $existingAssets = Join-Path $SrcDir "_assets"
@@ -176,10 +177,9 @@ function Install-Src {
         $assetsKeep = Join-Path ([System.IO.Path]::GetTempPath()) ("dr-assets-" + [guid]::NewGuid().ToString("n"))
         New-Item -ItemType Directory -Path $assetsKeep | Out-Null
         Copy-Item -LiteralPath $existingAssets -Destination (Join-Path $assetsKeep "_assets") -Recurse -Force
-        $stampFile = Join-Path $existingAssets $stampName
-        if (Test-Path -LiteralPath $stampFile) {
-            $oldStamp = ([System.IO.File]::ReadAllText($stampFile)).Trim()
-        }
+    }
+    if (Test-Path -LiteralPath $stampFile) {
+        $oldStamp = ([System.IO.File]::ReadAllText($stampFile)).Trim()
     }
     $newStamp = Get-FileSha256 -Path $SwfPath
 
@@ -221,7 +221,8 @@ function Install-Src {
 
     if (Test-Path -LiteralPath $destAssets) {
         $utf8 = New-Object System.Text.UTF8Encoding $false
-        [System.IO.File]::WriteAllText((Join-Path $destAssets $stampName), ($newStamp + "`n"), $utf8)
+        [System.IO.File]::WriteAllText($stampFile, ($newStamp + "`n"), $utf8)
+        Convert-CopiedFiles -Path $stampFile
     }
     Convert-CopiedFiles -Path $SrcDir
 }
