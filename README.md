@@ -12,7 +12,7 @@ See [Dungeon Rampage Haxe](https://github.com/Tutez64/Dungeon-Rampage-Haxe).
 | `src/`            | Decompiled ActionScript                              |
 | `data/`           | Game resources (`Resources/` and `DbConfiguration/`) |
 | `extensions/`     | Steam ANE (`FRESteamWorks.ane`)                      |
-| `tools/`          | Synchronisation scripts                              |
+| `tools/`          | Sync scripts, SWF hash stamp, official BuildID       |
 | `application.xml` | AIR descriptor                                       |
 
 ## Requirements
@@ -48,7 +48,7 @@ powershell -File tools/sync-from-official.ps1
 ./tools/sync-from-official.sh
 ```
 
-This **replaces** `src/`, `data/Resources/`, `data/DbConfiguration/`, and `application.xml`. It decompiles `DungeonBustersProject.swf` with `paramNamesEnable=true`, copies assets and the AIR descriptor from the game install, and rebuilds `extensions/FRESteamWorks.ane` only if the unpacked payloads differ from the official native extension (every platform directory the game ships, plus the matching Steam API library next to each native binary). `src/_assets/assets.swf` is kept unless the official SWF hash changed (FFDec reserializes that file, so the hash of `DungeonBustersProject.swf` is the stable check). Leftover Git metadata from the official install (`.gitattributes` and [Git LFS](https://git-lfs.com) pointer files) is dropped.
+This **replaces** `src/`, `data/Resources/`, `data/DbConfiguration/`, and `application.xml`. It decompiles `DungeonBustersProject.swf` with `paramNamesEnable=true`, copies assets and the AIR descriptor from the game install, writes `tools/official.buildid` from the Steam appmanifest, and rebuilds `extensions/FRESteamWorks.ane` only if the unpacked payloads differ from the official native extension (every platform directory the game ships, plus the matching Steam API library next to each native binary). `src/_assets/assets.swf` is kept unless the official SWF hash changed (FFDec reserializes that file, so the hash of `DungeonBustersProject.swf` is the stable check). Leftover Git metadata from the official install (`.gitattributes` and [Git LFS](https://git-lfs.com) pointer files) is dropped.
 
 `data/` is a Flex source folder (not ActionScript). On compile, IntelliJ copies those files next to the SWF as `out/Resources/` and `out/DbConfiguration/`.
 

@@ -86,13 +86,13 @@ normalize_copied() {
   if [[ -f "$root" ]]; then
     chmod a-x "$root"
     case "$root" in
-      *.as|*.xml|*.json|*.txt|*.md|*.sha256) sed -i 's/\r$//' "$root" ;;
+      *.as|*.xml|*.json|*.txt|*.md|*.sha256|*.buildid) sed -i 's/\r$//' "$root" ;;
     esac
     return
   fi
   [[ -d "$root" ]] || return 0
   find "$root" -type f -exec chmod a-x {} +
-  find "$root" -type f \( -name '*.as' -o -name '*.xml' -o -name '*.json' -o -name '*.txt' -o -name '*.md' -o -name '*.sha256' \) \
+  find "$root" -type f \( -name '*.as' -o -name '*.xml' -o -name '*.json' -o -name '*.txt' -o -name '*.md' -o -name '*.sha256' -o -name '*.buildid' \) \
     -exec sed -i 's/\r$//' {} +
 }
 
@@ -341,6 +341,27 @@ build_ane() {
   pack_ane "$stage" "$ANE_OUT"
 }
 
+STEAM_APP_ID=3053950
+
+read_official_buildid() {
+  local game="$1"
+  local steamapps acf buildid
+  steamapps="$(cd "$game/../.." && pwd)"
+  acf="$steamapps/appmanifest_${STEAM_APP_ID}.acf"
+  [[ -f "$acf" ]] || die "Steam appmanifest not found: $acf"
+  buildid="$(sed -n 's/^[[:space:]]*"buildid"[[:space:]]*"\([0-9][0-9]*\)".*/\1/p' "$acf" | head -n 1)"
+  [[ -n "$buildid" ]] || die "no buildid in $acf"
+  printf '%s\n' "$buildid"
+}
+
+write_official_buildid() {
+  local buildid="$1"
+  local stamp="$ROOT/tools/official.buildid"
+  printf '%s\n' "$buildid" > "$stamp"
+  normalize_copied "$stamp"
+  echo "Official BuildID $buildid -> $stamp"
+}
+
 GAME="$(find_game_dir)"
 FFDEC_PATH="$(find_ffdec)"
 git lfs version >/dev/null 2>&1 || die "git lfs is required to detect leftover Git LFS pointer files from the official install."
@@ -360,6 +381,8 @@ copy_game_folder "$GAME/Resources" "$ROOT/data/Resources" "data/Resources"
 copy_game_folder "$GAME/DbConfiguration" "$ROOT/data/DbConfiguration" "data/DbConfiguration"
 install_application_xml "$GAME"
 build_ane "$GAME"
+
+write_official_buildid "$(read_official_buildid "$GAME")"
 
 echo "Done."
 echo "  src/, data/, and application.xml refreshed from the official game"

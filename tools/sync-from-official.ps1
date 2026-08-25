@@ -24,6 +24,7 @@ $SrcDir = Join-Path $Root "src"
 $AneOut = Join-Path $Root "extensions\FRESteamWorks.ane"
 $MimeType = "application/vnd.adobe.air-native-extension-package+zip"
 $ExtensionId = "com.amanitadesign.steam.FRESteamWorks"
+$SteamAppId = "3053950"
 
 # Steam redistributables live next to the official exe. Copy them into every
 # matching ANE platform directory that already exists in the official extension
@@ -37,7 +38,7 @@ $SteamLibToPlatform = @{
 
 function Convert-CopiedFiles {
     param([string]$Path)
-    $textExt = @('.as', '.xml', '.json', '.txt', '.md', '.sha256')
+    $textExt = @('.as', '.xml', '.json', '.txt', '.md', '.sha256', '.buildid')
     $utf8 = New-Object System.Text.UTF8Encoding $false
     $items = @()
     if (Test-Path -LiteralPath $Path -PathType Leaf) {
@@ -421,6 +422,29 @@ function Build-Ane {
     }
 }
 
+function Get-OfficialBuildId {
+    param([string]$Game)
+    $steamapps = Split-Path -Parent (Split-Path -Parent $Game)
+    $acf = Join-Path $steamapps "appmanifest_$SteamAppId.acf"
+    if (-not (Test-Path -LiteralPath $acf)) {
+        throw "Steam appmanifest not found: $acf"
+    }
+    $text = [System.IO.File]::ReadAllText($acf)
+    $match = [regex]::Match($text, '"buildid"\s+"(\d+)"')
+    if (-not $match.Success) {
+        throw "no buildid in $acf"
+    }
+    return $match.Groups[1].Value
+}
+
+function Write-OfficialBuildId {
+    param([string]$BuildId)
+    $stamp = Join-Path $Root "tools\official.buildid"
+    [System.IO.File]::WriteAllText($stamp, "$BuildId`n")
+    Convert-CopiedFiles -Path $stamp
+    Write-Host "Official BuildID $BuildId -> $stamp"
+}
+
 $game = Find-GameDir -Hint $GameDir
 $ffdec = Find-Ffdec -Hint $Ffdec
 git lfs version 2>$null | Out-Null
@@ -449,6 +473,7 @@ Copy-GameFolder -From (Join-Path $game "Resources") -To (Join-Path $dataDir "Res
 Copy-GameFolder -From (Join-Path $game "DbConfiguration") -To (Join-Path $dataDir "DbConfiguration") -Label "data/DbConfiguration"
 Install-ApplicationXml -Game $game
 Build-Ane -Game $game
+Write-OfficialBuildId -BuildId (Get-OfficialBuildId -Game $game)
 
 Write-Host "Done."
 Write-Host "  src/, data/, and application.xml refreshed from the official game"
