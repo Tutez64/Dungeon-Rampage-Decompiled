@@ -169,6 +169,8 @@ function Install-Src {
 
     # assets.swf is synthesized by FFDec (not a raw dump). Hash the official SWF
     # instead: if those bytes did not change, sprite tags did not change.
+    # FFDec writes _assets under the scripts export (copied into SrcDir below);
+    # some versions put it at the export root instead.
     $stampName = "assets.swf.source.sha256"
     $stampFile = Join-Path $Root "tools\$stampName"
     $assetsKeep = $null
@@ -193,18 +195,22 @@ function Install-Src {
     $keepAssets = $false
     if ($assetsKeep) {
         $keptSwf = Join-Path $assetsKeep "_assets\assets.swf"
-        if ((Test-Path -LiteralPath $keptSwf) -and (-not $oldStamp -or $oldStamp -eq $newStamp)) {
+        if ((Test-Path -LiteralPath $keptSwf) -and $oldStamp -and $oldStamp -eq $newStamp) {
             $keepAssets = $true
         }
     }
 
     $destAssets = Join-Path $SrcDir "_assets"
-    if (Test-Path -LiteralPath $destAssets) {
-        Remove-Item -LiteralPath $destAssets -Recurse -Force
-    }
+    $skipStamp = $false
     if ($keepAssets) {
+        if (Test-Path -LiteralPath $destAssets) {
+            Remove-Item -LiteralPath $destAssets -Recurse -Force
+        }
         Copy-Item -LiteralPath (Join-Path $assetsKeep "_assets") -Destination $destAssets -Recurse -Force
         Write-Host "Keeping src/_assets (official SWF hash unchanged)"
+    }
+    elseif (Test-Path -LiteralPath $destAssets) {
+        Write-Host "Updating src/_assets from FFDec (official SWF changed)"
     }
     else {
         $assetsSrc = Join-Path $ExportDir "_assets"
@@ -214,13 +220,15 @@ function Install-Src {
         }
         elseif ($assetsKeep) {
             Copy-Item -LiteralPath (Join-Path $assetsKeep "_assets") -Destination $destAssets -Recurse -Force
+            Write-Warning "FFDec did not export _assets, keeping previous copy"
+            $skipStamp = $true
         }
     }
     if ($assetsKeep) {
         Remove-Item -LiteralPath $assetsKeep -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    if (Test-Path -LiteralPath $destAssets) {
+    if (-not $skipStamp -and (Test-Path -LiteralPath $destAssets)) {
         $utf8 = New-Object System.Text.UTF8Encoding $false
         [System.IO.File]::WriteAllText($stampFile, ($newStamp + "`n"), $utf8)
         Convert-CopiedFiles -Path $stampFile

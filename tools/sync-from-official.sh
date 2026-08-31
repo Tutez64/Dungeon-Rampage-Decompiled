@@ -182,6 +182,8 @@ install_src() {
 
   # assets.swf is synthesized by FFDec (not a raw dump). Hash the official SWF
   # instead: if those bytes did not change, sprite tags did not change.
+  # FFDec writes _assets under the scripts export (copied into SRC_DIR below);
+  # some versions put it at the export root instead.
   local stamp_name="assets.swf.source.sha256"
   local stamp_file="$ROOT/tools/$stamp_name"
   local assets_keep=""
@@ -201,25 +203,28 @@ install_src() {
   cp -a "$scripts"/. "$SRC_DIR"/
 
   local keep_assets=0
-  if [[ -n "$assets_keep" && -f "$assets_keep/_assets/assets.swf" ]]; then
-    if [[ -z "$old_stamp" || "$old_stamp" == "$new_stamp" ]]; then
-      keep_assets=1
-    fi
+  if [[ -n "$assets_keep" && -f "$assets_keep/_assets/assets.swf" && -n "$old_stamp" && "$old_stamp" == "$new_stamp" ]]; then
+    keep_assets=1
   fi
 
-  rm -rf "$SRC_DIR/_assets"
+  local skip_stamp=0
   if [[ "$keep_assets" -eq 1 ]]; then
+    rm -rf "$SRC_DIR/_assets"
     cp -a "$assets_keep/_assets" "$SRC_DIR/_assets"
     echo "Keeping src/_assets (official SWF hash unchanged)"
+  elif [[ -d "$SRC_DIR/_assets" ]]; then
+    echo "Updating src/_assets from FFDec (official SWF changed)"
   elif [[ -d "$export_dir/_assets" ]]; then
     cp -a "$export_dir/_assets" "$SRC_DIR/_assets"
     echo "Updating src/_assets from FFDec (official SWF changed)"
   elif [[ -n "$assets_keep" ]]; then
     cp -a "$assets_keep/_assets" "$SRC_DIR/_assets"
+    echo "warning: FFDec did not export _assets, keeping previous copy" >&2
+    skip_stamp=1
   fi
   [[ -n "$assets_keep" ]] && rm -rf "$assets_keep"
 
-  if [[ -d "$SRC_DIR/_assets" ]]; then
+  if [[ "$skip_stamp" -eq 0 && -d "$SRC_DIR/_assets" ]]; then
     printf '%s\n' "$new_stamp" > "$stamp_file"
     normalize_copied "$stamp_file"
   fi
