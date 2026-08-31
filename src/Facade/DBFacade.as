@@ -430,7 +430,7 @@ package Facade
          mFacebookApplication = mDBConfigManager.getConfigString("FacebookApplication","");
          Logger.info("building engines 6");
          this.validationToken = mDBConfigManager.getConfigString("API_ValidationToken","");
-         Logger.info("building engines 7" + mValidationToken);
+         Logger.info("building engines 7");
          if(mValidationToken == "")
          {
             Logger.error("ValidationToken is empty.  Cannot continue without a valid ValidationToken.");

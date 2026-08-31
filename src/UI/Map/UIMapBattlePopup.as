@@ -21,6 +21,7 @@ package UI.Map
    import com.greensock.TweenMax;
    import flash.display.MovieClip;
    import flash.events.KeyboardEvent;
+   import flash.filters.GlowFilter;
    import flash.geom.Point;
    
    public class UIMapBattlePopup extends DBUIPopup
@@ -31,6 +32,8 @@ package UI.Map
       protected static const POPUP_CLASS_NAME:String = "battle_popup";
       
       protected static const POPUP_CLASS_NAME_CONSUMABLES:String = "battle_popup_consumables";
+      
+      private static var sPersistedPrivateToggle:Boolean = false;
       
       private static const DELAY_AMOUNT_FOR_TRANSITIONING_BACK_TO_MAP_MENU_FROM_TAVERN:uint = 0;
       
@@ -62,7 +65,7 @@ package UI.Map
       
       private var mPrivateButton:UIButton;
       
-      public var IsPrivate:Boolean = false;
+      public var IsPrivate:Boolean = sPersistedPrivateToggle;
       
       private var mTeamBonusUI:UIObject;
       
@@ -93,6 +96,7 @@ package UI.Map
       private function togglePrivate() : void
       {
          IsPrivate = !IsPrivate;
+         sPersistedPrivateToggle = IsPrivate;
          mPrivateButton.selected = IsPrivate;
       }
       
@@ -285,39 +289,45 @@ package UI.Map
       
       public function setDungeonDetails() : void
       {
-         var _loc2_:GMColiseumTier = null;
-         var _loc1_:String = null;
+         var _loc4_:GMColiseumTier = null;
+         var _loc2_:String = null;
          if(mCurrentDungeon == null || mPopup == null)
          {
             return;
          }
          if(mDBFacade && mDBFacade.gameMaster && mDBFacade.gameMaster.coliseumTierByConstant)
          {
-            _loc2_ = mDBFacade.gameMaster.coliseumTierByConstant.itemFor(mCurrentDungeon.TierRank);
+            _loc4_ = mDBFacade.gameMaster.coliseumTierByConstant.itemFor(mCurrentDungeon.TierRank);
          }
-         if(_loc2_ && mPopup.dungeonXp_label)
+         if(_loc4_ && mPopup.dungeonXp_label)
          {
             mPopup.dungeonXp_label.text = mCurrentDungeon.CompletionXPBonus.toString() + Locale.getString("WORLD_MAP_BONUS_XP");
          }
          mPopup.button_battle.battle_text.battle_text.text = Locale.getString("WORLD_MAP_UNLOCK");
          setTitle(GameMasterLocale.getGameMasterSubString("DUNGEON_NAME",mCurrentDungeon.Constant).toUpperCase());
-         if(_loc2_.TotalFloors > 0 && mCurrentDungeon.NodeType != "BOSS")
+         if(_loc4_.TotalFloors > 0 && mCurrentDungeon.NodeType != "BOSS")
          {
-            _loc1_ = _loc2_.TotalFloors > 1 ? Locale.getString("FLOORS").toUpperCase() : Locale.getString("FLOOR").toUpperCase();
-            if(_loc2_.TotalFloors >= 50)
+            _loc2_ = _loc4_.TotalFloors > 1 ? Locale.getString("FLOORS").toUpperCase() : Locale.getString("FLOOR").toUpperCase();
+            if(_loc4_.TotalFloors >= 50)
             {
-               setDifficulty("INFINITE " + _loc1_);
+               setDifficulty("INFINITE " + _loc2_);
             }
             else
             {
-               setDifficulty(_loc2_.TotalFloors.toString() + " " + _loc1_);
+               setDifficulty(_loc4_.TotalFloors.toString() + " " + _loc2_);
             }
          }
          else
          {
             setDifficulty(GameMasterLocale.getGameMasterSubString("DUNGEON_DIFFICULTY_NAME",mCurrentDungeon.Constant));
          }
-         mPopup.activity_label.text = mDBFacade.playerActivityCount.getActivityString(mCurrentDungeon.Id);
+         var _loc1_:String = mDBFacade.playerActivityCount.getActivityString(mCurrentDungeon.Id);
+         mPopup.activity_label.text = _loc1_;
+         var _loc3_:GlowFilter = mDBFacade.playerActivityCount.getPopulationGlow(_loc1_);
+         if(_loc3_)
+         {
+            mPopup.activity_label.filters = [_loc3_];
+         }
       }
       
       public function get keyCostClip() : MovieClip

@@ -58,6 +58,8 @@ package Combat.Weapon
       
       protected var mTutorialMessageSent:Boolean = false;
       
+      protected var mWeaponModifierManaReduction:Number = 1;
+      
       public function ScalingWeaponController(dbFacade:DBFacade, controlledWeapon:WeaponGameObject, hero:HeroGameObjectOwner)
       {
          super(dbFacade,controlledWeapon,hero);
@@ -88,8 +90,15 @@ package Combat.Weapon
          mDistanceScalingForHeroMax = mWeapon.weaponData.ScalingHeroMaxDistance;
          mDistanceScalingForProjectilesMin = mWeapon.weaponData.ScalingProjectileMinDistance;
          mDistanceScalingForProjectilesMax = mWeapon.weaponData.ScalingProjectileMaxDistance;
-         var _loc1_:String = mWeapon.weaponData.ChargeAttack;
-         mChargeReleaseGMAttack = mDBFacade.gameMaster.attackByConstant.itemFor(_loc1_);
+         var _loc2_:String = mWeapon.weaponData.ChargeAttack;
+         mChargeReleaseGMAttack = mDBFacade.gameMaster.attackByConstant.itemFor(_loc2_);
+         for each(var _loc1_:GMModifier in mWeapon.modifierList)
+         {
+            if(_loc1_.MODIFIER_TYPE == "MANA_COST")
+            {
+               mWeaponModifierManaReduction = _loc1_.MP_COST;
+            }
+         }
          setTotalTime();
       }
       
@@ -123,7 +132,7 @@ package Combat.Weapon
             mScalingLogicalWorkComponent.clear();
             if(mTotalTime > 0)
             {
-               if(mChargeReleaseGMAttack && mChargeReleaseGMAttack.ManaCost > mHero.manaPoints)
+               if(mChargeReleaseGMAttack && mChargeReleaseGMAttack.ManaCost * mWeaponModifierManaReduction > mHero.manaPoints)
                {
                   if(mNotEnoughManaTask == null)
                   {

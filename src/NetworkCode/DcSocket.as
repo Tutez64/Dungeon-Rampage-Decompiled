@@ -64,7 +64,7 @@ package NetworkCode
       
       public function DcSocket(facade:DBFacade, host:String, port:int, validationToken:String, demographics:String, accountid:uint)
       {
-         Logger.debug("Creating new Socket " + host + " " + port + " " + validationToken + " " + accountid);
+         Logger.debug("Creating new Socket " + host + " " + port + " " + accountid);
          super();
          mValidationToken = validationToken;
          mDemographics = demographics;

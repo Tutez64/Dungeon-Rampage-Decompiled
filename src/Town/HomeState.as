@@ -44,7 +44,6 @@ package Town
    import flash.net.URLRequest;
    import flash.net.navigateToURL;
    import org.as3commons.collections.Set;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class HomeState extends TownSubState
    {
@@ -979,17 +978,8 @@ package Town
       
       private function get trainingNeedsAttention() : Boolean
       {
-         var _loc1_:AvatarInfo = null;
-         var _loc2_:IMapIterator = mDBFacade.dbAccountInfo.inventoryInfo.avatars.iterator() as IMapIterator;
-         while(_loc2_.hasNext())
-         {
-            _loc1_ = _loc2_.next();
-            if(_loc1_.skillPointsAvailable > 0)
-            {
-               return true;
-            }
-         }
-         return false;
+         var _loc1_:AvatarInfo = mDBFacade.dbAccountInfo.activeAvatarInfo;
+         return _loc1_ != null && _loc1_.skillPointsAvailable > 0;
       }
       
       private function get inventoryNeedsAttention() : Boolean

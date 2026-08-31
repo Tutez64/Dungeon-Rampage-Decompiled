@@ -81,7 +81,7 @@ package Combat.Weapon
       {
          var attackId:uint;
          var gmAttack:GMAttack;
-         if(canCombo() && (mChargeAttack == null || mChargeAttack.ManaCost <= mHero.manaPoints))
+         if(canCombo() && (mChargeAttack == null || mChargeAttack.ManaCost * mWeaponModifierManaReduction <= mHero.manaPoints))
          {
             if(mChargeReleaseGMAttack && (mLastComboReached || mRepeatChargeAttackOnly))
             {
@@ -107,7 +107,7 @@ package Combat.Weapon
                   mMaxSpeedReached = true;
                }
             }
-            if(gmAttack.ManaCost > mHero.manaPoints)
+            if(gmAttack.ManaCost * mWeaponModifierManaReduction > mHero.manaPoints)
             {
                if(mNotEnoughManaTask == null)
                {

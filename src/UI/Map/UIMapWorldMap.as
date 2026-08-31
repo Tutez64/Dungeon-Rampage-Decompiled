@@ -37,6 +37,7 @@ package UI.Map
    import flash.events.KeyboardEvent;
    import flash.events.MouseEvent;
    import flash.events.TimerEvent;
+   import flash.filters.GlowFilter;
    import flash.geom.Point;
    import flash.geom.Rectangle;
    import flash.utils.Timer;
@@ -1726,6 +1727,7 @@ package UI.Map
                   }
                }
                mCurrentNode = _loc5_;
+               setPopulationGlowState(_loc2_,_loc5_);
                if(_loc2_)
                {
                   if(_loc2_.text_popup && _loc2_.text_popup.title_label && _loc2_.text_popup.description_label)
@@ -1808,6 +1810,20 @@ package UI.Map
                }
             }
             _loc6_++;
+         }
+      }
+      
+      private function setPopulationGlowState(node:MovieClip, mMapNode:GMMapNode) : void
+      {
+         if(!node || !mMapNode)
+         {
+            return;
+         }
+         var _loc4_:String = mDBFacade.playerActivityCount.publicDungeonActivityLevel[mMapNode.Id] as String;
+         var _loc3_:GlowFilter = mDBFacade.playerActivityCount.getPopulationGlow(_loc4_);
+         if(_loc3_)
+         {
+            node.filters = [_loc3_];
          }
       }
       

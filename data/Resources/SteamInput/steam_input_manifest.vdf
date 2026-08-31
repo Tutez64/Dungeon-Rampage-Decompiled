@@ -1,0 +1,26 @@
+"Action Manifest"
+{
+	"configurations"
+	{
+		"controller_xboxone"
+		{
+			"0"
+			{
+				"path" "dungeon_rampage_controller_xboxone.vdf"
+			}
+		}
+        "controller_ps5"
+        {
+            "0"
+            {
+                "path" "dungeon_rampage_controller_ps5.vdf"
+            }
+        }
+	}
+	"actions"
+	{
+	}
+	"localization"
+	{
+	}
+}
