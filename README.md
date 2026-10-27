@@ -56,9 +56,9 @@ GreenSock's `TimelineLite.goto` must be renamed (current upstream calls it `seek
 
 Open the project in IntelliJ and run the **DungeonRampageDecompiled** Flash configuration.
 
-That ADL loop is the full check (your descriptor, your ANE, the SDK runtime). On Linux it needs the commercial HARMAN license.
+That ADL loop is the only check (your descriptor, your ANE, the SDK runtime). On Linux it needs the commercial HARMAN license, so use a Windows or macOS machine, a VM included.
 
-A coarser check is to copy `out/DungeonBustersProject.swf` over the official `DungeonBustersProject.swf` in the Steam install and launch the game from Steam as usual. On Linux, Proton can run that Windows install. It is enough to see whether the recompiled SWF actually plays.
+The Steam install cannot run a recompiled SWF: since the game ships with the AIR 51 captive runtime, its license is bound to the official files, and a replaced `DungeonBustersProject.swf` stops at "Security warning - invalid license".
 
 ### Debugging
 
