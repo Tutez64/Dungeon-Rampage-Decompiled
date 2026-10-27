@@ -63,10 +63,8 @@ package DistributedObjects
       
       public function ClientInformPartyComposition(partyMembers:Vector.<GameServerPartyMember>) : void
       {
-         trace("ClientInformPartyComposition");
          for each(var _loc2_:GameServerPartyMember in partyMembers)
          {
-            trace("Member Id:" + _loc2_.id + " Status:" + _loc2_.status);
          }
       }
       

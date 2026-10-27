@@ -238,69 +238,56 @@ package UI.FriendManager.States
       
       private function sendGifts(offerName:String, offerId:uint) : void
       {
-         trace("sendGifts");
          if(mDBFacade.isFacebookPlayer)
          {
-            trace("  isFacebookPlayer");
             fbGiftFlow(offerName,offerId);
          }
          else if(mDBFacade.isDRPlayer)
          {
-            trace("  isDRPlayer");
             if(mDBFacade.facebookController.accessToken)
             {
                fbGiftFlow(offerName,offerId);
-               trace("    fbGiftFlow");
             }
             else
             {
                drGiftFlow(offerName,offerId);
-               trace("    drGiftFlow");
             }
          }
          else if(mDBFacade.isKongregatePlayer)
          {
-            trace("  isKongregatePlayer");
             kongGiftFlow(offerName,offerId);
          }
          else
          {
-            trace("  isNotPlayer");
             Logger.warn("What kind of player are you??? ");
          }
       }
       
       private function fbGiftFlow(offerName:String, offerId:uint) : void
       {
-         trace("fbGiftFlow");
          var _loc3_:Array = [];
          var _loc4_:Array = [];
          for each(var _loc5_:uint in mFriendPopulater.getSelectedToggles())
          {
-            if(mDBFacade.dbAccountInfo.giftExcludeIds.indexOf(mListOfFriends[_loc5_].excludeId) >= 0)
+            if(mDBFacade.dbAccountInfo.giftExcludeIds.indexOf(mListOfFriends[_loc5_].excludeId) < 0)
             {
-               trace("  giftExcludeIds");
-            }
-            else if(mListOfFriends[_loc5_].isDRFriend)
-            {
-               _loc4_.push(_loc5_);
-               trace("  isDRFriend");
-            }
-            else
-            {
-               _loc3_.push(_loc5_);
-               trace("  isFBFriend");
+               if(mListOfFriends[_loc5_].isDRFriend)
+               {
+                  _loc4_.push(_loc5_);
+               }
+               else
+               {
+                  _loc3_.push(_loc5_);
+               }
             }
          }
          if(_loc3_.length > 0)
          {
             sendFacebookGift(offerName,offerId,_loc3_);
-            trace("  sendFacebookGift");
          }
          if(_loc4_.length > 0)
          {
             sendDRComGift(offerName,offerId,_loc4_);
-            trace("  sendDRGift");
          }
       }
       

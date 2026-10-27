@@ -130,10 +130,6 @@ package Facade
                   loadNPCSpriteSheet(_loc3_,dbFacade,_loc6_);
                }
             }
-            else
-            {
-               trace(" No Npc Found For ",_loc7_);
-            }
             _loc5_++;
          }
       }

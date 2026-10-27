@@ -131,7 +131,6 @@ package Brain.Logger
       public static function log(logString:String) : void
       {
          logString = "" + logString;
-         trace(logString);
          if(mWantConsole)
          {
             Cc.log(logString);
@@ -145,7 +144,6 @@ package Brain.Logger
             return;
          }
          logString = "[DEBUG] " + getDateString() + logString;
-         trace(logString);
          if(mWantConsole)
          {
             Cc.debug(logString);
@@ -159,7 +157,6 @@ package Brain.Logger
             return;
          }
          logString = "[DEBUG] " + getDateString() + logString;
-         trace(logString);
          if(mWantConsole)
          {
             Cc.debugch(channel,logString);
@@ -173,7 +170,6 @@ package Brain.Logger
             return;
          }
          logString = "[INFO]  " + getDateString() + logString;
-         trace(logString);
          if(mWantConsole)
          {
             Cc.info(logString);
@@ -187,7 +183,6 @@ package Brain.Logger
             return;
          }
          logString = "[INFO] " + getDateString() + logString;
-         trace(logString);
          if(mWantConsole)
          {
             Cc.infoch(channel,logString);
@@ -201,7 +196,6 @@ package Brain.Logger
             return;
          }
          logString = "[WARN]  " + getDateString() + logString;
-         trace(logString);
          if(mWantConsole)
          {
             Cc.warn(logString);
@@ -215,7 +209,6 @@ package Brain.Logger
             return;
          }
          logString = "[WARN] " + getDateString() + logString;
-         trace(logString);
          if(mWantConsole)
          {
             Cc.warnch(channel,logString);
@@ -229,7 +222,6 @@ package Brain.Logger
          var _loc3_:String = _loc4_ ? logString + "\n" + _loc4_ : logString;
          tryErrorCallback(_loc3_);
          logString = "[ERROR] " + getDateString() + _loc3_;
-         trace(logString);
          if(mWantConsole)
          {
             Cc.error(logString);
@@ -259,7 +251,6 @@ package Brain.Logger
          var _loc4_:String = _loc5_.hasOwnProperty("getStackTrace") ? _loc5_.getStackTrace() : null;
          logString = "[FATAL] " + getDateString() + logString;
          var _loc3_:String = logString + "\n" + _loc4_;
-         trace(_loc3_);
          if(mWantConsole)
          {
             displayConsole();
@@ -288,7 +279,6 @@ package Brain.Logger
             return;
          }
          logString = "[" + customLoggerString + "]  " + getDateString() + logString;
-         trace(logString);
          if(mWantConsole)
          {
             Cc.warn(logString);

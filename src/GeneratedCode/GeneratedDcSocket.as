@@ -63,9 +63,6 @@ package GeneratedCode
                break;
             case 1:
                Doid_NetInterfaces[String(do_id)] = PlayerGameObjectOwnerNetworkComponent.ownerFactory(game_packet,this,do_id);
-               break;
-            default:
-               trace("Received generate for object of unknown Class ID " + classid);
          }
       }
       
@@ -108,9 +105,6 @@ package GeneratedCode
                break;
             case 15:
                Doid_NetInterfaces[String(do_id)] = MatchMakerNetworkComponent.netFactory(game_packet,this,do_id);
-               break;
-            default:
-               trace("Received generate for object of unknown Class ID " + classid);
          }
       }
    }

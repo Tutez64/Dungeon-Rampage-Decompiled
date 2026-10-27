@@ -36,8 +36,8 @@ package Dungeon
       
       public static function parseFromTileJson(propJsonObj:Object, tile:Tile, dbFacade:DBFacade) : Prop
       {
-         var _loc6_:Number = tile.position.x + (propJsonObj.x != null ? propJsonObj.x : 0);
-         var _loc7_:Number = tile.position.y + (propJsonObj.y != null ? propJsonObj.y : 0);
+         var _loc6_:Number = tile.position.x + (propJsonObj.x ?? 0);
+         var _loc7_:Number = tile.position.y + (propJsonObj.y ?? 0);
          var _loc8_:Vector3D = new Vector3D(_loc6_,_loc7_);
          var _loc5_:Prop = new Prop(dbFacade);
          _loc5_.tile = tile;
@@ -59,7 +59,7 @@ package Dungeon
          {
             _loc5_.view.root.rotation = propJsonObj.rotation;
          }
-         var _loc9_:String = propJsonObj.layer != null ? propJsonObj.layer : "sorted";
+         var _loc9_:String = propJsonObj.layer ?? "sorted";
          _loc5_.layer = SceneGraphManager.getLayerFromName(_loc9_);
          return _loc5_;
       }

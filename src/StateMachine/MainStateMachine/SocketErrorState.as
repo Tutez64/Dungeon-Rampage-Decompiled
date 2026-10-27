@@ -12,6 +12,8 @@ package StateMachine.MainStateMachine
       
       public static const NAME:String = "SocketErrorState";
       
+      public static const MAINTENANCE_CODE:uint = 1504;
+      
       private var mDBFacade:DBFacade;
       
       public function SocketErrorState(dbFacade:DBFacade, finishedCallback:Function = null)
@@ -50,6 +52,10 @@ package StateMachine.MainStateMachine
          else if(errorCode == 61)
          {
             _loc3_ = new DBUIOneButtonPopup(mDBFacade,Locale.getString("SOCKET_CLOSE_61_HEADER"),Locale.getString("SOCKET_CLOSE_61_TEXT"),Locale.getString("EXIT"),errorDialogResponce,false);
+         }
+         else if(errorCode == 1504)
+         {
+            _loc3_ = new DBUIOneButtonPopup(mDBFacade,Locale.getString("SOCKET_CLOSE_61_HEADER"),errorText,Locale.getString("EXIT"),errorDialogResponce,false);
          }
          else
          {

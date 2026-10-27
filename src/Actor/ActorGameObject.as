@@ -559,10 +559,6 @@ package Actor
                this.actorView.receiveDamage(combatResult,_loc2_);
                receiveDamage(combatResult);
             }
-            else
-            {
-               trace("TODO: Implement blocked view things and such!   BLOCKED!!!!!");
-            }
          }
       }
       

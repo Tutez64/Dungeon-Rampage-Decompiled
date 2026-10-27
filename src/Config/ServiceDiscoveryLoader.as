@@ -29,6 +29,12 @@ package Config
          mLoader.load(new URLRequest(mUrl));
       }
       
+      public static function maintenanceMessage(result:Object) : String
+      {
+         var _loc2_:String = result ? result.maintenanceMessage as String : null;
+         return _loc2_ && /\S/.test(_loc2_) ? _loc2_ : null;
+      }
+      
       private function onResponseStatus(event:HTTPStatusEvent) : void
       {
          mHttpStatus = event.status;
@@ -42,40 +48,54 @@ package Config
          if(mHttpStatus < 100 || mHttpStatus >= 400)
          {
             Logger.warn("Service discovery returned HTTP " + mHttpStatus + " from " + mUrl);
-            cleanup();
-            mOnComplete(null,1500,mHttpStatus.toString());
+            complete(null,1500,mHttpStatus.toString());
             return;
          }
+         var _loc4_:Boolean = false;
          try
          {
             _loc3_ = JSON.parse(_loc2_);
-            if(_loc3_ && _loc3_.webServicesUrl && _loc3_.gameSocketAddress && _loc3_.gameSocketPort)
-            {
-               Logger.info("Service discovery resolved from " + mUrl);
-               cleanup();
-               mOnComplete(_loc3_,0,"");
-               return;
-            }
+            _loc4_ = _loc3_ && _loc3_.webServicesUrl && _loc3_.gameSocketAddress && _loc3_.gameSocketPort;
          }
          catch(e:Error)
          {
             Logger.fatal("Service discovery returned unparseable response from " + mUrl + ": " + e.message);
-            cleanup();
+            complete(null,1503,"Invalid service discovery JSON: " + e.message);
+            return;
+         }
+         if(_loc4_)
+         {
+            Logger.info("Service discovery resolved from " + mUrl);
+            complete(_loc3_,0,"");
             return;
          }
          Logger.fatal("Service discovery response missing required fields from " + mUrl + ": " + _loc2_);
-         cleanup();
+         complete(null,1503,"Service discovery response missing required fields");
       }
       
       private function onError(event:Event) : void
       {
          Logger.warn("Service discovery request failed (HTTP " + mHttpStatus + ") from " + mUrl);
+         complete(null,1503,"");
+      }
+      
+      private function complete(result:Object, errorCode:int, diagnostic:String) : void
+      {
+         var _loc4_:Function = mOnComplete;
+         mOnComplete = null;
          cleanup();
-         mOnComplete(null,1503,"");
+         if(_loc4_ != null)
+         {
+            _loc4_(result,errorCode,diagnostic);
+         }
       }
       
       private function cleanup() : void
       {
+         if(mLoader == null)
+         {
+            return;
+         }
          mLoader.removeEventListener("httpResponseStatus",onResponseStatus);
          mLoader.removeEventListener("complete",onCompleted);
          mLoader.removeEventListener("ioError",onError);

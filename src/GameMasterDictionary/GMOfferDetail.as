@@ -51,7 +51,7 @@ package GameMasterDictionary
          OfferId = jsonAsset.OfferId;
          WeaponId = jsonAsset.WeaponId;
          WeaponPower = jsonAsset.WeaponPower;
-         Level = jsonAsset.Level != null ? jsonAsset.Level : 0;
+         Level = jsonAsset.Level ?? 0;
          Rarity = jsonAsset.Rarity;
          Modifier1 = jsonAsset.Modifier1;
          Modifier2 = jsonAsset.Modifier2;

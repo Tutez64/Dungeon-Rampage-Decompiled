@@ -287,11 +287,7 @@ package GameMasterDictionary
          while(_loc3_ < DBGlobal.StatNames.length)
          {
             _loc2_ = statByConstant.itemFor(DBGlobal.StatNames[_loc3_]);
-            if(_loc2_ == null)
-            {
-               trace("Error Finding State By name ",DBGlobal.StatNames[_loc3_]);
-            }
-            else
+            if(_loc2_ != null)
             {
                stat_BonusMultiplier.values[_loc3_] = _loc2_.Bonus;
                stat_MaxCap.values[_loc3_] = _loc2_.MaxCap;

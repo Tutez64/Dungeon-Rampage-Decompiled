@@ -32,7 +32,7 @@ package Brain.Utils
       
       public static const WANT_STEAM_ACHIEVEMENTS:String = "want-steam-achievements";
       
-      public static const USE_FALLBACK_SOCKET_PORT:String = "use-fallback-socket-port";
+      public static const EXPERIMENTAL_WEBSOCKET_RECONNECTS:String = "experimental-websocket-reconnects";
       
       private var mFeatureFlags:Dictionary;
       
@@ -53,8 +53,8 @@ package Brain.Utils
          addFeatureFlag("want-numbered-hud",false);
          addFeatureFlag("want-hud-refresh-on-floor-transition",false);
          addFeatureFlag("experimental-use-steam-input",false);
+         addFeatureFlag("experimental-websocket-reconnects",false);
          addFeatureFlag("want-steam-achievements",false);
-         addFeatureFlag("use-fallback-socket-port",false);
       }
       
       private function addFeatureFlag(name:String, defaultValue:Boolean, commandLineFlag:String = null, configFileAttributeName:String = null) : void
@@ -70,6 +70,11 @@ package Brain.Utils
       public function setFlagDatabaseValueOnFirstLoad(flagName:String, value:Boolean) : void
       {
          mFeatureFlags[flagName].setDbValue(value);
+      }
+      
+      public function setFlagConfigFileValue(flagName:String, value:Boolean) : void
+      {
+         mFeatureFlags[flagName].setConfigFileValue(value);
       }
       
       public function setFlagOverrideValue(flagName:String, value:Boolean) : void

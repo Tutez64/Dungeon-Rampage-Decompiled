@@ -74,7 +74,7 @@ package org.as3commons.collections.framework.core
             this._current = null;
             return undefined;
          }
-         this._next = this._next == null ? this._collection.lastNode_internal : this._next.left;
+         this._next = this._next?.left;
          this._current = this._next;
          return this._current.item;
       }

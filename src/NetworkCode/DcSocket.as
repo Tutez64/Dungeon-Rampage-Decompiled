@@ -6,15 +6,25 @@ package NetworkCode
    import Brain.WorkLoop.LogicalWorkComponent;
    import Facade.DBFacade;
    import GeneratedCode.*;
+   import NetworkCode.Transport.ConnectDiagnostics;
+   import NetworkCode.Transport.GameEndpoints;
+   import NetworkCode.Transport.GameTransportEvent;
+   import NetworkCode.Transport.IGameTransport;
+   import NetworkCode.Transport.SessionCredential;
+   import NetworkCode.Transport.TransportCandidate;
+   import NetworkCode.Transport.TransportFailureText;
+   import NetworkCode.Transport.TransportSelector;
+   import NetworkCode.Transport.TransportSettings;
    import flash.errors.*;
    import flash.events.*;
-   import flash.net.Socket;
    import flash.utils.ByteArray;
+   import flash.utils.getTimer;
+   import flash.utils.setTimeout;
    
-   public class DcSocket extends Socket
+   public class DcSocket
    {
       
-      private static const PING_INTERVAL:Number = 10;
+      private static const RETRY_PASS_DELAY_MS:int = 1500;
       
       private var input_double_buffer:DcNetworkPacket;
       
@@ -60,25 +70,46 @@ package NetworkCode
       
       private var mDisconnectCode:int = 0;
       
-      private var mDisconnecttext:String = "NotSet";
+      private var mDisconnecttext:String;
+      
+      private var mEndpoints:GameEndpoints;
+      
+      private var mSelector:TransportSelector;
+      
+      private var mTransport:IGameTransport;
+      
+      private var mCandidateIndex:int = -1;
+      
+      private var mHasConnected:Boolean = false;
+      
+      private var mFailureReported:Boolean = false;
+      
+      private var mAttemptStartedAt:int = 0;
+      
+      private var mAttempts:Array = [];
+      
+      private var mDiagnosticsLogged:Boolean = false;
+      
+      private var mReconnecting:Boolean = false;
+      
+      private var mRetriedPass:Boolean = false;
       
       public function DcSocket(facade:DBFacade, host:String, port:int, validationToken:String, demographics:String, accountid:uint)
       {
-         Logger.debug("Creating new Socket " + host + " " + port + " " + accountid);
          super();
+         mDisconnectCode = 0;
+         mDisconnecttext = "NotSet";
+         Logger.debugch("WS","Creating new Socket " + host + " " + port + " " + accountid);
          mValidationToken = validationToken;
          mDemographics = demographics;
          mAccountid = accountid;
-         this.endian = "littleEndian";
          input_double_buffer = new DcNetworkPacket();
          mDBFacade = facade;
          Doid_NetInterfaces = {};
          mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"DcSocket");
-         configureListeners();
-         Logger.debug("Starting Conection ");
+         mEndpoints = new GameEndpoints(host,port);
          mDBFacade.metrics.log("DcSocketCreate");
          mDBFacade.loadingBarTick();
-         this.connect(host,port);
       }
       
       private static function fromArray(array:ByteArray, colons:Boolean = false) : String
@@ -106,6 +137,33 @@ package NetworkCode
          return y.creationOrder - x.creationOrder;
       }
       
+      public function beginConnect(endpoints:GameEndpoints, experimentalWebSocketReconnects:Boolean) : void
+      {
+         if(endpoints != null)
+         {
+            mEndpoints = endpoints;
+         }
+         mSelector = new TransportSelector(mEndpoints,experimentalWebSocketReconnects,currentCredential);
+         mFailureReported = false;
+         mCandidateIndex = -1;
+         mHasConnected = false;
+         mAttempts = [];
+         mDiagnosticsLogged = false;
+         mRetriedPass = false;
+         Logger.infoch("WS","DcSocket connecting, candidates: " + mSelector.describe());
+         tryNextCandidate();
+      }
+      
+      private function currentCredential() : SessionCredential
+      {
+         var _loc1_:String = mValidationToken;
+         if(mDBFacade != null && mDBFacade.validationToken != null && mDBFacade.validationToken != "")
+         {
+            _loc1_ = mDBFacade.validationToken;
+         }
+         return new SessionCredential(String(mAccountid),_loc1_,mDBFacade?.initialLoginTraceId);
+      }
+      
       public function pass2Init(networkid:uint, noderules:uint) : void
       {
          mNetworkID = networkid;
@@ -117,46 +175,199 @@ package NetworkCode
          return mDBFacade;
       }
       
+      public function get connected() : Boolean
+      {
+         return mTransport != null && mTransport.connected;
+      }
+      
+      public function get transport() : IGameTransport
+      {
+         return mTransport;
+      }
+      
+      private function tryNextCandidateIfAny() : Boolean
+      {
+         if(!mHasConnected && mCandidateIndex + 1 < mSelector.count)
+         {
+            tryNextCandidate();
+            return true;
+         }
+         return false;
+      }
+      
+      private function retryPassIfStalled() : Boolean
+      {
+         if(mHasConnected || mRetriedPass || !ConnectDiagnostics.looksLikeStall(mAttempts))
+         {
+            return false;
+         }
+         mRetriedPass = true;
+         mCandidateIndex = -1;
+         setTimeout(retryPass,1500);
+         return true;
+      }
+      
+      private function retryPass() : void
+      {
+         if(mDBFacade == null)
+         {
+            return;
+         }
+         tryNextCandidate();
+      }
+      
+      private function tryNextCandidate() : void
+      {
+         detachTransport(true);
+         mCandidateIndex = mCandidateIndex + 1;
+         var _loc1_:TransportCandidate = mSelector.candidateAt(mCandidateIndex);
+         if(_loc1_ == null)
+         {
+            reportFailure(602,"No usable WorldServer endpoint: " + mEndpoints);
+            return;
+         }
+         logTransport("attempt",_loc1_.name,null);
+         mTransport = mSelector.createTransport(mCandidateIndex);
+         configureListeners();
+         mAttemptStartedAt = getTimer();
+         mTransport.connect();
+      }
+      
+      private function attemptElapsedMs() : int
+      {
+         return getTimer() - mAttemptStartedAt;
+      }
+      
+      private function recordAttempt(elapsedMs:int, code:int, text:String, cert:String, certDetail:String, closed:Boolean) : void
+      {
+         mAttempts.push({
+            "name":transportName(),
+            "elapsedMs":elapsedMs,
+            "code":code,
+            "text":text,
+            "cert":cert,
+            "certDetail":certDetail,
+            "closed":closed
+         });
+      }
+      
+      private function logConnectFailureDiagnostics() : void
+      {
+         if(mHasConnected || mDiagnosticsLogged)
+         {
+            return;
+         }
+         mDiagnosticsLogged = true;
+         ConnectDiagnostics.run(mAttempts,mEndpoints,mDBFacade?.webServicesUrl);
+      }
+      
       private function configureListeners() : void
       {
-         addEventListener("close",closeHandler);
-         addEventListener("connect",connectHandler);
-         addEventListener("ioError",ioErrorHandler);
-         addEventListener("securityError",securityErrorHandler);
-         addEventListener("socketData",socketDataHandler);
+         mTransport.addEventListener("gameTransportConnected",connectHandler);
+         mTransport.addEventListener("gameTransportData",socketDataHandler);
+         mTransport.addEventListener("gameTransportClosed",closeHandler);
+         mTransport.addEventListener("gameTransportFailed",failedHandler);
+         mTransport.addEventListener("gameTransportReconnecting",reconnectingHandler);
+         mTransport.addEventListener("gameTransportReconnectAttempt",reconnectAttemptHandler);
+         mTransport.addEventListener("gameTransportResumed",resumedHandler);
       }
       
-      private function unconfigureListeners() : void
+      private function detachTransport(closeIt:Boolean) : void
       {
-         removeEventListener("connect",connectHandler);
-         removeEventListener("close",closeHandler);
-         removeEventListener("ioError",ioErrorHandler);
-         removeEventListener("securityError",securityErrorHandler);
-         removeEventListener("socketData",socketDataHandler);
-      }
-      
-      private function closeHandler(event:Event) : void
-      {
-         var _loc2_:uint = 601;
-         if(mDisconnectCode == 60 || mDisconnectCode == 61)
+         if(mTransport == null)
          {
-            _loc2_ = uint(mDisconnectCode);
+            return;
          }
-         Logger.warn("DcSocket closeHandler: " + event.toString());
-         mDBFacade.metrics.log("DcSocketClose",{
-            "errorCode":_loc2_.toString(),
-            "subcode":mDisconnectCode.toString(),
-            "subtext":mDisconnecttext
-         });
-         mDBFacade.mDistributedObjectManager.enterSocketErrorState(_loc2_,mDisconnecttext);
+         mTransport.removeEventListener("gameTransportConnected",connectHandler);
+         mTransport.removeEventListener("gameTransportData",socketDataHandler);
+         mTransport.removeEventListener("gameTransportClosed",closeHandler);
+         mTransport.removeEventListener("gameTransportFailed",failedHandler);
+         mTransport.removeEventListener("gameTransportReconnecting",reconnectingHandler);
+         mTransport.removeEventListener("gameTransportReconnectAttempt",reconnectAttemptHandler);
+         mTransport.removeEventListener("gameTransportResumed",resumedHandler);
+         if(closeIt)
+         {
+            mTransport.close();
+         }
+         mTransport = null;
+         clearReconnectIndicator();
       }
       
-      private function connectHandler(event:Event) : void
+      private function clearReconnectIndicator() : void
       {
-         Logger.debug("connectHandler: " + event);
+         if(!mReconnecting)
+         {
+            return;
+         }
+         mReconnecting = false;
+         if(mDBFacade != null)
+         {
+            mDBFacade.onConnectionReconnectFailed();
+         }
+      }
+      
+      private function logTransport(phase:String, transportName:String, closeEvent:GameTransportEvent, elapsedMs:int = -1) : void
+      {
+         if(mDBFacade == null || mDBFacade.metrics == null)
+         {
+            return;
+         }
+         var _loc5_:Object = {
+            "phase":phase,
+            "transport":transportName,
+            "candidate":mCandidateIndex.toString()
+         };
+         if(elapsedMs >= 0)
+         {
+            _loc5_["elapsedMs"] = elapsedMs.toString();
+         }
+         if(closeEvent != null)
+         {
+            _loc5_["wsCode"] = closeEvent.code.toString();
+            _loc5_["wsReason"] = closeEvent.reason;
+            _loc5_["initiator"] = closeEvent.initiator;
+         }
+         mDBFacade.metrics.log("DcSocketTransport",_loc5_);
+      }
+      
+      private function closeHandler(event:GameTransportEvent) : void
+      {
+         var _loc5_:int = attemptElapsedMs();
+         Logger.warnch("WS","DcSocket closeHandler: " + event.toString() + (mHasConnected ? "" : " after " + _loc5_ + "ms"));
+         if(!mHasConnected)
+         {
+            recordAttempt(_loc5_,event.code,event.reason,"","",true);
+         }
+         logTransport("closed",transportName(),event,mHasConnected ? -1 : _loc5_);
+         endReconnect(event);
+         if(!event.terminal && tryNextCandidateIfAny())
+         {
+            return;
+         }
+         var _loc2_:uint = wellKnownDisconnectCode();
+         var _loc3_:uint = _loc2_ != 0 ? _loc2_ : 601;
+         if(mDBFacade.metrics)
+         {
+            mDBFacade.metrics.log("DcSocketClose",{
+               "errorCode":_loc3_.toString(),
+               "subcode":mDisconnectCode.toString(),
+               "subtext":mDisconnecttext
+            });
+         }
+         detachTransport(false);
+         logConnectFailureDiagnostics();
+         var _loc4_:String = event.gaveUp ? TransportFailureText.forGiveUp(event) : TransportFailureText.forClose(event);
+         mDBFacade.mDistributedObjectManager.enterSocketErrorState(_loc3_,TransportFailureText.withServerText(mDisconnecttext,_loc4_));
+      }
+      
+      private function connectHandler(event:GameTransportEvent) : void
+      {
+         Logger.infoch("WS","DcSocket connected [" + transportName() + "]");
+         mHasConnected = true;
+         logTransport("connected",transportName(),null);
          mDBFacade.loadingBarTick();
-         mDBFacade.metrics.log("DcSocketConnect");
-         mLogicalWorkComponent.doEverySeconds(10,StartPingFunction);
+         mDBFacade.metrics.log("DcSocketConnect",{"transport":transportName()});
+         mLogicalWorkComponent.doEverySeconds(TransportSettings.heartbeatSeconds,StartPingFunction);
          SendLogin();
       }
       
@@ -165,25 +376,117 @@ package NetworkCode
          SendHeartBeat();
       }
       
-      private function ioErrorHandler(event:IOErrorEvent) : void
+      private function reconnectingHandler(event:GameTransportEvent) : void
       {
-         var _loc2_:uint = 602;
-         Logger.warn("DcSocket ioErrorHandler: " + event.toString());
-         mDBFacade.metrics.log("DcSocketClose",{"errorCode":_loc2_.toString()});
-         mDBFacade.mDistributedObjectManager.enterSocketErrorState(_loc2_,event.text);
+         Logger.warnch("WS","DcSocket reconnecting [" + transportName() + "]: " + event.code + " " + event.reason);
+         mReconnecting = true;
+         logTransport("reconnecting",transportName(),event);
+         mDBFacade.onConnectionReconnecting(event.reason);
       }
       
-      private function securityErrorHandler(event:SecurityErrorEvent) : void
+      private function reconnectAttemptHandler(event:GameTransportEvent) : void
       {
-         var _loc2_:uint = 603;
-         Logger.warn("DcSocket securityErrorHandler: " + event.toString());
-         mDBFacade.metrics.log("DcSocketClose",{"errorCode":_loc2_.toString()});
-         mDBFacade.mDistributedObjectManager.enterSocketErrorState(_loc2_,event.text);
+         mDBFacade.onConnectionReconnectAttempt(event.attempts,event.elapsedMilliseconds,event.graceMilliseconds);
       }
       
-      private function socketDataHandler(event:ProgressEvent) : void
+      private function resumedHandler(event:GameTransportEvent) : void
       {
-         ProcessMoreSocketData();
+         Logger.infoch("WS","DcSocket resumed [" + transportName() + "] after " + event.elapsedMilliseconds + "ms and " + event.attempts + " attempt(s)");
+         mReconnecting = false;
+         logResume("resumed",event.attempts,event.elapsedMilliseconds);
+         mDBFacade.onConnectionResumed();
+      }
+      
+      private function endReconnect(event:GameTransportEvent) : void
+      {
+         if(!mReconnecting)
+         {
+            return;
+         }
+         logResume("gaveUp",event.attempts,event.elapsedMilliseconds);
+         clearReconnectIndicator();
+      }
+      
+      private function logResume(outcome:String, attempts:int, elapsedMilliseconds:int) : void
+      {
+         if(mDBFacade == null || mDBFacade.metrics == null)
+         {
+            return;
+         }
+         mDBFacade.metrics.log("DcSocketResume",{
+            "outcome":outcome,
+            "attempts":attempts.toString(),
+            "elapsedMs":elapsedMilliseconds.toString(),
+            "stateChanged":mDBFacade.reconnectChangedMainState.toString()
+         });
+      }
+      
+      private function failedHandler(event:GameTransportEvent) : void
+      {
+         var _loc3_:int = attemptElapsedMs();
+         Logger.warnch("WS","DcSocket transport failed [" + transportName() + "]: " + event.errorCode + " " + event.text + (mHasConnected ? "" : " after " + _loc3_ + "ms") + (event.certificateStatus == "" ? "" : " cert=" + event.certificateStatus) + (event.certificateDetail == "" ? "" : " [" + event.certificateDetail + "]"));
+         if(!mHasConnected)
+         {
+            recordAttempt(_loc3_,event.errorCode,event.text,event.certificateStatus,event.certificateDetail,false);
+         }
+         logTransport("failed",transportName(),null,mHasConnected ? -1 : _loc3_);
+         endReconnect(event);
+         if(tryNextCandidateIfAny())
+         {
+            return;
+         }
+         detachTransport(false);
+         var _loc2_:uint = wellKnownDisconnectCode();
+         if(_loc2_ != 0)
+         {
+            reportFailure(_loc2_,mDisconnecttext);
+            return;
+         }
+         if(retryPassIfStalled())
+         {
+            return;
+         }
+         logConnectFailureDiagnostics();
+         reportFailure(event.errorCode,TransportFailureText.forFailure(event));
+      }
+      
+      private function wellKnownDisconnectCode() : uint
+      {
+         if(mDisconnectCode == 60 || mDisconnectCode == 61)
+         {
+            return mDisconnectCode;
+         }
+         return 0;
+      }
+      
+      private function reportFailure(errorCode:uint, text:String) : void
+      {
+         if(mFailureReported)
+         {
+            return;
+         }
+         mFailureReported = true;
+         setTimeout(deliverFailure,0,errorCode,text);
+      }
+      
+      private function deliverFailure(errorCode:uint, text:String) : void
+      {
+         if(mDBFacade == null)
+         {
+            return;
+         }
+         mDBFacade.metrics.log("DcSocketClose",{"errorCode":errorCode.toString()});
+         mDBFacade.mDistributedObjectManager.enterSocketErrorState(errorCode,text);
+      }
+      
+      private function transportName() : String
+      {
+         return mTransport != null ? mTransport.name : "none";
+      }
+      
+      private function socketDataHandler(event:GameTransportEvent) : void
+      {
+         ProcessMoreSocketData(event.bytes);
       }
       
       public function BuildPacketHeartBeat() : DcNetworkPacket
@@ -214,9 +517,16 @@ package NetworkCode
       
       public function sendpacket(pck:DcNetworkPacket) : void
       {
-         writeShort(pck.length);
-         writeBytes(pck);
-         flush();
+         if(mTransport == null)
+         {
+            return;
+         }
+         var _loc2_:ByteArray = new ByteArray();
+         _loc2_.endian = "littleEndian";
+         _loc2_.writeShort(pck.length);
+         _loc2_.writeBytes(pck,0,pck.length);
+         _loc2_.position = 0;
+         mTransport.send(_loc2_);
       }
       
       public function SendLogout() : void
@@ -348,24 +658,36 @@ package NetworkCode
          InformParentOfNewObject(_loc2_,_loc5_);
       }
       
-      private function ProcessMoreSocketData() : void
+      private function ProcessMoreSocketData(chunk:ByteArray) : void
       {
-         var _loc4_:* = 0;
+         var _loc3_:* = 0;
          var _loc2_:DcNetworkPacket = null;
-         var _loc1_:uint = input_double_buffer.length;
-         readBytes(input_double_buffer,input_double_buffer.length);
-         var _loc3_:uint = input_double_buffer.length;
+         if(chunk == null || chunk.length == 0)
+         {
+            return;
+         }
+         var _loc4_:uint = input_double_buffer.position;
+         input_double_buffer.position = input_double_buffer.length;
+         input_double_buffer.writeBytes(chunk,0,chunk.length);
+         input_double_buffer.position = _loc4_;
          while(input_double_buffer.bytesAvailable >= 2)
          {
-            _loc4_ = input_double_buffer.readUnsignedShort();
-            if(_loc4_ > input_double_buffer.bytesAvailable)
+            _loc3_ = input_double_buffer.readUnsignedShort();
+            if(_loc3_ == 0)
             {
-               input_double_buffer.position -= 2;
-               break;
+               Logger.warn("DcSocket discarding a zero-length packet from the wire");
             }
-            _loc2_ = new DcNetworkPacket();
-            input_double_buffer.readBytes(_loc2_,0,_loc4_);
-            ProcessPacketFromWire(_loc2_);
+            else
+            {
+               if(_loc3_ > input_double_buffer.bytesAvailable)
+               {
+                  input_double_buffer.position -= 2;
+                  break;
+               }
+               _loc2_ = new DcNetworkPacket();
+               input_double_buffer.readBytes(_loc2_,0,_loc3_);
+               ProcessPacketFromWire(_loc2_);
+            }
          }
          input_double_buffer.do_slide();
       }
@@ -452,12 +774,12 @@ package NetworkCode
          mDisconnecttext = game_packet.readUTF();
          if(mDisconnectCode == 60)
          {
-            unconfigureListeners();
+            detachTransport(true);
             mDBFacade.mDistributedObjectManager.enterSocketErrorState(mDisconnectCode,mDisconnecttext);
          }
          else
          {
-            Logger.info("Process_CLIENT_LOGOUT_RESP[" + mDisconnectCode + "] Server Text[" + mDisconnecttext + "]");
+            Logger.infoch("WS","Process_CLIENT_LOGOUT_RESP[" + mDisconnectCode + "] Server Text[" + mDisconnecttext + "]");
             mDBFacade.metrics.log("ClientLogoutResp",{
                "code":mDisconnectCode.toString(),
                "text":mDisconnecttext
@@ -469,12 +791,12 @@ package NetworkCode
       {
          var _loc1_:Object = null;
          var _loc2_:* = 0;
-         Logger.debug("DcSocket destroy");
+         Logger.debugch("WS","DcSocket destroy");
          if(mDBFacade.metrics)
          {
             mDBFacade.metrics.log("DcSocketDestroy");
          }
-         this.close();
+         detachTransport(true);
          mLogicalWorkComponent.destroy();
          mLogicalWorkComponent = null;
          if(mDBFacade.dbAccountInfo)
@@ -502,7 +824,6 @@ package NetworkCode
             _loc2_++;
          }
          Doid_NetInterfaces = null;
-         unconfigureListeners();
          input_double_buffer.clear();
          mDBFacade = null;
          mValidationToken = null;

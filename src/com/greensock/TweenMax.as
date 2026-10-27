@@ -146,7 +146,7 @@ package com.greensock
       
       public static function get globalTimeScale() : Number
       {
-         return TweenLite.rootTimeline == null ? 1 : TweenLite.rootTimeline.cachedTimeScale;
+         return TweenLite.rootTimeline?.cachedTimeScale;
       }
       
       public static function killChildTweensOf(parent:DisplayObjectContainer, complete:Boolean = false) : void

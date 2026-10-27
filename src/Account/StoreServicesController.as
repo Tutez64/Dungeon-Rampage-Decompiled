@@ -508,7 +508,6 @@ package Account
       
       public static function getWebServerTimestamp(dbFacade:DBFacade, useSuccessCallback:Function = null, errorCallback:Function = null) : void
       {
-         trace("getWebServerTimestamp");
          StoreServices.getWebServerTimestamp(dbFacade,useSuccessCallback,errorCallback);
       }
       

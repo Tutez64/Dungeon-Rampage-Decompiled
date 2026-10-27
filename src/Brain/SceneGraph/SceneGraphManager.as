@@ -308,7 +308,6 @@ package Brain.SceneGraph
             _loc4_++;
          }
          _loc3_ += node.toString() + " " + node.name;
-         trace(_loc3_);
          var _loc5_:DisplayObjectContainer = node as DisplayObjectContainer;
          if(_loc5_)
          {

@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<application xmlns="http://ns.adobe.com/air/application/32.0">
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<application xmlns="http://ns.adobe.com/air/application/51.4">
 
     <!-- Adobe AIR Application Descriptor File Template.
          Specifies parameters for identifying, installing, and launching AIR applications.
@@ -277,4 +277,8 @@
 
     <!--</android>-->
 
+    <systemConfig>
+        <gcMarkingTime>2</gcMarkingTime>
+    </systemConfig>
 </application>
+

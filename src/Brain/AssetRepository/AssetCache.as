@@ -84,7 +84,6 @@ package Brain.AssetRepository
       public function Dump() : void
       {
          var _loc2_:Asset = null;
-         trace(" Asset Cache ------------------------------");
          var _loc1_:IMapIterator = mCachedAssets.iterator() as IMapIterator;
          while(_loc1_.hasNext())
          {
@@ -92,7 +91,6 @@ package Brain.AssetRepository
             _loc2_ = _loc1_.current as Asset;
             if(_loc2_ != null)
             {
-               trace("AssetCache : ",_loc1_.key,getQualifiedClassName((_loc2_ as Object).constructor as Class));
             }
          }
       }

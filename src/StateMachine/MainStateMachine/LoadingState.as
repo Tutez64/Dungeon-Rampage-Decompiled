@@ -10,6 +10,7 @@ package StateMachine.MainStateMachine
    import Brain.Logger.Logger;
    import Brain.StateMachine.State;
    import Config.DBConfigManager;
+   import Config.ServiceDiscoveryLoader;
    import Config.ServiceDiscoveryReadyEvent;
    import Events.DBAccountLoadedEvent;
    import Events.ManagersLoadedEvent;
@@ -99,6 +100,12 @@ package StateMachine.MainStateMachine
          if(event.serviceDiscoveryResult == null)
          {
             mDBFacade.mainStateMachine.enterSocketErrorState(event.serviceDiscoveryErrorCode,event.serviceDiscoveryErrorText);
+            return;
+         }
+         var _loc2_:String = ServiceDiscoveryLoader.maintenanceMessage(event.serviceDiscoveryResult);
+         if(_loc2_ != null)
+         {
+            mDBFacade.mainStateMachine.enterSocketErrorState(1504,_loc2_);
             return;
          }
          mDBFacade.applyServiceDiscoveryResult(event.serviceDiscoveryResult);

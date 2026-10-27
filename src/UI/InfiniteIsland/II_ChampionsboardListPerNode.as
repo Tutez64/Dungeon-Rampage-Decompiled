@@ -13,11 +13,11 @@ package UI.InfiniteIsland
          {
             if(_loc2_.name)
             {
-               mListOfTopScores.push(new II_ChampionsboardTopScore(_loc2_.name,_loc2_.score,_loc2_.active_skin != null ? _loc2_.active_skin : 151,_loc2_.weapon1,_loc2_.weapon2,_loc2_.weapon3));
+               mListOfTopScores.push(new II_ChampionsboardTopScore(_loc2_.name,_loc2_.score,_loc2_.active_skin ?? 151,_loc2_.weapon1,_loc2_.weapon2,_loc2_.weapon3));
             }
             else
             {
-               mListOfTopScores.push(new II_ChampionsboardTopScore(_loc2_.account_id,_loc2_.score,_loc2_.active_skin != null ? _loc2_.active_skin : 151,_loc2_.weapon1,_loc2_.weapon2,_loc2_.weapon3));
+               mListOfTopScores.push(new II_ChampionsboardTopScore(_loc2_.account_id,_loc2_.score,_loc2_.active_skin ?? 151,_loc2_.weapon1,_loc2_.weapon2,_loc2_.weapon3));
             }
          }
       }

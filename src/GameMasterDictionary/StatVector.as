@@ -142,7 +142,6 @@ package GameMasterDictionary
          _loc1_ = 0;
          while(_loc1_ < slotCount)
          {
-            trace(DBGlobal.StatNames[_loc1_],this.values[_loc1_]);
             _loc1_++;
          }
       }

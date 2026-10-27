@@ -59,7 +59,6 @@ package Brain
                         _loc5_++;
                      }
                      _loc3_ += param1.toString() + " " + param1.name;
-                     trace(_loc3_);
                      var _loc6_:DisplayObjectContainer = param1 as DisplayObjectContainer;
                      if(_loc6_)
                      {
@@ -71,13 +70,7 @@ package Brain
                         }
                      }
                   };
-                  trace("======================================================================");
-                  trace(" Stage Scene Graph");
-                  trace("======================================================================");
                   recurse(stage,0);
-                  trace("======================================================================");
-                  trace(" Class Counts");
-                  trace("======================================================================");
                   keys = nodeTypes.keysToArray();
                   keys.sort(function(param1:String, param2:String):int
                   {
@@ -85,7 +78,6 @@ package Brain
                   });
                   for each(key in keys)
                   {
-                     trace(nodeTypes.itemFor(key),"\t",key);
                   }
             }
          }

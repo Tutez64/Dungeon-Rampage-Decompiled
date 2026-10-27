@@ -176,7 +176,6 @@ package Brain.Render
                {
                   mSoundFrames.push(_loc4_);
                   _loc2_ = clip.currentFrameLabel.slice(5);
-                  trace("Found sound: " + _loc2_ + " at frame: " + _loc4_.toString());
                   mSoundClasses.push(_loc2_);
                }
                _loc4_++;

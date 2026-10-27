@@ -722,7 +722,6 @@ package UI.Shop
       
       private function chestRevealResponse(obj:Object) : void
       {
-         trace("Made it to here.");
       }
       
       private function getDate() : String
@@ -934,7 +933,6 @@ package UI.Shop
          var _loc4_:String = null;
          var _loc3_:* = 0;
          var _loc6_:GMHero = null;
-         trace("UIShop:filterOffers");
          var _loc5_:AvatarInfo = mSelectedHero ? mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mSelectedHero.Id) : null;
          mFilteredGMOffers.clear();
          for each(_loc10_ in CATEGORIES)

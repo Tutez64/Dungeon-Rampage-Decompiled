@@ -2,6 +2,8 @@ package DistributedObjects
 {
    import Facade.DBFacade;
    import GeneratedCode.GeneratedDcSocket;
+   import NetworkCode.DcSocket;
+   import NetworkCode.Transport.GameEndpoints;
    
    public class DistributedObjectManager
    {
@@ -20,15 +22,21 @@ package DistributedObjects
          mDBfacade = facade;
       }
       
-      public function Initialize(host:String, port:int, playtoken:String, demographics:String, account:uint, networkid:uint, noderules:uint) : Boolean
+      public function get socket() : DcSocket
+      {
+         return mGeneratedDcSocket;
+      }
+      
+      public function Initialize(endpoints:GameEndpoints, experimentalWebSocketReconnects:Boolean, playtoken:String, demographics:String, account:uint, networkid:uint, noderules:uint) : Boolean
       {
          if(mGeneratedDcSocket != null)
          {
             mGeneratedDcSocket.destroy();
          }
          mGeneratedDcSocket = null;
-         mGeneratedDcSocket = new GeneratedDcSocket(mDBfacade,host,port,playtoken,demographics,account);
+         mGeneratedDcSocket = new GeneratedDcSocket(mDBfacade,endpoints.address,endpoints.port,playtoken,demographics,account);
          mGeneratedDcSocket.pass2Init(networkid,noderules);
+         mGeneratedDcSocket.beginConnect(endpoints,experimentalWebSocketReconnects);
          return true;
       }
       
@@ -43,9 +51,7 @@ package DistributedObjects
       
       public function isAllOk() : Boolean
       {
-         var _loc1_:Boolean = mGeneratedDcSocket != null && mGeneratedDcSocket.connected && mMatchMaker != null;
-         trace("------------>isAllOk ",_loc1_);
-         return _loc1_;
+         return mGeneratedDcSocket != null && mGeneratedDcSocket.connected && mMatchMaker != null;
       }
       
       private function SocketIsLeaving() : void

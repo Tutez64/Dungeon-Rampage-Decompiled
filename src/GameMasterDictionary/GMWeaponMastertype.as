@@ -26,7 +26,7 @@ package GameMasterDictionary
          Icon = jsonAsset.Icon;
          UISwfFilepath = jsonAsset.UISwfFilepath;
          Description = jsonAsset.Description;
-         DontShowInTavern = jsonAsset.DontShowInTavern != null ? jsonAsset.DontShowInTavern : false;
+         DontShowInTavern = jsonAsset.DontShowInTavern ?? false;
       }
    }
 }
