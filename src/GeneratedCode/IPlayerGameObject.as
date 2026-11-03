@@ -15,6 +15,8 @@ package GeneratedCode
       
       function set screenName(val:String) : void;
       
+      function set heroPreloadLook(val:HeroPreloadLook) : void;
+      
       function Chat(text:String) : void;
       
       function ShowPlayerIsTyping(value:uint) : void;

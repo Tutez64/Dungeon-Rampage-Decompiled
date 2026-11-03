@@ -9,6 +9,8 @@ package Brain.Render
    public class ActorSpriteSheetRenderer extends SpriteSheetRenderer implements IRenderer
    {
       
+      private static const DEBUG_HEADING:Boolean = false;
+      
       public static var SPRITE_SHEET_RENDERER_TYPE:String = "SpriteSheetRenderer";
       
       protected var mFrameRate:Number = 24;
@@ -165,10 +167,10 @@ package Brain.Render
       
       override protected function onFrame(gameClock:GameClock) : void
       {
-         var _loc3_:* = 0;
-         var _loc5_:* = 0;
-         var _loc4_:* = 0;
-         var _loc2_:* = 0;
+         var _loc3_:uint = 0;
+         var _loc5_:uint = 0;
+         var _loc4_:uint = 0;
+         var _loc2_:uint = 0;
          if(mIsPlaying && mBitmap.stage != null)
          {
             _loc3_ = getAnimationIndexFromClock(gameClock);
@@ -178,6 +180,10 @@ package Brain.Render
             setFrameIndexes(_loc3_,_loc5_);
             if(mXIndex != _loc4_ || mYIndex != _loc2_)
             {
+               if(false && mBitmap != null && mYIndex != _loc2_)
+               {
+                  Logger.debugch("heading","ActorSpriteSheetRenderer onFrame directionChange name=" + mBitmap.name + " heading=" + mHeading + " directionIndex=" + mYIndex + " frameIndex=" + mXIndex);
+               }
                super.onFrame(gameClock);
             }
          }
@@ -185,6 +191,7 @@ package Brain.Render
       
       override public function set heading(value:Number) : void
       {
+         var _loc2_:int = 0;
          while(value < -180)
          {
             value += 360;
@@ -194,6 +201,18 @@ package Brain.Render
             value -= 360;
          }
          mHeading = value;
+         if(false && mBitmap != null)
+         {
+            _loc2_ = -1;
+            try
+            {
+               _loc2_ = int(getDirectionIndexFromHeading(mHeading));
+            }
+            catch(e:Error)
+            {
+            }
+            Logger.debugch("heading","ActorSpriteSheetRenderer set heading name=" + mBitmap.name + " heading=" + mHeading + " directionIndex=" + _loc2_ + " numFramesY=" + mSpriteSheet.numFramesY);
+         }
       }
       
       public function get heading() : Number

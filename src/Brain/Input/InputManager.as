@@ -1,8 +1,8 @@
 package Brain.Input
 {
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
-   import Brain.MouseScrollPlugin.CustomMouseWheelEvent;
    import Brain.Utils.MemoryTracker;
    import flash.events.Event;
    import flash.events.KeyboardEvent;
@@ -10,6 +10,8 @@ package Brain.Input
    
    public class InputManager
    {
+      
+      public static const KEY_CODE_COUNT:int = 256;
       
       private var mEnabled:Boolean = false;
       
@@ -82,22 +84,22 @@ package Brain.Input
       
       public function get mouseX() : int
       {
-         return mFacade.stageRef.mouseX;
+         return mFacade.scalingRoot.mouseX;
       }
       
       public function get mouseY() : int
       {
-         return mFacade.stageRef.mouseY;
+         return mFacade.scalingRoot.mouseY;
       }
       
       public function get mouseFlashX() : int
       {
-         return mFacade.stageRef.mouseX;
+         return mFacade.scalingRoot.mouseX;
       }
       
       public function get mouseFlashY() : int
       {
-         return mFacade.stageRef.mouseY;
+         return mFacade.scalingRoot.mouseY;
       }
       
       public function check(input:*) : Boolean
@@ -117,13 +119,13 @@ package Brain.Input
       
       protected function enable() : void
       {
-         mFacade.stageRef.addEventListener("keyDown",onKeyDown);
-         mFacade.stageRef.addEventListener("keyUp",onKeyUp);
-         mFacade.stageRef.addEventListener("mouseDown",onMouseDown);
-         mFacade.stageRef.addEventListener("mouseUp",onMouseUp);
-         mFacade.stageRef.addEventListener("onMove",onMouseWheel);
-         mFacade.stageRef.addEventListener("mouseLeave",onMouseLeave);
-         mFacade.stageRef.addEventListener("deactivate",onDeactivate);
+         EventListeners.add(mFacade.stageRef,"keyDown",onKeyDown);
+         EventListeners.add(mFacade.stageRef,"keyUp",onKeyUp);
+         EventListeners.add(mFacade.stageRef,"mouseDown",onMouseDown);
+         EventListeners.add(mFacade.stageRef,"mouseUp",onMouseUp);
+         EventListeners.add(mFacade.stageRef,"mouseWheel",onMouseWheel);
+         EventListeners.add(mFacade.stageRef,"mouseLeave",onMouseLeave);
+         EventListeners.add(mFacade.stageRef,"deactivate",onDeactivate);
       }
       
       public function flush() : void
@@ -174,16 +176,23 @@ package Brain.Input
       
       private function onKeyUp(e:KeyboardEvent) : void
       {
-         var _loc2_:int = 0;
          if(!disableInputs)
          {
-            _loc2_ = int(e.keyCode);
-            if(mKeysDown[_loc2_])
-            {
-               mKeysDown[_loc2_] = false;
-               mNumberOfKeysDown = mNumberOfKeysDown - 1;
-               mKeysReleased[mNumberOfKeysReleased++] = _loc2_;
-            }
+            releaseKey(e.keyCode);
+         }
+      }
+      
+      public function releaseKey(code:int) : void
+      {
+         if(code < 0 || code >= mKeysDown.length)
+         {
+            return;
+         }
+         if(mKeysDown[code])
+         {
+            mKeysDown[code] = false;
+            mNumberOfKeysDown = mNumberOfKeysDown - 1;
+            mKeysReleased[mNumberOfKeysReleased++] = code;
          }
       }
       
@@ -217,7 +226,7 @@ package Brain.Input
          }
       }
       
-      private function onMouseWheel(e:CustomMouseWheelEvent) : void
+      private function onMouseWheel(e:MouseEvent) : void
       {
          if(!disableInputs)
          {

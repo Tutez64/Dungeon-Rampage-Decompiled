@@ -10,29 +10,29 @@ package GeneratedCode
       
       private var the_instance:DistributedDungeonSummary;
       
-      public const FLID_map_node_id:uint = 274;
+      public const FLID_map_node_id:uint = 283;
       
-      public const FLID_report:uint = 275;
+      public const FLID_report:uint = 284;
       
-      public const FLID_dungeon_name:uint = 276;
+      public const FLID_dungeon_name:uint = 285;
       
-      public const FLID_dungeonSuccess:uint = 277;
+      public const FLID_dungeonSuccess:uint = 286;
       
-      public const FLID_dungeonMod1:uint = 278;
+      public const FLID_dungeonMod1:uint = 287;
       
-      public const FLID_dungeonMod2:uint = 279;
+      public const FLID_dungeonMod2:uint = 288;
       
-      public const FLID_dungeonMod3:uint = 280;
+      public const FLID_dungeonMod3:uint = 289;
       
-      public const FLID_dungeonMod4:uint = 281;
+      public const FLID_dungeonMod4:uint = 290;
       
-      public const FLID_OpenChest:uint = 282;
+      public const FLID_OpenChest:uint = 291;
       
-      public const FLID_TakeChest:uint = 283;
+      public const FLID_TakeChest:uint = 292;
       
-      public const FLID_DropChest:uint = 284;
+      public const FLID_DropChest:uint = 293;
       
-      public const FLID_TransactionResponse:uint = 285;
+      public const FLID_TransactionResponse:uint = 294;
       
       public function DistributedDungeonSummaryNetworkComponent(Inst:DistributedDungeonSummary, gs:GeneratedDcSocket, id:uint)
       {
@@ -52,7 +52,7 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 274)
+         switch(int(fieldid) - 283)
          {
             case 0:
                recv_map_node_id(packet);
@@ -167,7 +167,7 @@ package GeneratedCode
       public function send_OpenChest(account_id:uint, slot:uint) : void
       {
          var _loc3_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc3_,282);
+         Prepare_FieldUpdate(_loc3_,291);
          _loc3_.writeUnsignedInt(account_id);
          _loc3_.writeUnsignedInt(slot);
          Send_packet(_loc3_);
@@ -176,7 +176,7 @@ package GeneratedCode
       public function send_TakeChest(account_id:uint, slot:uint) : void
       {
          var _loc3_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc3_,283);
+         Prepare_FieldUpdate(_loc3_,292);
          _loc3_.writeUnsignedInt(account_id);
          _loc3_.writeUnsignedInt(slot);
          Send_packet(_loc3_);
@@ -185,7 +185,7 @@ package GeneratedCode
       public function send_DropChest(account_id:uint, slot:uint) : void
       {
          var _loc3_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc3_,284);
+         Prepare_FieldUpdate(_loc3_,293);
          _loc3_.writeUnsignedInt(account_id);
          _loc3_.writeUnsignedInt(slot);
          Send_packet(_loc3_);

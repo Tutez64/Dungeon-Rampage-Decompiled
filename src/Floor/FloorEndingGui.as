@@ -6,8 +6,10 @@ package Floor
    import Brain.Event.EventComponent;
    import Brain.Logger.Logger;
    import Brain.Render.MovieClipRenderController;
+   import Brain.Render.Tweens.TweenHandle;
    import Brain.SceneGraph.SceneGraphComponent;
    import Brain.Utils.MemoryTracker;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
    import DistributedObjects.Floor;
@@ -18,7 +20,6 @@ package Floor
    import GameMasterDictionary.GMDungeonModifier;
    import GameMasterDictionary.GMMapNode;
    import UI.InfiniteIsland.II_UIRewardReportPopup;
-   import com.greensock.TweenMax;
    import flash.display.MovieClip;
    import flash.display.Sprite;
    import flash.events.Event;
@@ -41,7 +42,7 @@ package Floor
       
       protected var mScreensRoot:MovieClip;
       
-      protected var mKillswitchIconsSwfAsset:SwfAsset;
+      protected var mKillSwitchIconsSwfAsset:SwfAsset;
       
       protected var mCountdownTimerLabel:TextField;
       
@@ -59,7 +60,7 @@ package Floor
       
       private var mUpdateCountdownTask:Task;
       
-      private var mDefeatCountdownTween:TweenMax;
+      private var mDefeatCountdownTween:TweenHandle;
       
       private var mVictoryRenderer:MovieClipRenderController;
       
@@ -77,13 +78,17 @@ package Floor
       
       private var mDefeatCountdownRenderer:MovieClipRenderController;
       
+      private var mDefeatCountdownBounceRenderer:MovieClipRenderController;
+      
       private var mDefeatCountdownTextField:TextField;
       
-      private var mKillswitchRenderer:MovieClipRenderController;
+      private var mKillSwitchRenderer:MovieClipRenderController;
       
       private var mFloor:Floor;
       
       private var mFloorGUIStarted:Boolean;
+      
+      private var mStartRequested:Boolean;
       
       private var mShowStartSplash:Boolean;
       
@@ -107,16 +112,16 @@ package Floor
          mSceneGraphComponent.addChild(mRoot,50);
          switch(mNodeType)
          {
-            case "DUNGEON":
+            case GMMapNode.DUNGEON_NODE_TYPE:
                mRootInstanceName = "scrn_dungeon_regular";
                break;
-            case "BOSS":
+            case GMMapNode.BOSS_NODE_TYPE:
                mRootInstanceName = "scrn_dungeon_boss";
                break;
-            case "INFINITE":
+            case GMMapNode.INFINITE_NODE_TYPE:
                mRootInstanceName = "scrn_dungeon_ultimate";
                break;
-            case "TAVERN":
+            case GMMapNode.TAVERN_NODE_TYPE:
                mRootInstanceName = "scrn_dungeon_regular";
                break;
             default:
@@ -125,7 +130,7 @@ package Floor
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_screens.swf"),dungeonFinishedSwfLoaded);
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/Icons/Modifier/db_icons_modifier.swf"),function(param1:SwfAsset):void
          {
-            mKillswitchIconsSwfAsset = param1;
+            mKillSwitchIconsSwfAsset = param1;
          });
       }
       
@@ -134,7 +139,7 @@ package Floor
          var _loc2_:Class = swfAsset.getClass(mRootInstanceName);
          mScreensRoot = new _loc2_();
          mScreensRoot.mouseEnabled = false;
-         if(mNodeType != "INFINITE")
+         if(mNodeType != GMMapNode.INFINITE_NODE_TYPE)
          {
             mVictoryRenderer = new MovieClipRenderController(mDBFacade,mScreensRoot.scrn_victory_instance);
             mCountdownRenderer = new MovieClipRenderController(mDBFacade,mScreensRoot.scrn_countdown_instance);
@@ -144,10 +149,11 @@ package Floor
          mStartRenderer = new MovieClipRenderController(mDBFacade,mScreensRoot.scrn_start_instance);
          mCurrentFloorRenderer = new MovieClipRenderController(mDBFacade,mScreensRoot.scrn_floor);
          mDefeatCountdownRenderer = new MovieClipRenderController(mDBFacade,mScreensRoot.scrn_defeat_countdown);
+         mDefeatCountdownBounceRenderer = new MovieClipRenderController(mDBFacade,mDefeatCountdownRenderer.clip.countdown_bounce);
          mDefeatCountdownStartClip = mScreensRoot.scrn_defeat_start_text;
          mDefeatCountdownTextField = mDefeatCountdownRenderer.clip.countdown_bounce.countdown.countdown_text as TextField;
          hideAll();
-         if(!mFloorGUIStarted)
+         if(mStartRequested && !mFloorGUIStarted)
          {
             floorStart();
          }
@@ -188,16 +194,17 @@ package Floor
       {
          var _loc1_:GMMapNode = null;
          var _loc2_:String = null;
+         mStartRequested = true;
          if(mScreensRoot != null && mFloor.gmMapNode)
          {
             mDBFacade.refreshHUD();
             mFloorGUIStarted = true;
             _loc1_ = mFloor.gmMapNode;
             _loc2_ = _loc1_.NodeType;
-            if(_loc2_ == "INFINITE")
+            if(_loc2_ == GMMapNode.INFINITE_NODE_TYPE)
             {
-               mKillswitchRenderer = new MovieClipRenderController(mDBFacade,mScreensRoot.scrn_killSwitchEngage);
-               mKillswitchRenderer.clip.visible = false;
+               mKillSwitchRenderer = new MovieClipRenderController(mDBFacade,mScreensRoot.scrn_killSwitchEngage);
+               mKillSwitchRenderer.clip.visible = false;
             }
             displayStart();
          }
@@ -265,6 +272,10 @@ package Floor
                mDefeatCountdownRenderer.stop();
                mDefeatCountdownRenderer.clip.visible = false;
             }
+            if(mDefeatCountdownBounceRenderer)
+            {
+               mDefeatCountdownBounceRenderer.stop();
+            }
          }
       }
       
@@ -274,9 +285,9 @@ package Floor
          checkToRemoveRoot();
       }
       
-      private function displayNewKillswitches() : void
+      private function displayNewKillSwitches() : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc1_:Vector.<GMDungeonModifier> = new Vector.<GMDungeonModifier>();
          _loc2_ = 0;
          while(_loc2_ < mFloor.activeGMDungeonModifiers.length)
@@ -287,51 +298,51 @@ package Floor
             }
             _loc2_++;
          }
-         playKillswitchIntros(_loc1_,0);
+         playKillSwitchIntros(_loc1_,0);
          checkToRemoveRoot();
       }
       
-      private function playKillswitchIntros(killswitches:Vector.<GMDungeonModifier>, index:uint) : void
+      private function playKillSwitchIntros(killSwitches:Vector.<GMDungeonModifier>, index:uint) : void
       {
          var _loc4_:Class = null;
          var _loc3_:Function = null;
-         if(mKillswitchRenderer == null)
+         if(mKillSwitchRenderer == null)
          {
-            Logger.debug("Trying to play killswitch intros without a kill switch renderer.");
+            Logger.debug("Trying to play killSwitch intros without a kill switch renderer.");
             return;
          }
-         if(killswitches.length > index)
+         if(killSwitches.length > index)
          {
-            if(mKillswitchIconsSwfAsset)
+            if(mKillSwitchIconsSwfAsset)
             {
-               _loc4_ = mKillswitchIconsSwfAsset.getClass(killswitches[index].IconName);
-               while(mKillswitchRenderer.clip.modifier.modifier.numChildren > 0)
+               _loc4_ = mKillSwitchIconsSwfAsset.getClass(killSwitches[index].IconName);
+               while(mKillSwitchRenderer.clip.modifier.modifier.numChildren > 0)
                {
-                  mKillswitchRenderer.clip.modifier.modifier.removeChildAt(0);
+                  mKillSwitchRenderer.clip.modifier.modifier.removeChildAt(0);
                }
                if(_loc4_ == null)
                {
-                  Logger.warn("Unable to find iconClass for iconName: " + killswitches[index].IconName);
+                  Logger.warn("Unable to find iconClass for iconName: " + killSwitches[index].IconName);
                }
                else
                {
-                  mKillswitchRenderer.clip.modifier.modifier.addChild(new _loc4_());
+                  mKillSwitchRenderer.clip.modifier.modifier.addChild(new _loc4_());
                }
             }
-            _loc3_ = becauseFlashSucksAtScopingVariables(killswitches,index + 1);
-            mKillswitchRenderer.play(0,false,_loc3_);
-            mKillswitchRenderer.clip.banner_modifier.label_modifier.text = GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_NAME",killswitches[index].Constant);
-            mKillswitchRenderer.clip.visible = true;
+            _loc3_ = becauseFlashSucksAtScopingVariables(killSwitches,index + 1);
+            mKillSwitchRenderer.play(0,false,_loc3_);
+            TextUtil.setText(mKillSwitchRenderer.clip.banner_modifier.label_modifier,GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_NAME",killSwitches[index].Constant));
+            mKillSwitchRenderer.clip.visible = true;
             return;
          }
-         screenFinished(mKillswitchRenderer);
+         screenFinished(mKillSwitchRenderer);
       }
       
-      private function becauseFlashSucksAtScopingVariables(killswitches:Vector.<GMDungeonModifier>, index:uint) : Function
+      private function becauseFlashSucksAtScopingVariables(killSwitches:Vector.<GMDungeonModifier>, index:uint) : Function
       {
          return function():void
          {
-            playKillswitchIntros(killswitches,index);
+            playKillSwitchIntros(killSwitches,index);
          };
       }
       
@@ -368,13 +379,13 @@ package Floor
                if(mStartRenderer)
                {
                   mStartRenderer.clip.visible = false;
-                  displayNewKillswitches();
+                  displayNewKillSwitches();
                }
             });
          }
          else
          {
-            displayNewKillswitches();
+            displayNewKillSwitches();
          }
       }
       
@@ -384,11 +395,11 @@ package Floor
          mCurrentFloorRenderer.clip.visible = true;
          if(mFloor.getMaxFloorNum() >= 50)
          {
-            mCurrentFloorRenderer.clip.scrn_floor.textField.text = Locale.getString("FLOOR").toUpperCase() + " " + mFloor.getCurrentFloorNum().toString();
+            TextUtil.setText(mCurrentFloorRenderer.clip.scrn_floor.textField,Locale.getString("FLOOR").toUpperCase() + " " + mFloor.getCurrentFloorNum().toString());
          }
          else
          {
-            mCurrentFloorRenderer.clip.scrn_floor.textField.text = Locale.getString("FLOOR").toUpperCase() + " " + mFloor.getCurrentFloorNum().toString() + " OF " + mFloor.getMaxFloorNum().toString();
+            TextUtil.setText(mCurrentFloorRenderer.clip.scrn_floor.textField,Locale.getString("FLOOR").toUpperCase() + " " + mFloor.getCurrentFloorNum().toString() + " OF " + mFloor.getMaxFloorNum().toString());
          }
          mCurrentFloorRenderer.playRate = 0.8;
          mCurrentFloorRenderer.play(0,false,function():void
@@ -399,7 +410,7 @@ package Floor
       
       private function checkToRemoveRoot() : void
       {
-         if(!mCurrentFloorRenderer.isPlaying && (mStartRenderer == null || !mStartRenderer.isPlaying) && !(mVictoryRenderer != null && !mVictoryRenderer.isPlaying) && !mDefeatRenderer.isPlaying && !(mKillswitchRenderer != null && !mKillswitchRenderer.isPlaying) && mUpdateCountdownTask == null)
+         if(!mCurrentFloorRenderer.isPlaying && (mStartRenderer == null || !mStartRenderer.isPlaying) && !(mVictoryRenderer != null && !mVictoryRenderer.isPlaying) && !mDefeatRenderer.isPlaying && !(mKillSwitchRenderer != null && !mKillSwitchRenderer.isPlaying) && mUpdateCountdownTask == null)
          {
             mSceneGraphComponent.removeChild(mRoot);
             hideAll();
@@ -425,7 +436,7 @@ package Floor
             return;
          }
          mSecondsUntilTransition = timeUntilTransition;
-         mCountdownTextField.text = mSecondsUntilTransition.toString();
+         TextUtil.setText(mCountdownTextField,mSecondsUntilTransition.toString());
          mCountdownRenderer.play(0,false);
          mCountdownRenderer.clip.visible = true;
          mUpdateCountdownTask = mLogicalWorkComponent.doEverySeconds(1,updateFloorEndingCountdown);
@@ -438,14 +449,14 @@ package Floor
             return;
          }
          mSecondsUntilTransition = timeUntilTransition;
-         mCountdownTextField.text = mSecondsUntilTransition.toString();
+         TextUtil.setText(mCountdownTextField,mSecondsUntilTransition.toString());
          mCountdownRenderer.play(0,false);
          mCountdownRenderer.clip.visible = true;
          mScreensRoot.Scrn_nextfloor_infinite.basic.visible = false;
          mScreensRoot.Scrn_nextfloor_infinite.uncommon.visible = false;
          mScreensRoot.Scrn_nextfloor_infinite.rare.visible = false;
          mScreensRoot.Scrn_nextfloor_infinite.legendary.visible = false;
-         mScreensRoot.Scrn_nextfloor_infinite.coin_count.text = "3000";
+         TextUtil.setText(mScreensRoot.Scrn_nextfloor_infinite.coin_count,"3000");
          initInfiniteDungeonTotalReward(5000,2);
          mUpdateCountdownTask = mLogicalWorkComponent.doEverySeconds(1,updateFloorEndingCountdown);
       }
@@ -453,7 +464,7 @@ package Floor
       private function initInfiniteDungeonTotalReward(coinVal:int, totalRewardsEarned:uint) : void
       {
          var _loc4_:int = 0;
-         mScreensRoot.Scrn_nextfloor_infinite.current_reward.label_currentReward.text = Locale.getString("TOTAL_REWARD");
+         Locale.setText(mScreensRoot.Scrn_nextfloor_infinite.current_reward.label_currentReward,"TOTAL_REWARD");
          var _loc3_:Vector.<MovieClip> = new Vector.<MovieClip>();
          _loc3_.push(mScreensRoot.Scrn_nextfloor_infinite.current_reward.basic);
          _loc3_.push(mScreensRoot.Scrn_nextfloor_infinite.current_reward.uncommon);
@@ -465,7 +476,7 @@ package Floor
             _loc3_[_loc4_].stop();
             _loc4_++;
          }
-         mScreensRoot.Scrn_nextfloor_infinite.current_reward.coin_count.text = coinVal.toString();
+         TextUtil.setText(mScreensRoot.Scrn_nextfloor_infinite.current_reward.coin_count,coinVal.toString());
          _loc4_ = int(totalRewardsEarned);
          while(_loc4_ < _loc3_.length)
          {
@@ -477,9 +488,19 @@ package Floor
       
       private function setUpFloorFailingCountdownGui(timeUntilTransition:uint) : void
       {
+         if(mDefeatCountdownTween)
+         {
+            mDBFacade.mTween.killTween(mDefeatCountdownTween);
+            mDefeatCountdownTween = null;
+         }
+         if(mUpdateCountdownTask)
+         {
+            mUpdateCountdownTask.destroy();
+            mUpdateCountdownTask = null;
+         }
          mDefeatCountdownStartClip.visible = true;
          mSecondsUntilTransition = timeUntilTransition;
-         mDefeatCountdownTween = TweenMax.to(mDefeatCountdownStartClip,2,{
+         mDefeatCountdownTween = mDBFacade.mTween.tweenMaxTo(mDefeatCountdownStartClip,2,{
             "visible":false,
             "onComplete":defeatCountdownTweenFinished
          });
@@ -493,13 +514,18 @@ package Floor
          }
          if(mDefeatCountdownTextField)
          {
-            mDefeatCountdownTextField.text = mSecondsUntilTransition.toString();
+            TextUtil.setText(mDefeatCountdownTextField,mSecondsUntilTransition.toString());
+         }
+         if(mDefeatCountdownBounceRenderer)
+         {
+            mDefeatCountdownBounceRenderer.stop();
          }
          if(mDefeatCountdownRenderer)
          {
             mDefeatCountdownRenderer.play(0,false);
             mDefeatCountdownRenderer.clip.visible = true;
          }
+         mDefeatCountdownTween = null;
          mUpdateCountdownTask = mLogicalWorkComponent.doEverySeconds(1,updateFloorFailingCountdown);
       }
       
@@ -522,7 +548,7 @@ package Floor
       {
          if(!isCountdownComplete())
          {
-            mCountdownTextField.text = mSecondsUntilTransition.toString();
+            TextUtil.setText(mCountdownTextField,mSecondsUntilTransition.toString());
             mCountdownRenderer.play(0,false);
          }
          else
@@ -535,8 +561,8 @@ package Floor
       {
          if(!isCountdownComplete())
          {
-            mDefeatCountdownTextField.text = mSecondsUntilTransition.toString();
-            mDefeatCountdownRenderer.play(0,false);
+            TextUtil.setText(mDefeatCountdownTextField,mSecondsUntilTransition.toString());
+            mDefeatCountdownBounceRenderer.play(0,false);
          }
          else
          {
@@ -553,22 +579,21 @@ package Floor
             {
                mDefeatCountdownStartClip.visible = false;
             }
-            if(mDefeatCountdownTextField)
-            {
-               mDefeatCountdownTextField.text = mSecondsUntilTransition.toString();
-            }
-            if(mDefeatCountdownRenderer)
-            {
-               mDefeatCountdownRenderer.play(0,false);
-               mDefeatCountdownRenderer.clip.visible = true;
-            }
-            mDefeatCountdownTween.kill();
+            mDBFacade.mTween.killTween(mDefeatCountdownTween);
             mDefeatCountdownTween = null;
          }
          if(mUpdateCountdownTask)
          {
             mUpdateCountdownTask.destroy();
             mUpdateCountdownTask = null;
+         }
+         if(mDefeatCountdownRenderer)
+         {
+            mDefeatCountdownRenderer.stop();
+         }
+         if(mDefeatCountdownBounceRenderer)
+         {
+            mDefeatCountdownBounceRenderer.stop();
          }
          mSecondsUntilTransition = 0;
          screenFinished(mDefeatCountdownRenderer);
@@ -586,20 +611,7 @@ package Floor
          mUpdateCountdownTask = null;
          if(mDefeatCountdownTween)
          {
-            if(mDefeatCountdownStartClip)
-            {
-               mDefeatCountdownStartClip.visible = false;
-            }
-            if(mDefeatCountdownTextField)
-            {
-               mDefeatCountdownTextField.text = mSecondsUntilTransition.toString();
-            }
-            if(mDefeatCountdownRenderer)
-            {
-               mDefeatCountdownRenderer.play(0,false);
-               mDefeatCountdownRenderer.clip.visible = true;
-            }
-            mDefeatCountdownTween.kill();
+            mDBFacade.mTween.killTween(mDefeatCountdownTween);
             mDefeatCountdownTween = null;
          }
          if(mSceneGraphComponent)
@@ -626,7 +638,7 @@ package Floor
          mRoot = null;
          mCountdownTextField = null;
          mCountdownTimerLabel = null;
-         TweenMax.killTweensOf(mDefeatCountdownStartClip);
+         mDBFacade.mTween.killTweensOf(mDefeatCountdownStartClip);
          mDefeatCountdownStartClip = null;
          mDefeatCountdownTextField = null;
          if(mVictoryRenderer)
@@ -662,10 +674,15 @@ package Floor
             mDefeatCountdownRenderer.destroy();
          }
          mDefeatCountdownRenderer = null;
-         if(mKillswitchRenderer)
+         if(mDefeatCountdownBounceRenderer)
          {
-            mKillswitchRenderer.destroy();
-            mKillswitchRenderer = null;
+            mDefeatCountdownBounceRenderer.destroy();
+         }
+         mDefeatCountdownBounceRenderer = null;
+         if(mKillSwitchRenderer)
+         {
+            mKillSwitchRenderer.destroy();
+            mKillSwitchRenderer = null;
          }
          mDBFacade = null;
       }

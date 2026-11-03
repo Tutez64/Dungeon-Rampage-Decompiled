@@ -7,10 +7,10 @@ package Events
       
       public var experience:uint;
       
-      public function ExperienceEvent(type:String, id:uint, experience:uint, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function ExperienceEvent(experienceEventType:String, id:uint, experience:uint, bubbles:Boolean = false, cancelable:Boolean = false)
       {
          this.experience = experience;
-         super(type,id,bubbles,cancelable);
+         super(experienceEventType,id,bubbles,cancelable);
       }
    }
 }

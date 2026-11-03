@@ -10,21 +10,21 @@ package GeneratedCode
       
       private var the_instance:DistributedDungionArea;
       
-      public const FLID_tileLibrary:uint = 211;
+      public const FLID_tileLibrary:uint = 219;
       
-      public const FLID_cacheNpc:uint = 212;
+      public const FLID_cacheNpc:uint = 220;
       
-      public const FLID_cacheSWC:uint = 213;
+      public const FLID_cacheSWC:uint = 221;
       
-      public const FLID_floorReward:uint = 214;
+      public const FLID_floorReward:uint = 222;
       
-      public const FLID_floorEnding:uint = 215;
+      public const FLID_floorEnding:uint = 223;
       
-      public const FLID_dungeonEnding:uint = 216;
+      public const FLID_dungeonEnding:uint = 224;
       
-      public const FLID_floorfailing:uint = 217;
+      public const FLID_floorfailing:uint = 225;
       
-      public const FLID_tellClientInfiniteRewardData:uint = 218;
+      public const FLID_tellClientInfiniteRewardData:uint = 226;
       
       public function DistributedDungionAreaNetworkComponent(Inst:DistributedDungionArea, gs:GeneratedDcSocket, id:uint)
       {
@@ -44,7 +44,7 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 211)
+         switch(int(fieldid) - 219)
          {
             case 0:
                recv_tileLibrary(packet);
@@ -110,7 +110,7 @@ package GeneratedCode
       {
          var v_cacheNpc:Vector.<uint> = (function(param1:DcNetworkPacket):Vector.<uint>
          {
-            var _loc5_:* = 0;
+            var _loc5_:uint = 0;
             var _loc3_:Vector.<uint> = new Vector.<uint>();
             var _loc2_:uint = param1.readUnsignedShort();
             var _loc4_:uint = _loc2_ + param1.position;

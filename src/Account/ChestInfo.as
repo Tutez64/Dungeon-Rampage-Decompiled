@@ -3,6 +3,7 @@ package Account
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
    import Brain.Logger.Logger;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import GameMasterDictionary.GMChest;
    import GameMasterDictionary.GMRarity;
@@ -73,7 +74,7 @@ package Account
       
       override public function get iconScale() : Number
       {
-         return 120;
+         return DBGlobal.CHEST_ICON_NATIVE_SIZE;
       }
       
       override protected function parseJson(json:Object) : void

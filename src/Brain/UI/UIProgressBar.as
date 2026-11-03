@@ -90,6 +90,10 @@ package Brain.UI
       {
          var _loc2_:Number = NaN;
          var _loc3_:Boolean = false;
+         if(mTrueValue <= mValue)
+         {
+            _loc3_ = true;
+         }
          if(mTrueValue > mValue)
          {
             _loc2_ = 1 - (mTrueValue - mValue) * 0.125;

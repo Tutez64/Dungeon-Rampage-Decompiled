@@ -40,8 +40,8 @@ package Combat.Attack
          var _loc13_:Number = NaN;
          var _loc12_:Number = NaN;
          var _loc15_:Vector3D = null;
-         var _loc18_:* = 0;
-         var _loc19_:* = 0;
+         var _loc18_:uint = 0;
+         var _loc19_:uint = 0;
          if(actorGameObject.isOwner)
          {
             _loc17_ = weapon != null ? weapon.collisionScale() : 1;

@@ -1,6 +1,7 @@
 package UI.Popup
 {
    import Brain.AssetRepository.SwfAsset;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.Locale;
    
@@ -16,13 +17,13 @@ package UI.Popup
       public function UIRetrainPopup(dbFacade:DBFacade, leftCallback:Function, price:uint)
       {
          mPrice = price;
-         super(dbFacade,Locale.getString("RETRAIN_POPUP_TITLE"),Locale.getString("RETRAIN_POPUP_MESSAGE"),Locale.getString("RETRAIN_BUY"),leftCallback,Locale.getString("CANCEL"),null,true,null,true,true,"RETRAIN_POPUP");
+         super(dbFacade,"RETRAIN_POPUP",Locale.getString("RETRAIN_POPUP_TITLE"),Locale.getString("RETRAIN_POPUP_MESSAGE"),Locale.getString("RETRAIN_BUY"),leftCallback,Locale.getString("CANCEL"),null);
       }
       
       override protected function setupUI(swfAsset:SwfAsset, titleText:String, content:*, allowClose:Boolean, closeCallback:Function) : void
       {
          super.setupUI(swfAsset,titleText,content,allowClose,closeCallback);
-         mLeftButton.label.text = mPrice.toString();
+         TextUtil.setText(mLeftButton.label,mPrice.toString());
       }
       
       override protected function getSwfPath() : String
@@ -43,7 +44,6 @@ package UI.Popup
          mRightButton.isToTheLeftOf(mLeftButton);
          mCloseButton.isAbove(mRightButton);
          mLeftButton.upNavigation = mCloseButton;
-         mDBFacade.menuNavigationController.pushNewLayer(mUILayerName,mCloseCallback,mCloseButton);
       }
    }
 }

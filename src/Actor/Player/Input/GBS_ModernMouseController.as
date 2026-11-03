@@ -9,6 +9,7 @@ package Actor.Player.Input
    import Brain.Logger.Logger;
    import Brain.Utils.Tuple;
    import Combat.Weapon.WeaponGameObject;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.HeroGameObjectOwner;
    import Dungeon.NavCollider;
    import Facade.DBFacade;
@@ -89,12 +90,12 @@ package Actor.Player.Input
       
       private function checkStationaryKey() : void
       {
-         if(!mIsStationaryAttack && mDBFacade.inputManager.check(16))
+         if(!mIsStationaryAttack && mDBFacade.keyBindings.isDown("holdInPlace"))
          {
             cancelMovementAction();
             mIsStationaryAttack = true;
          }
-         else if(mIsStationaryAttack && !mDBFacade.inputManager.check(16))
+         else if(mIsStationaryAttack && !mDBFacade.keyBindings.isDown("holdInPlace"))
          {
             mHeroGameObjectOwner.PlayerAttack.stopAttacking();
             mIsStationaryAttack = false;
@@ -125,6 +126,11 @@ package Actor.Player.Input
          if(mCurrentTarget.actorView != null)
          {
             mCurrentTarget.actorView.mouseOverUnhighlight();
+         }
+         if(mActorMousedOver == mCurrentTarget)
+         {
+            mActorMousedOver = null;
+            popAttackCursor();
          }
          setCurrentTargetSelection(false);
          mCurrentTarget = null;
@@ -229,7 +235,7 @@ package Actor.Player.Input
          {
             return false;
          }
-         return mHeroGameObjectOwner.weapons[0].weaponData.ClassType == "SHOOTING" || mHeroGameObjectOwner.weapons[0].weaponData.ClassType == "MAGIC";
+         return mHeroGameObjectOwner.weapons[0].weaponData.ClassType == DBGlobal.SHOOTING_ITEM_CATEGORY || mHeroGameObjectOwner.weapons[0].weaponData.ClassType == DBGlobal.MAGIC_ITEM_CATEGORY;
       }
       
       private function isValidTarget(actor:ActorGameObject) : Boolean

@@ -1,6 +1,6 @@
 package Brain.Clock
 {
-   import com.greensock.TweenMax;
+   import Brain.Render.Tweens.TweeningProxy;
    import flash.utils.getTimer;
    
    public class GameClock
@@ -326,7 +326,7 @@ package Brain.Clock
       public function set timeScale(value:Number) : void
       {
          mTimeScale = Math.min(10,Math.max(0.1,value));
-         TweenMax.globalTimeScale = mTimeScale;
+         TweeningProxy.setGlobalTimeScale(mTimeScale);
       }
       
       public function get gameTime() : int

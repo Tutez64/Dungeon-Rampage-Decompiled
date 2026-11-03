@@ -11,37 +11,37 @@ package GeneratedCode
       
       private var the_instance:DistributedNPCGameObject;
       
-      public const FLID_type:uint = 130;
+      public const FLID_type:uint = 131;
       
-      public const FLID_level:uint = 131;
+      public const FLID_level:uint = 132;
       
-      public const FLID_position:uint = 132;
+      public const FLID_position:uint = 133;
       
-      public const FLID_heading:uint = 133;
+      public const FLID_heading:uint = 134;
       
-      public const FLID_scale:uint = 134;
+      public const FLID_scale:uint = 135;
       
-      public const FLID_flip:uint = 135;
+      public const FLID_flip:uint = 136;
       
-      public const FLID_hitPoints:uint = 136;
+      public const FLID_hitPoints:uint = 137;
       
-      public const FLID_weaponDetails:uint = 137;
+      public const FLID_weaponDetails:uint = 138;
       
-      public const FLID_state:uint = 138;
+      public const FLID_state:uint = 139;
       
-      public const FLID_team:uint = 139;
+      public const FLID_team:uint = 140;
       
-      public const FLID_layer:uint = 140;
+      public const FLID_layer:uint = 141;
       
-      public const FLID_remoteTriggerState:uint = 141;
+      public const FLID_remoteTriggerState:uint = 142;
       
-      public const FLID_masterId:uint = 142;
+      public const FLID_masterId:uint = 143;
       
-      public const FLID_ReceiveAttackChoreography:uint = 143;
+      public const FLID_ReceiveAttackChoreography:uint = 144;
       
-      public const FLID_ReceiveCombatResult:uint = 144;
+      public const FLID_ReceiveCombatResult:uint = 145;
       
-      public const FLID_ReceiveTimelineAction:uint = 145;
+      public const FLID_ReceiveTimelineAction:uint = 146;
       
       public function DistributedNPCGameObjectNetworkComponent(Inst:DistributedNPCGameObject, gs:GeneratedDcSocket, id:uint)
       {
@@ -61,7 +61,7 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 130)
+         switch(int(fieldid) - 131)
          {
             case 0:
                recv_type(packet);
@@ -191,7 +191,7 @@ package GeneratedCode
       {
          var v_weaponDetails:Vector.<WeaponDetails> = (function(param1:DcNetworkPacket):Vector.<WeaponDetails>
          {
-            var _loc3_:* = 0;
+            var _loc3_:uint = 0;
             var _loc5_:WeaponDetails = null;
             var _loc4_:Vector.<WeaponDetails> = new Vector.<WeaponDetails>();
             var _loc2_:uint = 4;

@@ -10,21 +10,23 @@ package GeneratedCode
       
       private var the_instance:PlayerGameObject;
       
-      public const FLID_screenName:uint = 180;
+      public const FLID_screenName:uint = 187;
       
-      public const FLID_basicCurrency:uint = 181;
+      public const FLID_heroPreloadLook:uint = 188;
       
-      public const FLID_Chat:uint = 182;
+      public const FLID_basicCurrency:uint = 189;
       
-      public const FLID_ShowPlayerIsTyping:uint = 183;
+      public const FLID_Chat:uint = 190;
       
-      public const FLID_requesthero:uint = 184;
+      public const FLID_ShowPlayerIsTyping:uint = 191;
       
-      public const FLID_requestentry:uint = 185;
+      public const FLID_requesthero:uint = 192;
       
-      public const FLID_requestpartymemberinvite:uint = 186;
+      public const FLID_requestentry:uint = 193;
       
-      public const FLID_requestexit:uint = 187;
+      public const FLID_requestpartymemberinvite:uint = 194;
+      
+      public const FLID_requestexit:uint = 195;
       
       public function PlayerGameObjectNetworkComponent(Inst:PlayerGameObject, gs:GeneratedDcSocket, id:uint)
       {
@@ -44,15 +46,18 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 180)
+         switch(int(fieldid) - 187)
          {
             case 0:
                recv_screenName(packet);
                break;
-            case 2:
-               recv_Chat(packet);
+            case 1:
+               recv_heroPreloadLook(packet);
                break;
             case 3:
+               recv_Chat(packet);
+               break;
+            case 4:
                recv_ShowPlayerIsTyping(packet);
                break;
             default:
@@ -63,6 +68,7 @@ package GeneratedCode
       override public function generate(packet:DcNetworkPacket) : void
       {
          recv_screenName(packet);
+         recv_heroPreloadLook(packet);
          recvByIdLoop(packet);
       }
       
@@ -75,6 +81,12 @@ package GeneratedCode
       {
          var _loc2_:String = packet.readUTF();
          the_instance.screenName = _loc2_;
+      }
+      
+      public function recv_heroPreloadLook(packet:DcNetworkPacket) : void
+      {
+         var _loc2_:HeroPreloadLook = HeroPreloadLook.readFromPacket(packet);
+         the_instance.heroPreloadLook = _loc2_;
       }
       
       public function recv_Chat(packet:DcNetworkPacket) : void

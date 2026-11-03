@@ -2,21 +2,32 @@ package StateMachine.MainStateMachine
 {
    import Actor.Player.Input.DungeonBusterControlActivatedEvent;
    import Brain.AssetRepository.AssetLoadingComponent;
+   import Brain.AssetRepository.ImageAsset;
    import Brain.AssetRepository.SwfAsset;
    import Brain.Clock.GameClock;
    import Brain.Event.EventComponent;
+   import Brain.Event.EventListeners;
    import Brain.Render.MovieClipRenderer;
    import Brain.SceneGraph.SceneGraphComponent;
    import Brain.UI.UIButton;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
+   import Brain.WorkLoop.Task;
    import Facade.DBFacade;
    import Facade.Locale;
-   import com.greensock.TimelineMax;
-   import com.greensock.TweenMax;
+   import Input.KeyBindings.InputAction;
+   import SteamInput.OnSteamInputButtonPressedEvent;
+   import flash.display.Bitmap;
+   import flash.display.DisplayObject;
    import flash.display.MovieClip;
+   import flash.display.Shape;
+   import flash.display.Sprite;
    import flash.events.Event;
    import flash.events.KeyboardEvent;
    import flash.events.MouseEvent;
+   import flash.geom.Rectangle;
+   import flash.geom.Vector3D;
+   import flash.text.TextField;
    
    public class DungeonTutorial
    {
@@ -53,6 +64,18 @@ package StateMachine.MainStateMachine
       
       private static const TUTORIAL_SWF:String = "Resources/Art2D/UI/db_UI_screens.swf";
       
+      private static const CARD_SCALE:Number = 1;
+      
+      private static const LOOT_CARD_SCALE:Number = 1.1764705882352942;
+      
+      private static const CONTROLLER_GLYPH_SIZE:Number = 56;
+      
+      private static const CONTROLLER_STICK_GLYPH_SIZE:Number = 80;
+      
+      private static const GAMEPAD_MOVEMENT_DEADZONE:Number = 0.05;
+      
+      private static const ATTACK_ACTIONS:Array = ["attack_weapon_1","attack_weapon_2","attack_weapon_3"];
+      
       protected var mDBFacade:DBFacade;
       
       private var mAssetLoadingComponent:AssetLoadingComponent;
@@ -66,6 +89,8 @@ package StateMachine.MainStateMachine
       private var mMovementTutorialDone:Boolean = false;
       
       private var mMovementPopup:MovieClip;
+      
+      private var mGamepadMovementTask:Task;
       
       private var mAttackTutorialDone:Boolean = false;
       
@@ -119,6 +144,8 @@ package StateMachine.MainStateMachine
       
       private var mLootSharingPopup:MovieClip;
       
+      private var mLootSharingChestRenderer:MovieClipRenderer;
+      
       private var mSuperWeakTutorialDone:Boolean = false;
       
       private var mSuperWeakCloseButton:UIButton;
@@ -135,20 +162,36 @@ package StateMachine.MainStateMachine
          mSceneGraphComponent = new SceneGraphComponent(mDBFacade,"DungeonTutorial");
          mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"DungeonTutorial");
          mEventComponent = new EventComponent(mDBFacade);
-         mDBFacade.stageRef.addEventListener("keyDown",handleKeyDown);
-         mDBFacade.stageRef.addEventListener("mouseDown",handleMouseDown);
+         EventListeners.add(mDBFacade.stageRef,"keyDown",handleKeyDown);
+         EventListeners.add(mDBFacade.stageRef,"mouseDown",handleMouseDown);
          mEventComponent.addListener("DungeonBusterControlActivatedEvent",handleBuster);
          mEventComponent.addListener("REVIVE_SPACEBAR_PRESSED",handleRevive);
+         mEventComponent.addListener("OnSteamInputButtonPressedEvent",handleSteamInputButtonPressed);
          if(mDBFacade.dbAccountInfo.dbAccountParams.hasMovementTutorialParam())
          {
             mMovementTutorialDone = true;
          }
       }
       
+      private static function isKeyboardArt(child:DisplayObject, hideUnnamedClips:Boolean) : Boolean
+      {
+         if(child is Shape)
+         {
+            return true;
+         }
+         var _loc3_:TextField = child as TextField;
+         if(_loc3_ != null)
+         {
+            return _loc3_.text.replace(/\s/g,"").length <= 2;
+         }
+         return hideUnnamedClips && child is Sprite && child.name.indexOf("instance") == 0;
+      }
+      
       public function destroy() : void
       {
-         mDBFacade.stageRef.removeEventListener("keyDown",handleKeyDown);
-         mDBFacade.stageRef.removeEventListener("mouseDown",handleMouseDown);
+         stopGamepadMovementCheck();
+         EventListeners.remove(mDBFacade.stageRef,"keyDown",handleKeyDown);
+         EventListeners.remove(mDBFacade.stageRef,"mouseDown",handleMouseDown);
          this.destroyChestTutorial();
          this.destroyMovementTutorial();
          this.destroyAttackTutorial();
@@ -178,88 +221,205 @@ package StateMachine.MainStateMachine
       
       private function handleKeyDown(event:KeyboardEvent) : void
       {
-         switch(event.keyCode)
+         if(event.keyCode == 27)
          {
-            case 27:
-               if(mAttackPopup && !mAttackTutorialDone)
-               {
-                  this.finishAttackTutorial();
-               }
-               if(mMovementPopup && !mMovementTutorialDone)
-               {
-                  this.advanceToAttackTutorial();
-               }
-               if(mChestPopup && !mChestTutorialDone)
-               {
-                  this.finishChestTutorial();
-               }
-               if(mChestPopup && !mCooldownTutorialDone)
-               {
-                  this.finishCooldownTutorial();
-               }
-               if(mChestPopup && !mScalingTutorialDone)
-               {
-                  this.finishScalingTutorial();
-               }
-               if(mChestPopup && !mRepeaterTutorialDone)
-               {
-                  this.finishRepeaterTutorial();
-               }
-               if(mBusterPopup && !mBusterTutorialDone)
-               {
-                  this.finishBusterTutorial();
-               }
-               if(mChargePopup && !mChargeTutorialDone)
-               {
-                  this.finishChargeTutorial();
-               }
-               break;
-            case 90:
-            case 88:
-            case 67:
-            case 74:
-            case 75:
-            case 76:
-               if(mAttackPopup && !mAttackTutorialDone)
-               {
-                  this.finishAttackTutorial();
-               }
-               if(mChestPopup && !mCooldownTutorialDone)
-               {
-                  this.finishCooldownTutorial();
-               }
-               if(mChestPopup && !mScalingTutorialDone)
-               {
-                  this.finishScalingTutorial();
-               }
-               if(mChestPopup && !mRepeaterTutorialDone)
-               {
-                  this.finishRepeaterTutorial();
-               }
-               if(mChargePopup && !mChargeTutorialDone)
-               {
-                  this.finishChargeTutorial();
-               }
-               break;
-            case 66:
-               if(mBusterPopup && !mBusterTutorialDone)
-               {
-                  this.finishBusterTutorial();
-               }
-               break;
-            case 38:
-            case 40:
-            case 39:
-            case 87:
-            case 83:
-            case 68:
-            case 65:
-            case 37:
-               if(mMovementPopup && !mMovementTutorialDone)
-               {
-                  this.advanceToAttackTutorial();
-               }
+            if(mAttackPopup && !mAttackTutorialDone)
+            {
+               this.finishAttackTutorial();
+            }
+            if(mMovementPopup && !mMovementTutorialDone)
+            {
+               this.advanceToAttackTutorial();
+            }
+            if(mChestPopup && !mChestTutorialDone)
+            {
+               this.finishChestTutorial();
+            }
+            if(mChestPopup && !mCooldownTutorialDone)
+            {
+               this.finishCooldownTutorial();
+            }
+            if(mChestPopup && !mScalingTutorialDone)
+            {
+               this.finishScalingTutorial();
+            }
+            if(mChestPopup && !mRepeaterTutorialDone)
+            {
+               this.finishRepeaterTutorial();
+            }
+            if(mBusterPopup && !mBusterTutorialDone)
+            {
+               this.finishBusterTutorial();
+            }
+            if(mChargePopup && !mChargeTutorialDone)
+            {
+               this.finishChargeTutorial();
+            }
+            return;
          }
+         var _loc2_:String = mDBFacade.keyBindings.actionForKey(event.keyCode);
+         if(_loc2_ == null)
+         {
+            return;
+         }
+         if(InputAction.isWeaponAttack(_loc2_))
+         {
+            handleAttackInput();
+         }
+         else if(_loc2_ == "useDungeonBuster")
+         {
+            if(mBusterPopup && !mBusterTutorialDone)
+            {
+               this.finishBusterTutorial();
+            }
+         }
+         else if(InputAction.isMovement(_loc2_))
+         {
+            if(mMovementPopup && !mMovementTutorialDone)
+            {
+               this.advanceToAttackTutorial();
+            }
+         }
+      }
+      
+      private function handleAttackInput() : void
+      {
+         if(mAttackPopup && !mAttackTutorialDone)
+         {
+            this.finishAttackTutorial();
+         }
+         if(mChestPopup && !mCooldownTutorialDone)
+         {
+            this.finishCooldownTutorial();
+         }
+         if(mChestPopup && !mScalingTutorialDone)
+         {
+            this.finishScalingTutorial();
+         }
+         if(mChestPopup && !mRepeaterTutorialDone)
+         {
+            this.finishRepeaterTutorial();
+         }
+         if(mChargePopup && !mChargeTutorialDone)
+         {
+            this.finishChargeTutorial();
+         }
+      }
+      
+      private function handleSteamInputButtonPressed(event:OnSteamInputButtonPressedEvent) : void
+      {
+         if(ATTACK_ACTIONS.indexOf(event.actionName) != -1)
+         {
+            handleAttackInput();
+         }
+         else if(event.actionName == "use_dungeon_buster")
+         {
+            if(mBusterPopup && !mBusterTutorialDone)
+            {
+               this.finishBusterTutorial();
+            }
+         }
+      }
+      
+      private function checkGamepadMovement(gameClock:GameClock) : void
+      {
+         if(mMovementPopup == null || mMovementTutorialDone)
+         {
+            stopGamepadMovementCheck();
+            return;
+         }
+         var _loc2_:Vector3D = mDBFacade.steamInputManager.getAnalogAction("game_movement");
+         if(_loc2_.lengthSquared > 0.05)
+         {
+            stopGamepadMovementCheck();
+            advanceToAttackTutorial();
+         }
+      }
+      
+      private function stopGamepadMovementCheck() : void
+      {
+         if(mGamepadMovementTask)
+         {
+            mGamepadMovementTask.destroy();
+         }
+         mGamepadMovementTask = null;
+      }
+      
+      private function showControllerPrompts(popup:MovieClip, glyphFilePaths:Array, glyphSize:Number, hideUnnamedClips:Boolean) : void
+      {
+         var _loc6_:int = 0;
+         var _loc14_:DisplayObject = null;
+         var _loc12_:Rectangle = null;
+         var _loc5_:int = 0;
+         if(!mDBFacade.steamInputManager.wantsControllerPrompts)
+         {
+            return;
+         }
+         var _loc11_:Array = [];
+         for each(var _loc7_:String in glyphFilePaths)
+         {
+            if(_loc7_ != null && _loc7_ != "" && _loc7_ != "error1" && _loc11_.indexOf(_loc7_) == -1)
+            {
+               _loc11_.push(_loc7_);
+            }
+         }
+         if(_loc11_.length == 0)
+         {
+            return;
+         }
+         var _loc13_:Rectangle = null;
+         _loc6_ = popup.getChildIndex(popup.title) + 1;
+         while(_loc6_ < popup.numChildren)
+         {
+            _loc14_ = popup.getChildAt(_loc6_);
+            if(isKeyboardArt(_loc14_,hideUnnamedClips))
+            {
+               _loc14_.visible = false;
+               _loc12_ = _loc14_.getBounds(popup);
+               _loc13_ = _loc13_ ? _loc13_.union(_loc12_) : _loc12_;
+            }
+            _loc6_++;
+         }
+         if(_loc13_ == null)
+         {
+            return;
+         }
+         var _loc8_:Number = glyphSize * 0.25;
+         var _loc10_:Number = _loc13_.x + (_loc13_.width - (_loc11_.length * glyphSize + (_loc11_.length - 1) * _loc8_)) / 2;
+         var _loc9_:Number = _loc13_.y + (_loc13_.height - glyphSize) / 2;
+         _loc5_ = 0;
+         while(_loc5_ < _loc11_.length)
+         {
+            addControllerGlyph(popup,_loc11_[_loc5_],_loc10_ + _loc5_ * (glyphSize + _loc8_),_loc9_,glyphSize);
+            _loc5_++;
+         }
+      }
+      
+      private function addControllerGlyph(popup:MovieClip, glyphFilePath:String, x:Number, y:Number, size:Number) : void
+      {
+         mAssetLoadingComponent.getImageAsset(glyphFilePath,function(param1:ImageAsset):void
+         {
+            var _loc2_:Bitmap = new Bitmap(param1.image.bitmapData,param1.image.pixelSnapping,param1.image.smoothing);
+            _loc2_.x = x;
+            _loc2_.y = y;
+            _loc2_.width = size;
+            _loc2_.height = size;
+            popup.addChild(_loc2_);
+         });
+      }
+      
+      private function getAttackGlyphFilePaths() : Array
+      {
+         var _loc1_:Array = [];
+         if(!mDBFacade.steamInputManager.isSteamInputReady)
+         {
+            return _loc1_;
+         }
+         for each(var _loc2_:String in ATTACK_ACTIONS)
+         {
+            _loc1_.push(mDBFacade.steamInputManager.getGlyphFilePathForAction(_loc2_));
+         }
+         return _loc1_;
       }
       
       private function handleBuster(event:DungeonBusterControlActivatedEvent) : void
@@ -291,25 +451,26 @@ package StateMachine.MainStateMachine
          var _loc1_:Number = mMovementPopup.x;
          var _loc3_:Number = mDBFacade.viewWidth + mMovementPopup.width;
          var _loc2_:Number = mDBFacade.viewHeight * 0.5;
-         new TimelineMax({
-            "tweens":[TweenMax.to(mMovementPopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mMovementPopup,0.08333333333333333,{
                "delay":1,
                "x":_loc1_ - 20,
                "y":_loc2_
-            }),TweenMax.to(mMovementPopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mMovementPopup,0.3333333333333333,{
                "x":_loc3_,
                "y":_loc2_
-            }),TweenMax.delayedCall(1.5,timelineAttackAdvance)],
+            }),mDBFacade.mTween.delayedCall(1.5,timelineAttackAdvance)],
             "align":"sequence"
          });
       }
       
       private function destroyMovementTutorial() : void
       {
+         stopGamepadMovementCheck();
          if(mMovementPopup)
          {
-            TweenMax.killDelayedCallsTo(timelineAttackAdvance);
-            TweenMax.killTweensOf(mMovementPopup);
+            mDBFacade.mTween.killDelayedCallsTo(timelineAttackAdvance);
+            mDBFacade.mTween.killTweensOf(mMovementPopup);
             mSceneGraphComponent.removeChild(mMovementPopup);
             mMovementPopup = null;
          }
@@ -325,19 +486,22 @@ package StateMachine.MainStateMachine
                return;
             }
             mMovementPopup = new _loc3_();
-            mMovementPopup.title.text = Locale.getString("TUTORIAL_MOVEMENT_TITLE");
+            Locale.setText(mMovementPopup.title,"TUTORIAL_MOVEMENT_TITLE");
             mMovementPopup.check.visible = false;
+            showControllerPrompts(mMovementPopup,[mDBFacade.steamInputManager.getGlyphFilePathForAnalogAction("game_movement")],80,true);
+            stopGamepadMovementCheck();
+            mGamepadMovementTask = mLogicalWorkComponent.doEveryFrame(checkGamepadMovement);
             mSceneGraphComponent.addChild(mMovementPopup,105);
-            mMovementPopup.scaleX = mMovementPopup.scaleY = 0.85;
+            mMovementPopup.scaleX = mMovementPopup.scaleY = 1;
             var _loc2_:Number = mDBFacade.viewWidth - mMovementPopup.width * 0.5 - 50;
             var _loc4_:Number = mDBFacade.viewHeight * 0.5;
             mMovementPopup.x = mDBFacade.viewWidth + mMovementPopup.width;
             mMovementPopup.y = _loc4_;
-            new TimelineMax({
-               "tweens":[TweenMax.to(mMovementPopup,0.3333333333333333,{
+            mDBFacade.mTween.createTimeline({
+               "tweens":[mDBFacade.mTween.tweenMaxTo(mMovementPopup,0.3333333333333333,{
                   "x":_loc2_ - 20,
                   "y":_loc4_
-               }),TweenMax.to(mMovementPopup,0.08333333333333333,{
+               }),mDBFacade.mTween.tweenMaxTo(mMovementPopup,0.08333333333333333,{
                   "x":_loc2_,
                   "y":_loc4_
                })],
@@ -365,12 +529,12 @@ package StateMachine.MainStateMachine
          curX = mAttackPopup.x;
          offscreenX = -mAttackPopup.width;
          offscreenY = mDBFacade.viewHeight * 0.5;
-         new TimelineMax({
-            "tweens":[TweenMax.to(mAttackPopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mAttackPopup,0.08333333333333333,{
                "delay":1,
                "x":curX + 20,
                "y":offscreenY
-            }),TweenMax.to(mAttackPopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mAttackPopup,0.3333333333333333,{
                "x":offscreenX,
                "y":offscreenY,
                "onComplete":advanceFunc
@@ -383,7 +547,7 @@ package StateMachine.MainStateMachine
       {
          if(mAttackPopup)
          {
-            TweenMax.killTweensOf(mAttackPopup);
+            mDBFacade.mTween.killTweensOf(mAttackPopup);
             mSceneGraphComponent.removeChild(mAttackPopup);
             mAttackPopup = null;
          }
@@ -400,19 +564,20 @@ package StateMachine.MainStateMachine
                return;
             }
             mAttackPopup = new _loc3_();
-            mAttackPopup.title.text = Locale.getString("TUTORIAL_ATTACK_TITLE");
+            Locale.setText(mAttackPopup.title,"TUTORIAL_ATTACK_TITLE");
             mAttackPopup.check.visible = false;
+            showControllerPrompts(mAttackPopup,getAttackGlyphFilePaths(),56,false);
             mSceneGraphComponent.addChild(mAttackPopup,105);
-            mAttackPopup.scaleX = mAttackPopup.scaleY = 0.85;
+            mAttackPopup.scaleX = mAttackPopup.scaleY = 1;
             var _loc2_:Number = mAttackPopup.width * 0.5 + 10;
             var _loc4_:Number = mDBFacade.viewHeight * 0.5;
             mAttackPopup.x = -mAttackPopup.width;
             mAttackPopup.y = _loc4_;
-            new TimelineMax({
-               "tweens":[TweenMax.to(mAttackPopup,0.3333333333333333,{
+            mDBFacade.mTween.createTimeline({
+               "tweens":[mDBFacade.mTween.tweenMaxTo(mAttackPopup,0.3333333333333333,{
                   "x":_loc2_ + 20,
                   "y":_loc4_
-               }),TweenMax.to(mAttackPopup,0.08333333333333333,{
+               }),mDBFacade.mTween.tweenMaxTo(mAttackPopup,0.08333333333333333,{
                   "x":_loc2_,
                   "y":_loc4_
                })],
@@ -444,11 +609,11 @@ package StateMachine.MainStateMachine
             destX = -mRevivePopup.width;
             bounceOffset = 20;
          }
-         new TimelineMax({
-            "tweens":[TweenMax.to(mRevivePopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mRevivePopup,0.08333333333333333,{
                "delay":1,
                "x":curX + bounceOffset
-            }),TweenMax.to(mRevivePopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mRevivePopup,0.3333333333333333,{
                "x":destX,
                "onComplete":advanceFunc
             })],
@@ -460,7 +625,7 @@ package StateMachine.MainStateMachine
       {
          if(mRevivePopup)
          {
-            TweenMax.killTweensOf(mRevivePopup);
+            mDBFacade.mTween.killTweensOf(mRevivePopup);
             mSceneGraphComponent.removeChild(mRevivePopup);
             mRevivePopup = null;
          }
@@ -488,13 +653,13 @@ package StateMachine.MainStateMachine
                return;
             }
             mRevivePopup = new _loc4_();
-            mRevivePopup.title.text = Locale.getString("TUTORIAL_REVIVE_TITLE");
-            mRevivePopup.description.text = Locale.getString("TUTORIAL_REVIVE_DESCRIPTION");
+            Locale.setText(mRevivePopup.title,"TUTORIAL_REVIVE_TITLE");
+            Locale.setText(mRevivePopup.description,"TUTORIAL_REVIVE_DESCRIPTION");
             mRevivePopup.check.visible = false;
             mReviveCloseButton = new UIButton(mDBFacade,mRevivePopup.close);
             mReviveCloseButton.releaseCallback = finishReviveTutorial;
             mSceneGraphComponent.addChild(mRevivePopup,105);
-            mRevivePopup.scaleX = mRevivePopup.scaleY = 0.85;
+            mRevivePopup.scaleX = mRevivePopup.scaleY = 1;
             mRevivePopup.y = mDBFacade.viewHeight * 0.5;
             if(mRevivePopupPosition == "TUTORIAL_PANEL_RIGHT")
             {
@@ -508,8 +673,8 @@ package StateMachine.MainStateMachine
                _loc3_ = mRevivePopup.width / 2;
                _loc2_ = 20;
             }
-            new TimelineMax({
-               "tweens":[TweenMax.to(mRevivePopup,0.3333333333333333,{"x":_loc3_ + _loc2_}),TweenMax.to(mRevivePopup,0.08333333333333333,{"x":_loc3_})],
+            mDBFacade.mTween.createTimeline({
+               "tweens":[mDBFacade.mTween.tweenMaxTo(mRevivePopup,0.3333333333333333,{"x":_loc3_ + _loc2_}),mDBFacade.mTween.tweenMaxTo(mRevivePopup,0.08333333333333333,{"x":_loc3_})],
                "align":"sequence"
             });
          });
@@ -528,14 +693,14 @@ package StateMachine.MainStateMachine
             destroyLootSharingTutorial();
          };
          curX = mLootSharingPopup.x;
-         offscreenX = mDBFacade.stageRef.stageWidth;
+         offscreenX = mDBFacade.viewWidth;
          offscreenY = mDBFacade.viewHeight * 0.3;
-         new TimelineMax({
-            "tweens":[TweenMax.to(mLootSharingPopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mLootSharingPopup,0.08333333333333333,{
                "delay":1,
                "x":curX - 40,
                "y":offscreenY
-            }),TweenMax.to(mLootSharingPopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mLootSharingPopup,0.3333333333333333,{
                "x":offscreenX - 40,
                "y":offscreenY,
                "onComplete":advanceFunc
@@ -546,9 +711,14 @@ package StateMachine.MainStateMachine
       
       private function destroyLootSharingTutorial() : void
       {
+         if(mLootSharingChestRenderer)
+         {
+            mLootSharingChestRenderer.destroy();
+            mLootSharingChestRenderer = null;
+         }
          if(mLootSharingPopup)
          {
-            TweenMax.killTweensOf(mLootSharingPopup);
+            mDBFacade.mTween.killTweensOf(mLootSharingPopup);
             mSceneGraphComponent.removeChild(mLootSharingPopup);
             mLootSharingPopup = null;
          }
@@ -587,12 +757,12 @@ package StateMachine.MainStateMachine
          sign = isRight ? 1 : -1;
          offscreenX = isRight ? 900 : -100;
          offscreenY = mSuperWeakPopup.y;
-         new TimelineMax({
-            "tweens":[TweenMax.to(mSuperWeakPopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mSuperWeakPopup,0.08333333333333333,{
                "delay":1,
                "x":curX - sign * 40,
                "y":offscreenY
-            }),TweenMax.to(mSuperWeakPopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mSuperWeakPopup,0.3333333333333333,{
                "x":offscreenX,
                "y":offscreenY,
                "onComplete":advanceFunc
@@ -605,7 +775,7 @@ package StateMachine.MainStateMachine
       {
          if(mSuperWeakPopup)
          {
-            TweenMax.killTweensOf(mSuperWeakPopup);
+            mDBFacade.mTween.killTweensOf(mSuperWeakPopup);
             mSceneGraphComponent.removeChild(mSuperWeakPopup);
             mSuperWeakPopup = null;
          }
@@ -627,9 +797,9 @@ package StateMachine.MainStateMachine
                return;
             }
             mLootSharingPopup = new popupClass();
-            mLootSharingPopup.title.text = Locale.getString("TUTORIAL_LOOT_TITLE");
-            mLootSharingPopup.shared_text.text = Locale.getString("TUTORIAL_LOOT_SHARED");
-            mLootSharingPopup.not_shared_text.text = Locale.getString("TUTORIAL_LOOT_NOT_SHARED");
+            Locale.setText(mLootSharingPopup.title,"TUTORIAL_LOOT_TITLE");
+            Locale.setText(mLootSharingPopup.shared_text,"TUTORIAL_LOOT_SHARED");
+            Locale.setText(mLootSharingPopup.not_shared_text,"TUTORIAL_LOOT_NOT_SHARED");
             mLootSharingPopup.check.visible = false;
             mLootSharingCloseButton = new UIButton(mDBFacade,mLootSharingPopup.close);
             mLootSharingCloseButton.releaseCallback = finishLootSharingTutorial;
@@ -645,7 +815,7 @@ package StateMachine.MainStateMachine
                var gold3:Class = swfAsset2.getClass("doober_currency_coin");
                var xp:Class = swfAsset2.getClass("doober_xp_star");
                var db:Class = swfAsset2.getClass("doober_db_star");
-               var treasure:Class = swfAsset2.getClass("db_doobers_treasure_chest_basic_static");
+               var treasure:Class = swfAsset2.getClass("db_doobers_treasure_chest_basic");
                var foodClass:Class = swfAsset2.getClass("doober_health_burger");
                var gold:MovieClip = new gold3();
                gold.scaleX = gold.scaleY = 0.75;
@@ -667,17 +837,20 @@ package StateMachine.MainStateMachine
                mLootSharingPopup.xp.addChild(xpStar);
                mLootSharingPopup.db.addChild(dbStar);
                mLootSharingPopup.treasure.addChild(treasureMC);
+               mLootSharingChestRenderer = new MovieClipRenderer(mDBFacade,treasureMC);
+               mLootSharingChestRenderer.play(0,true);
                mLootSharingPopup.food.addChild(food);
                mSceneGraphComponent.addChild(mLootSharingPopup,105);
-               destX = mDBFacade.stageRef.stageWidth - mLootSharingPopup.width;
+               mLootSharingPopup.scaleX = mLootSharingPopup.scaleY = 1.1764705882352942;
+               destX = mDBFacade.viewWidth - mLootSharingPopup.width;
                destY = mDBFacade.viewHeight * 0.3;
                mLootSharingPopup.x = destX;
                mLootSharingPopup.y = destY;
-               new TimelineMax({
-                  "tweens":[TweenMax.to(mLootSharingPopup,0.3333333333333333,{
+               mDBFacade.mTween.createTimeline({
+                  "tweens":[mDBFacade.mTween.tweenMaxTo(mLootSharingPopup,0.3333333333333333,{
                      "x":destX + 20,
                      "y":destY
-                  }),TweenMax.to(mLootSharingPopup,0.08333333333333333,{
+                  }),mDBFacade.mTween.tweenMaxTo(mLootSharingPopup,0.08333333333333333,{
                      "x":destX,
                      "y":destY
                   })],
@@ -709,7 +882,7 @@ package StateMachine.MainStateMachine
                return;
             }
             mSuperWeakPopup = new popupClass();
-            mSuperWeakPopup.title.text = Locale.getString("TUTORIAL_SUPER_WEAK_TITLE");
+            Locale.setText(mSuperWeakPopup.title,"TUTORIAL_SUPER_WEAK_TITLE");
             mSuperWeakPopup.check.visible = false;
             mSuperWeakCloseButton = new UIButton(mDBFacade,mSuperWeakPopup.close);
             mSuperWeakCloseButton.releaseCallback = function():void
@@ -725,17 +898,17 @@ package StateMachine.MainStateMachine
                var destY:Number;
                var swfAsset2:SwfAsset = param1;
                mSceneGraphComponent.addChild(mSuperWeakPopup,105);
-               destXCaseRight = mDBFacade.stageRef.stageWidth - mSuperWeakPopup.width / 1.6;
+               destXCaseRight = mDBFacade.viewWidth - mSuperWeakPopup.width / 1.6;
                destXCaseLeft = mSuperWeakPopup.width / 3;
                destX = isRight ? destXCaseRight : destXCaseLeft;
                destY = mDBFacade.viewHeight * 0.5;
                mSuperWeakPopup.x = destX;
                mSuperWeakPopup.y = destY;
-               new TimelineMax({
-                  "tweens":[TweenMax.to(mSuperWeakPopup,0.3333333333333333,{
+               mDBFacade.mTween.createTimeline({
+                  "tweens":[mDBFacade.mTween.tweenMaxTo(mSuperWeakPopup,0.3333333333333333,{
                      "x":destX + 20,
                      "y":destY
-                  }),TweenMax.to(mSuperWeakPopup,0.08333333333333333,{
+                  }),mDBFacade.mTween.tweenMaxTo(mSuperWeakPopup,0.08333333333333333,{
                      "x":destX,
                      "y":destY
                   })],
@@ -773,12 +946,12 @@ package StateMachine.MainStateMachine
          curX = mChestPopup.x;
          offscreenX = mDBFacade.viewWidth + mChestPopup.width;
          offscreenY = mDBFacade.viewHeight * 0.5;
-         new TimelineMax({
-            "tweens":[TweenMax.to(mChestPopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mChestPopup,0.08333333333333333,{
                "delay":1,
                "x":curX + 20,
                "y":offscreenY
-            }),TweenMax.to(mChestPopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mChestPopup,0.3333333333333333,{
                "x":offscreenX,
                "y":offscreenY,
                "onComplete":advanceFunc
@@ -806,12 +979,12 @@ package StateMachine.MainStateMachine
          curX = mChestPopup.x;
          offscreenX = mDBFacade.viewWidth + mChestPopup.width;
          offscreenY = mDBFacade.viewHeight * 0.5;
-         new TimelineMax({
-            "tweens":[TweenMax.to(mChestPopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mChestPopup,0.08333333333333333,{
                "delay":1,
                "x":curX + 20,
                "y":offscreenY
-            }),TweenMax.to(mChestPopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mChestPopup,0.3333333333333333,{
                "x":offscreenX,
                "y":offscreenY,
                "onComplete":advanceFunc
@@ -839,12 +1012,12 @@ package StateMachine.MainStateMachine
          curX = mChestPopup.x;
          offscreenX = mDBFacade.viewWidth + mChestPopup.width;
          offscreenY = mDBFacade.viewHeight * 0.5;
-         new TimelineMax({
-            "tweens":[TweenMax.to(mChestPopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mChestPopup,0.08333333333333333,{
                "delay":1,
                "x":curX + 20,
                "y":offscreenY
-            }),TweenMax.to(mChestPopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mChestPopup,0.3333333333333333,{
                "x":offscreenX,
                "y":offscreenY,
                "onComplete":advanceFunc
@@ -872,12 +1045,12 @@ package StateMachine.MainStateMachine
          curX = mChestPopup.x;
          offscreenX = mDBFacade.viewWidth + mChestPopup.width;
          offscreenY = mDBFacade.viewHeight * 0.5;
-         new TimelineMax({
-            "tweens":[TweenMax.to(mChestPopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mChestPopup,0.08333333333333333,{
                "delay":1,
                "x":curX + 20,
                "y":offscreenY
-            }),TweenMax.to(mChestPopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mChestPopup,0.3333333333333333,{
                "x":offscreenX,
                "y":offscreenY,
                "onComplete":advanceFunc
@@ -905,12 +1078,12 @@ package StateMachine.MainStateMachine
          curX = mBusterPopup.x;
          offscreenX = mDBFacade.viewWidth + mBusterPopup.width;
          offscreenY = mDBFacade.viewHeight * 0.5;
-         new TimelineMax({
-            "tweens":[TweenMax.to(mBusterPopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mBusterPopup,0.08333333333333333,{
                "delay":1,
                "x":curX + 20,
                "y":offscreenY
-            }),TweenMax.to(mBusterPopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mBusterPopup,0.3333333333333333,{
                "x":offscreenX,
                "y":offscreenY,
                "onComplete":advanceFunc
@@ -929,7 +1102,7 @@ package StateMachine.MainStateMachine
                mCooldownRenderer.destroy();
                mCooldownRenderer = null;
             }
-            TweenMax.killTweensOf(mChestPopup);
+            mDBFacade.mTween.killTweensOf(mChestPopup);
             mSceneGraphComponent.removeChild(mChestPopup);
             mChestCloseButton.destroy();
             mChestCloseButton = null;
@@ -942,7 +1115,7 @@ package StateMachine.MainStateMachine
       {
          if(mBusterPopup)
          {
-            TweenMax.killTweensOf(mBusterPopup);
+            mDBFacade.mTween.killTweensOf(mBusterPopup);
             mSceneGraphComponent.removeChild(mBusterPopup);
             mBusterCloseButton.destroy();
             mBusterCloseButton = null;
@@ -962,22 +1135,22 @@ package StateMachine.MainStateMachine
                return;
             }
             mChestPopup = new _loc3_();
-            mChestPopup.title.text = Locale.getString("TUTORIAL_CHEST_TITLE");
-            mChestPopup.title1.text = Locale.getString("TUTORIAL_CHEST_DESC").toUpperCase();
+            Locale.setText(mChestPopup.title,"TUTORIAL_CHEST_TITLE");
+            TextUtil.setText(mChestPopup.title1,Locale.getString("TUTORIAL_CHEST_DESC").toUpperCase());
             mChestPopup.check.visible = false;
             mChestCloseButton = new UIButton(mDBFacade,mChestPopup.close);
             mChestCloseButton.releaseCallback = finishChestTutorial;
             mSceneGraphComponent.addChild(mChestPopup,105);
-            mChestPopup.scaleX = mChestPopup.scaleY = 0.85;
+            mChestPopup.scaleX = mChestPopup.scaleY = 1;
             var _loc2_:Number = mDBFacade.viewWidth - mChestPopup.width / 1.6;
             var _loc4_:Number = mDBFacade.viewHeight * 0.5;
             mChestPopup.x = _loc2_;
             mChestPopup.y = _loc4_;
-            new TimelineMax({
-               "tweens":[TweenMax.to(mChestPopup,0.3333333333333333,{
+            mDBFacade.mTween.createTimeline({
+               "tweens":[mDBFacade.mTween.tweenMaxTo(mChestPopup,0.3333333333333333,{
                   "x":_loc2_ + 20,
                   "y":_loc4_
-               }),TweenMax.to(mChestPopup,0.08333333333333333,{
+               }),mDBFacade.mTween.tweenMaxTo(mChestPopup,0.08333333333333333,{
                   "x":_loc2_,
                   "y":_loc4_
                })],
@@ -1000,22 +1173,22 @@ package StateMachine.MainStateMachine
                return;
             }
             mChestPopup = new popupClass();
-            mChestPopup.title.text = Locale.getString("TUTORIAL_COOLDOWN_TITLE");
-            mChestPopup.description.text = Locale.getString("TUTORIAL_COOLDOWN_DESC").toUpperCase();
+            Locale.setText(mChestPopup.title,"TUTORIAL_COOLDOWN_TITLE");
+            TextUtil.setText(mChestPopup.description,Locale.getString("TUTORIAL_COOLDOWN_DESC").toUpperCase());
             mChestPopup.check.visible = false;
             mChestCloseButton = new UIButton(mDBFacade,mChestPopup.close);
             mChestCloseButton.releaseCallback = finishCooldownTutorial;
             mSceneGraphComponent.addChild(mChestPopup,105);
-            mChestPopup.scaleX = mChestPopup.scaleY = 0.85;
+            mChestPopup.scaleX = mChestPopup.scaleY = 1;
             destX = mDBFacade.viewWidth - mChestPopup.width / 1.6;
             destY = mDBFacade.viewHeight * 0.5;
             mChestPopup.x = destX;
             mChestPopup.y = destY;
-            new TimelineMax({
-               "tweens":[TweenMax.to(mChestPopup,0.3333333333333333,{
+            mDBFacade.mTween.createTimeline({
+               "tweens":[mDBFacade.mTween.tweenMaxTo(mChestPopup,0.3333333333333333,{
                   "x":destX + 20,
                   "y":destY
-               }),TweenMax.to(mChestPopup,0.08333333333333333,{
+               }),mDBFacade.mTween.tweenMaxTo(mChestPopup,0.08333333333333333,{
                   "x":destX,
                   "y":destY
                })],
@@ -1051,22 +1224,22 @@ package StateMachine.MainStateMachine
                return;
             }
             mChestPopup = new popupClass();
-            mChestPopup.title.text = Locale.getString("TUTORIAL_SCALING_TITLE");
-            mChestPopup.description.text = Locale.getString("TUTORIAL_SCALING_DESC").toUpperCase();
+            Locale.setText(mChestPopup.title,"TUTORIAL_SCALING_TITLE");
+            TextUtil.setText(mChestPopup.description,Locale.getString("TUTORIAL_SCALING_DESC").toUpperCase());
             mChestPopup.check.visible = false;
             mChestCloseButton = new UIButton(mDBFacade,mChestPopup.close);
             mChestCloseButton.releaseCallback = finishScalingTutorial;
             mSceneGraphComponent.addChild(mChestPopup,105);
-            mChestPopup.scaleX = mChestPopup.scaleY = 0.85;
+            mChestPopup.scaleX = mChestPopup.scaleY = 1;
             destX = mDBFacade.viewWidth - mChestPopup.width / 1.6;
             destY = mDBFacade.viewHeight * 0.5;
             mChestPopup.x = destX;
             mChestPopup.y = destY;
-            new TimelineMax({
-               "tweens":[TweenMax.to(mChestPopup,0.3333333333333333,{
+            mDBFacade.mTween.createTimeline({
+               "tweens":[mDBFacade.mTween.tweenMaxTo(mChestPopup,0.3333333333333333,{
                   "x":destX + 20,
                   "y":destY
-               }),TweenMax.to(mChestPopup,0.08333333333333333,{
+               }),mDBFacade.mTween.tweenMaxTo(mChestPopup,0.08333333333333333,{
                   "x":destX,
                   "y":destY
                })],
@@ -1100,22 +1273,22 @@ package StateMachine.MainStateMachine
                return;
             }
             mChestPopup = new popupClass();
-            mChestPopup.title.text = Locale.getString("TUTORIAL_REPEATER_TITLE");
-            mChestPopup.description.text = Locale.getString("TUTORIAL_REPEATER_DESC").toUpperCase();
+            Locale.setText(mChestPopup.title,"TUTORIAL_REPEATER_TITLE");
+            TextUtil.setText(mChestPopup.description,Locale.getString("TUTORIAL_REPEATER_DESC").toUpperCase());
             mChestPopup.check.visible = false;
             mChestCloseButton = new UIButton(mDBFacade,mChestPopup.close);
             mChestCloseButton.releaseCallback = finishRepeaterTutorial;
             mSceneGraphComponent.addChild(mChestPopup,105);
-            mChestPopup.scaleX = mChestPopup.scaleY = 0.85;
+            mChestPopup.scaleX = mChestPopup.scaleY = 1;
             destX = mDBFacade.viewWidth - mChestPopup.width / 1.6;
             destY = mDBFacade.viewHeight * 0.5;
             mChestPopup.x = destX;
             mChestPopup.y = destY;
-            new TimelineMax({
-               "tweens":[TweenMax.to(mChestPopup,0.3333333333333333,{
+            mDBFacade.mTween.createTimeline({
+               "tweens":[mDBFacade.mTween.tweenMaxTo(mChestPopup,0.3333333333333333,{
                   "x":destX + 20,
                   "y":destY
-               }),TweenMax.to(mChestPopup,0.08333333333333333,{
+               }),mDBFacade.mTween.tweenMaxTo(mChestPopup,0.08333333333333333,{
                   "x":destX,
                   "y":destY
                })],
@@ -1145,21 +1318,22 @@ package StateMachine.MainStateMachine
                return;
             }
             mBusterPopup = new _loc3_();
-            mBusterPopup.title.text = Locale.getString("TUTORIAL_BUSTER_TITLE");
+            Locale.setText(mBusterPopup.title,"TUTORIAL_BUSTER_TITLE");
             mBusterPopup.check.visible = false;
+            showControllerPrompts(mBusterPopup,mDBFacade.steamInputManager.isSteamInputReady ? [mDBFacade.steamInputManager.getGlyphFilePathForAction("use_dungeon_buster")] : [],56,false);
             mBusterCloseButton = new UIButton(mDBFacade,mBusterPopup.close);
             mBusterCloseButton.releaseCallback = finishBusterTutorial;
             mSceneGraphComponent.addChild(mBusterPopup,105);
-            mBusterPopup.scaleX = mBusterPopup.scaleY = 0.85;
+            mBusterPopup.scaleX = mBusterPopup.scaleY = 1;
             var _loc2_:Number = mDBFacade.viewWidth - mBusterPopup.width * 0.5 - 50;
             var _loc4_:Number = mDBFacade.viewHeight * 0.5;
             mBusterPopup.x = mDBFacade.viewWidth;
             mBusterPopup.y = _loc4_;
-            new TimelineMax({
-               "tweens":[TweenMax.to(mBusterPopup,0.3333333333333333,{
+            mDBFacade.mTween.createTimeline({
+               "tweens":[mDBFacade.mTween.tweenMaxTo(mBusterPopup,0.3333333333333333,{
                   "x":_loc2_ + 20,
                   "y":_loc4_
-               }),TweenMax.to(mBusterPopup,0.08333333333333333,{
+               }),mDBFacade.mTween.tweenMaxTo(mBusterPopup,0.08333333333333333,{
                   "x":_loc2_,
                   "y":_loc4_
                })],
@@ -1187,12 +1361,12 @@ package StateMachine.MainStateMachine
          curX = mChargePopup.x;
          offscreenX = -mChargePopup.width;
          offscreenY = mDBFacade.viewHeight * 0.5;
-         new TimelineMax({
-            "tweens":[TweenMax.to(mChargePopup,0.08333333333333333,{
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mChargePopup,0.08333333333333333,{
                "delay":1,
                "x":curX + 20,
                "y":offscreenY
-            }),TweenMax.to(mChargePopup,0.3333333333333333,{
+            }),mDBFacade.mTween.tweenMaxTo(mChargePopup,0.3333333333333333,{
                "x":offscreenX,
                "y":offscreenY,
                "onComplete":advanceFunc
@@ -1205,7 +1379,7 @@ package StateMachine.MainStateMachine
       {
          if(mChargePopup)
          {
-            TweenMax.killTweensOf(mChargePopup);
+            mDBFacade.mTween.killTweensOf(mChargePopup);
             mSceneGraphComponent.removeChild(mChargePopup);
             mChargeCloseButton.destroy();
             mChargeCloseButton = null;
@@ -1228,21 +1402,22 @@ package StateMachine.MainStateMachine
                return;
             }
             mChargePopup = new popupClass();
-            mChargePopup.title.text = Locale.getString("TUTORIAL_CHARGE_TITLE");
+            Locale.setText(mChargePopup.title,"TUTORIAL_CHARGE_TITLE");
             mChargePopup.check.visible = false;
+            showControllerPrompts(mChargePopup,getAttackGlyphFilePaths(),56,false);
             mChargeCloseButton = new UIButton(mDBFacade,mChargePopup.close);
             mChargeCloseButton.releaseCallback = finishChargeTutorial;
             mSceneGraphComponent.addChild(mChargePopup,105);
-            mChargePopup.scaleX = mChargePopup.scaleY = 0.85;
+            mChargePopup.scaleX = mChargePopup.scaleY = 1;
             destX = mChargePopup.width * 0.5 + 10;
             destY = mDBFacade.viewHeight * 0.5;
             mChargePopup.x = -mChargePopup.width;
             mChargePopup.y = destY;
-            new TimelineMax({
-               "tweens":[TweenMax.to(mChargePopup,0.3333333333333333,{
+            mDBFacade.mTween.createTimeline({
+               "tweens":[mDBFacade.mTween.tweenMaxTo(mChargePopup,0.3333333333333333,{
                   "x":destX + 20,
                   "y":destY
-               }),TweenMax.to(mChargePopup,0.08333333333333333,{
+               }),mDBFacade.mTween.tweenMaxTo(mChargePopup,0.08333333333333333,{
                   "x":destX,
                   "y":destY
                })],

@@ -28,7 +28,7 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 181)
+         switch(int(fieldid) - 189)
          {
             case 0:
                recv_basicCurrency(packet);
@@ -41,6 +41,7 @@ package GeneratedCode
       override public function generate(packet:DcNetworkPacket) : void
       {
          recv_screenName(packet);
+         recv_heroPreloadLook(packet);
          recv_basicCurrency(packet);
          recvByIdLoop(packet);
       }
@@ -54,7 +55,7 @@ package GeneratedCode
       public function send_Chat(text:String) : void
       {
          var _loc2_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc2_,182);
+         Prepare_FieldUpdate(_loc2_,190);
          _loc2_.writeUTF(text);
          Send_packet(_loc2_);
       }
@@ -62,7 +63,7 @@ package GeneratedCode
       public function send_ShowPlayerIsTyping(value:uint) : void
       {
          var _loc2_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc2_,183);
+         Prepare_FieldUpdate(_loc2_,191);
          _loc2_.writeByte(value);
          Send_packet(_loc2_);
       }
@@ -70,21 +71,21 @@ package GeneratedCode
       public function send_requesthero() : void
       {
          var _loc1_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc1_,184);
+         Prepare_FieldUpdate(_loc1_,192);
          Send_packet(_loc1_);
       }
       
       public function send_requestentry() : void
       {
          var _loc1_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc1_,185);
+         Prepare_FieldUpdate(_loc1_,193);
          Send_packet(_loc1_);
       }
       
       public function send_requestpartymemberinvite() : void
       {
          var _loc1_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc1_,186);
+         Prepare_FieldUpdate(_loc1_,194);
          Send_packet(_loc1_);
       }
    }

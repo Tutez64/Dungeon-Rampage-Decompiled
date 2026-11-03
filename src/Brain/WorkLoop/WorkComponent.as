@@ -17,13 +17,16 @@ package Brain.WorkLoop
       
       private var mTasksLabel:String;
       
-      public function WorkComponent(dbFacade:Facade, workLoopManager:WorkLoopManager, ownerName:String = null)
+      private var mCategory:String;
+      
+      public function WorkComponent(dbFacade:Facade, workLoopManager:WorkLoopManager, ownerName:String = null, category:String = "brain")
       {
          super(dbFacade);
          mOwnerName = ownerName;
          mTasksLabel = "Dictionary - tasks in " + (ownerName || "WorkComponent") + "()";
+         mCategory = category;
          mTasks = new Dictionary(true);
-         MemoryTracker.track(mTasks,mTasksLabel,"brain");
+         MemoryTracker.track(mTasks,mTasksLabel,mCategory);
          mWorkLoopManager = workLoopManager;
       }
       
@@ -57,17 +60,31 @@ package Brain.WorkLoop
       {
          for(var _loc1_:Object in mTasks)
          {
-            Task(_loc1_).destroy();
+            if(_loc1_ is DoLater)
+            {
+               mWorkLoopManager.removeDoLater(DoLater(_loc1_));
+            }
+            else
+            {
+               Task(_loc1_).destroy();
+            }
          }
          mTasks = new Dictionary(true);
-         MemoryTracker.track(mTasks,mTasksLabel,"brain");
+         MemoryTracker.track(mTasks,mTasksLabel,mCategory);
       }
       
       override public function destroy() : void
       {
          for(var _loc1_:Object in mTasks)
          {
-            Task(_loc1_).destroy();
+            if(_loc1_ is DoLater)
+            {
+               mWorkLoopManager.removeDoLater(DoLater(_loc1_));
+            }
+            else
+            {
+               Task(_loc1_).destroy();
+            }
          }
          mTasks = null;
          mWorkLoopManager = null;

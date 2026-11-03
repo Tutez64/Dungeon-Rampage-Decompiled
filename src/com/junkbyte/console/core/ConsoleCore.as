@@ -2,30 +2,43 @@ package com.junkbyte.console.core
 {
    import com.junkbyte.console.Console;
    import com.junkbyte.console.ConsoleConfig;
+   import flash.Boot;
    import flash.events.EventDispatcher;
    
    public class ConsoleCore extends EventDispatcher
    {
       
-      protected var console:Console;
+      public var console:Console;
       
-      protected var config:ConsoleConfig;
+      public var config:ConsoleConfig;
       
-      public function ConsoleCore(c:Console)
+      public function ConsoleCore(c:Console = undefined)
       {
-         super();
-         this.console = c;
-         this.config = this.console.config;
+         if(!Boot.skip_constructor)
+         {
+            super();
+            console = c;
+            config = console.get_config();
+         }
       }
       
-      protected function get remoter() : Remoting
+      public function report(obj:* = undefined, priority:int = 0, skipSafe:Boolean = true, ch:String = undefined) : void
       {
-         return this.console.remoter;
+         if(obj == null)
+         {
+            obj = "";
+         }
+         console.report(obj,priority,skipSafe,ch);
       }
       
-      protected function report(obj:* = "", priority:int = 0, skipSafe:Boolean = true, ch:String = null) : void
+      public function get_remoter() : Remoting
       {
-         this.console.report(obj,priority,skipSafe,ch);
+         return console.get_remoter();
+      }
+      
+      public function get remoter() : Remoting
+      {
+         return get_remoter();
       }
    }
 }

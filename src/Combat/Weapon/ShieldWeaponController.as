@@ -13,7 +13,7 @@ package Combat.Weapon
       
       override public function onWeaponDown(autoAim:Boolean = true) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          if(!mWeaponDownActive)
          {
             _loc2_ = this.getNextAttackId();

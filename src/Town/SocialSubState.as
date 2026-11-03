@@ -35,6 +35,9 @@ package Town
          {
             mAcknowledgedPendingFriendRequest = true;
          }
+         super.resetHeaderLinks();
+         super.setupHeaderLinks();
+         mDBFacade.menuNavigationController.pushNewLayer("FRIENDS_MENU",mTownStateMachine.townHeader.determineCallback,mTownStateMachine.townHeader.closeButton,mTownStateMachine.townHeader.closeButton,mUIFriendManager.showPreviousTab,mUIFriendManager.showNextTab);
          if(mUIFriendManager)
          {
             mUIFriendManager.init(mTabCategory);
@@ -43,9 +46,10 @@ package Town
          mTownStateMachine.townHeader.title = Locale.getString("FM_HEADER");
          mTownStateMachine.townHeader.showCloseButton(true);
          checkForFriendMessages();
-         super.resetHeaderLinks();
-         super.setupHeaderLinks();
-         mDBFacade.menuNavigationController.pushNewLayer("FRIENDS_MENU",mTownStateMachine.townHeader.determineCallback,mTownStateMachine.townHeader.closeButton,mTownStateMachine.townHeader.closeButton);
+         if(mUIFriendManager)
+         {
+            mUIFriendManager.setupMenuNavigation();
+         }
       }
       
       public function setTabCategory(newValue:uint) : void
@@ -59,6 +63,7 @@ package Town
          super.exitState();
          if(mUIFriendManager)
          {
+            mUIFriendManager.resetMenuNavigation();
             mUIFriendManager.cleanUp();
          }
       }
@@ -81,6 +86,11 @@ package Town
       override protected function setupState() : void
       {
          super.setupState();
+         if(mUIFriendManager)
+         {
+            mUIFriendManager.destroy();
+            mUIFriendManager = null;
+         }
          mUIFriendManager = new UIFriendManager(mDBFacade,mTownStateMachine,mRootMovieClip);
          setTabCategory(1);
          checkForFriendMessages();

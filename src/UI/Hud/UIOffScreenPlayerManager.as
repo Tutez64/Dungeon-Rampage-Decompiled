@@ -6,8 +6,11 @@ package UI.Hud
    import Brain.AssetRepository.SwfAsset;
    import Brain.Clock.GameClock;
    import Brain.Event.EventComponent;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import DistributedObjects.HeroGameObject;
    import DistributedObjects.HeroGameObjectOwner;
    import Events.ActorLifetimeEvent;
@@ -15,8 +18,6 @@ package UI.Hud
    import flash.display.MovieClip;
    import flash.geom.Rectangle;
    import flash.geom.Vector3D;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class UIOffScreenPlayerManager
    {
@@ -208,7 +209,9 @@ package UI.Hud
             _loc3_.x = calculateEffectXPosition(_loc12_);
             _loc3_.y = calculateEffectYPosition(_loc12_,_loc10_.y,_loc11_.y);
             mUIRoot.addChild(_loc3_);
-            _loc3_.NametagText.text = player.screenName;
+            TextUtil.setText(_loc3_.NametagText,player.screenName,1.82);
+            TextUtil.fitToField(_loc3_.NametagText,1.27);
+            _loc3_.NametagText.mouseEnabled = false;
             _loc3_.NametagText.textColor = PlayerSpecialStatus.getSpecialTextColor(player.screenName,_loc3_.NametagText.textColor);
             _loc3_.AlertText.text = "";
             _loc3_.scaleX = _loc3_.scaleY = 1.44;
@@ -224,7 +227,7 @@ package UI.Hud
             {
                if(!_loc2_.contains(_loc11_.x,_loc11_.y))
                {
-                  if(_loc7_.clip.visible == false)
+                  if(!_loc7_.clip.visible)
                   {
                      _loc7_.clip.visible = true;
                   }
@@ -241,11 +244,13 @@ package UI.Hud
                   }
                   _loc7_.clip.x = calculateEffectXPosition(_loc14_);
                   _loc7_.clip.y = calculateEffectYPosition(_loc14_,_loc10_.y,_loc11_.y);
+                  _loc7_.keepTextOnScreen(mDBFacade.viewWidth);
+                  _loc7_.keepChatOnScreen(mDBFacade.viewWidth,mDBFacade.viewHeight);
                }
-               else if(_loc7_.clip.visible == true)
+               else if(_loc7_.clip.visible)
                {
                   _loc7_.clip.visible = false;
-                  _loc7_.showFacebookPicture();
+                  _loc7_.showSteamAvatar();
                }
             }
          }

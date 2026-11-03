@@ -1,41 +1,56 @@
 package com.junkbyte.console.vos
 {
+   import flash.Boot;
    import flash.geom.Rectangle;
    import flash.utils.ByteArray;
    
    public class GraphGroup
    {
       
-      public static const FPS:uint = 1;
+      public static var FPS:uint = 1;
       
-      public static const MEM:uint = 2;
+      public static var MEM:uint = 2;
       
       public var type:uint;
       
-      public var name:String;
+      public var rect:Rectangle;
       
-      public var freq:int = 1;
+      public var name:String;
       
       public var low:Number;
       
+      public var inv:Boolean;
+      
+      public var interests:Array;
+      
+      public var idle:int;
+      
       public var hi:Number;
+      
+      public var freq:int;
       
       public var fixed:Boolean;
       
       public var averaging:uint;
       
-      public var inv:Boolean;
-      
-      public var interests:Array = [];
-      
-      public var rect:Rectangle;
-      
-      public var idle:int;
-      
-      public function GraphGroup(n:String)
+      public function GraphGroup(n:String = undefined)
       {
-         super();
-         this.name = n;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         idle = 0;
+         rect = null;
+         interests = [];
+         inv = false;
+         averaging = 0;
+         fixed = false;
+         hi = Number(Number.NaN);
+         low = Number(Number.NaN);
+         freq = 1;
+         name = null;
+         type = 0;
+         name = n;
       }
       
       public static function FromBytes(bytes:ByteArray) : GraphGroup
@@ -47,47 +62,53 @@ package com.junkbyte.console.vos
          _loc2_.hi = bytes.readDouble();
          _loc2_.inv = bytes.readBoolean();
          var _loc3_:uint = bytes.readUnsignedInt();
-         while(_loc3_)
+         while(_loc3_ != 0)
          {
             _loc2_.interests.push(GraphInterest.FromBytes(bytes));
-            _loc3_--;
+            _loc3_ -= 1;
          }
          return _loc2_;
       }
       
       public function updateMinMax(v:Number) : void
       {
-         if(!isNaN(v) && !this.fixed)
+         var _loc2_:Number = NaN;
+         if(v == v && !fixed)
          {
-            if(isNaN(this.low))
+            _loc2_ = low;
+            if(_loc2_ != _loc2_)
             {
-               this.low = v;
-               this.hi = v;
+               low = v;
+               hi = v;
             }
-            if(v > this.hi)
+            if(v > hi)
             {
-               this.hi = v;
+               hi = v;
             }
-            if(v < this.low)
+            if(v < low)
             {
-               this.low = v;
+               low = v;
             }
          }
       }
       
       public function toBytes(bytes:ByteArray) : void
       {
-         var _loc2_:GraphInterest = null;
-         bytes.writeUTF(this.name);
-         bytes.writeUnsignedInt(this.type);
-         bytes.writeUnsignedInt(this.idle);
-         bytes.writeDouble(this.low);
-         bytes.writeDouble(this.hi);
-         bytes.writeBoolean(this.inv);
-         bytes.writeUnsignedInt(this.interests.length);
-         for each(_loc2_ in this.interests)
+         var _loc4_:* = null as GraphInterest;
+         bytes.writeUTF(name);
+         bytes.writeUnsignedInt(type);
+         bytes.writeUnsignedInt(idle);
+         bytes.writeDouble(low);
+         bytes.writeDouble(hi);
+         bytes.writeBoolean(inv);
+         bytes.writeUnsignedInt(int(interests.length));
+         var _loc2_:int = 0;
+         var _loc3_:Array = interests;
+         while(_loc2_ < int(_loc3_.length))
          {
-            _loc2_.toBytes(bytes);
+            _loc4_ = _loc3_[_loc2_];
+            _loc2_++;
+            _loc4_.toBytes(bytes);
          }
       }
    }

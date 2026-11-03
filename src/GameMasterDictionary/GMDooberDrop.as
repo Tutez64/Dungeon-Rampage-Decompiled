@@ -1,9 +1,13 @@
 package GameMasterDictionary
 {
+   import flash.Boot;
+   
    public class GMDooberDrop extends GMItem
    {
       
-      public var BRUTE:Boolean;
+      public var WOLF_PET:Boolean;
+      
+      public var WARCOW_PET:Boolean;
       
       public var SKELETON_WARRIOR:Boolean;
       
@@ -11,9 +15,7 @@ package GameMasterDictionary
       
       public var KNIGHT:Boolean;
       
-      public var CASTLE_BARREL:Boolean;
-      
-      public var CASTLE_BOX:Boolean;
+      public var DEMON_PET:Boolean;
       
       public var CASTLE_SPIKES:Boolean;
       
@@ -21,27 +23,30 @@ package GameMasterDictionary
       
       public var CASTLE_FLAG:Boolean;
       
-      public var WOLF_PET:Boolean;
+      public var CASTLE_BOX:Boolean;
       
-      public var WARCOW_PET:Boolean;
+      public var CASTLE_BARREL:Boolean;
       
-      public var DEMON_PET:Boolean;
+      public var BRUTE:Boolean;
       
-      public function GMDooberDrop(jsonAsset:Object)
+      public function GMDooberDrop(jsonAsset:Object = undefined)
       {
-         super(jsonAsset);
-         BRUTE = jsonAsset.BRUTE;
-         SKELETON_WARRIOR = jsonAsset.SKELETON_WARRIOR;
-         SKELETON_ARCHER = jsonAsset.SKELETON_ARCHER;
-         KNIGHT = jsonAsset.KNIGHT;
-         CASTLE_BARREL = jsonAsset.CASTLE_BARREL;
-         CASTLE_BOX = jsonAsset.CASTLE_BOX;
-         CASTLE_SPIKES = jsonAsset.CASTLE_SPIKES;
-         CASTLE_KINGSTATUE = jsonAsset.CASTLE_KINGSTATUE;
-         CASTLE_FLAG = jsonAsset.CASTLE_FLAG;
-         WOLF_PET = jsonAsset.WOLF_PET;
-         WARCOW_PET = jsonAsset.WARCOW_PET;
-         DEMON_PET = jsonAsset.DEMON_PET;
+         if(!Boot.skip_constructor)
+         {
+            super(jsonAsset);
+            BRUTE = Boolean(jsonAsset.BRUTE);
+            SKELETON_WARRIOR = Boolean(jsonAsset.SKELETON_WARRIOR);
+            SKELETON_ARCHER = Boolean(jsonAsset.SKELETON_ARCHER);
+            KNIGHT = Boolean(jsonAsset.KNIGHT);
+            CASTLE_BARREL = Boolean(jsonAsset.CASTLE_BARREL);
+            CASTLE_BOX = Boolean(jsonAsset.CASTLE_BOX);
+            CASTLE_SPIKES = Boolean(jsonAsset.CASTLE_SPIKES);
+            CASTLE_KINGSTATUE = Boolean(jsonAsset.CASTLE_KINGSTATUE);
+            CASTLE_FLAG = Boolean(jsonAsset.CASTLE_FLAG);
+            WOLF_PET = Boolean(jsonAsset.WOLF_PET);
+            WARCOW_PET = Boolean(jsonAsset.WARCOW_PET);
+            DEMON_PET = Boolean(jsonAsset.DEMON_PET);
+         }
       }
    }
 }

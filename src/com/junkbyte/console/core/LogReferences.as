@@ -1,7 +1,13 @@
 package com.junkbyte.console.core
 {
    import com.junkbyte.console.Console;
+   import com.junkbyte.console.compat.ConsoleLib;
+   import com.junkbyte.console.utils.FlashRegex;
+   import com.junkbyte.console.view.MainPanel;
+   import com.junkbyte.console.view.PanelsManager;
    import com.junkbyte.console.vos.WeakObject;
+   import flash.Boot;
+   import flash.Lib;
    import flash.display.DisplayObject;
    import flash.display.DisplayObjectContainer;
    import flash.events.Event;
@@ -10,104 +16,125 @@ package com.junkbyte.console.core
    import flash.geom.Rectangle;
    import flash.utils.ByteArray;
    import flash.utils.Dictionary;
-   import flash.utils.describeType;
-   import flash.utils.getDefinitionByName;
-   import flash.utils.getQualifiedClassName;
+   import haxe.Exception;
    
    public class LogReferences extends ConsoleCore
    {
       
-      public static const INSPECTING_CHANNEL:String = "⌂";
+      public static var INSPECTING_CHANNEL:String = "⌂";
       
-      private var _refMap:WeakObject;
+      public var _refRev:WeakObject;
       
-      private var _refRev:Dictionary;
+      public var _refIndex:uint;
       
-      private var _refIndex:uint = 1;
+      public var _refIds:Dictionary;
       
-      private var _dofull:Boolean;
+      public var _prevBank:Array;
       
-      private var _current:*;
+      public var _lastWithdraw:uint;
       
-      private var _history:Array;
+      public var _history:Array;
       
-      private var _hisIndex:uint;
+      public var _hisIndex:int;
       
-      private var _prevBank:Array;
+      public var _dofull:Boolean;
       
-      private var _currentBank:Array;
+      public var _currentBank:Array;
       
-      private var _lastWithdraw:uint;
+      public var _current:*;
       
-      public function LogReferences(console:Console)
+      public function LogReferences(console:Console = undefined)
       {
-         this._refMap = new WeakObject();
-         this._refRev = new Dictionary(true);
-         this._prevBank = new Array();
-         this._currentBank = new Array();
-         super(console);
-         remoter.registerCallback("ref",function(bytes:ByteArray):void
+         var _gthis:LogReferences;
+         if(!Boot.skip_constructor)
          {
-            handleString(bytes.readUTF());
-         });
-         remoter.registerCallback("focus",this.handleFocused);
+            _currentBank = [];
+            _prevBank = [];
+            _refIndex = 1;
+            _refIds = new Dictionary(true);
+            _refRev = new WeakObject();
+            _gthis = this;
+            super(console);
+            get_remoter().registerCallback("ref",function(bytes:ByteArray):void
+            {
+               _gthis.handleString(bytes.readUTF());
+            });
+            get_remoter().registerCallback("focus",handleFocused);
+         }
       }
       
       public static function EscHTML(str:String) : String
       {
-         return str.replace(/</g,"&lt;").replace(/\>/g,"&gt;").replace(/\x00/g,"");
+         str = FlashRegex.replace(str,new EReg("<","g"),"&lt;");
+         str = FlashRegex.replace(str,new EReg(">","g"),"&gt;");
+         return FlashRegex.replace(str,new EReg("\\x00","g"),"");
       }
       
-      public static function ShortClassName(obj:Object, eschtml:Boolean = true) : String
+      public static function ShortClassName(obj:*, eschtml:Boolean = true) : String
       {
-         var _loc3_:String = getQualifiedClassName(obj);
+         var _loc3_:String = LogReferences.getQualifiedClassName(obj);
          var _loc4_:int = _loc3_.indexOf("::");
-         var _loc5_:String = obj is Class ? "*" : "";
+         var _loc5_:String = Std.isOfType(obj,Class) ? "*" : "";
          _loc3_ = _loc5_ + _loc3_.substring(_loc4_ >= 0 ? _loc4_ + 2 : 0) + _loc5_;
          if(eschtml)
          {
-            return EscHTML(_loc3_);
+            return LogReferences.EscHTML(_loc3_);
          }
          return _loc3_;
       }
       
+      public static function getQualifiedClassName(value:*) : String
+      {
+         return ConsoleLib.getQualifiedClassName(value);
+      }
+      
       public function update(time:uint) : void
       {
-         if(Boolean(this._currentBank.length) || Boolean(this._prevBank.length))
+         if(int(_currentBank.length) != 0 || int(_prevBank.length) != 0)
          {
-            if(time > this._lastWithdraw + config.objectHardReferenceTimer * 1000)
+            if(time > uint(_lastWithdraw + uint(config.objectHardReferenceTimer * 1000)))
             {
-               this._prevBank = this._currentBank;
-               this._currentBank = new Array();
-               this._lastWithdraw = time;
+               _prevBank = _currentBank;
+               _currentBank = [];
+               _lastWithdraw = time;
             }
          }
       }
       
+      public function shortenString(str:String, maxlen:int, o:*, prop:* = undefined) : String
+      {
+         if(maxlen >= 0 && str.length > maxlen)
+         {
+            str = str.substring(0,maxlen);
+            return str + genLinkString(o,prop," ...");
+         }
+         return str;
+      }
+      
       public function setLogRef(o:*) : uint
       {
-         var _loc3_:int = 0;
+         var _loc3_:* = 0;
          if(!config.useObjectLinking)
          {
             return 0;
          }
-         var _loc2_:uint = uint(this._refRev[o]);
-         if(!_loc2_)
+         var _loc2_:uint = uint(_refIds[o]);
+         if(_loc2_ == 0)
          {
-            _loc2_ = this._refIndex;
-            this._refMap[_loc2_] = o;
-            this._refRev[o] = _loc2_;
-            if(config.objectHardReferenceTimer)
+            _loc2_ = _refIndex;
+            _refRev.set(_loc2_,o);
+            _refIds[o] = _loc2_;
+            if(config.objectHardReferenceTimer != 0)
             {
-               this._currentBank.push(o);
+               _currentBank.push(o);
             }
-            ++this._refIndex;
-            _loc3_ = _loc2_ - 50;
+            ++_refIndex;
+            _loc3_ = int(uint(_loc2_ - 50));
             while(_loc3_ >= 0)
             {
-               if(this._refMap[_loc3_] === null)
+               if(!_refRev.exists(_loc3_))
                {
-                  delete this._refMap[_loc3_];
+                  _refRev.remove(_loc3_);
                }
                _loc3_ -= 50;
             }
@@ -115,222 +142,671 @@ package com.junkbyte.console.core
          return _loc2_;
       }
       
-      public function getRefId(o:*) : uint
+      public function makeValue(obj:*, prop:* = undefined) : String
       {
-         return this._refRev[o];
+         return makeString(obj,prop,false,config.useObjectLinking ? 100 : -1);
       }
       
-      public function getRefById(ind:uint) : *
+      public function makeString(o:*, prop:* = undefined, html:Boolean = false, maxlen:int = -1) : String
       {
-         return this._refMap[ind];
-      }
-      
-      public function makeString(o:*, prop:* = null, html:Boolean = false, maxlen:int = -1) : String
-      {
-         var txt:String = null;
-         var v:* = undefined;
-         var err:Error = null;
-         var stackstr:String = null;
-         var str:String = null;
-         var len:int = 0;
-         var hasmaxlen:Boolean = false;
-         var i:int = 0;
-         var strpart:String = null;
-         var add:String = null;
+         var _loc8_:* = null;
+         var _loc9_:* = null;
+         var _loc10_:* = null as Error;
+         var _loc11_:* = null as String;
+         var _loc12_:int = 0;
+         var _loc13_:Boolean = false;
+         var _loc14_:int = 0;
+         var _loc15_:int = 0;
+         var _loc16_:int = 0;
+         var _loc17_:* = null as String;
+         var _loc6_:String = null;
+         var _loc7_:* = null;
          try
          {
-            v = prop ? o[prop] : o;
+            _loc7_ = ConsoleLib.truthy(prop) ? o[prop] : o;
          }
-         catch(err:Error)
+         catch(_loc_e_:*)
          {
-            return "<p0><i>" + err.toString() + "</i></p0>";
+            _loc8_ = _loc_e_;
+            null;
+            _loc9_ = Exception.caught(_loc8_).unwrap();
+            return "<p0><i>" + ConsoleLib.string(_loc9_) + "</i></p0>";
          }
-         if(v is Error)
+         if(_loc7_ is Error)
          {
-            err = v as Error;
-            stackstr = err.hasOwnProperty("getStackTrace") ? err.getStackTrace() : err.toString();
-            if(stackstr)
+            _loc10_ = _loc7_;
+            _loc11_ = _loc10_.getStackTrace();
+            if(_loc11_ != null && _loc11_ != "")
             {
-               return stackstr;
+               return _loc11_;
             }
-            return err.toString();
+            return ConsoleLib.string(_loc10_);
          }
-         if(v is XML || v is XMLList)
+         if(_loc7_ is XML || _loc7_ is XMLList)
          {
-            return this.shortenString(EscHTML(v.toXMLString()),maxlen,o,prop);
+            return shortenString(LogReferences.EscHTML(_loc7_.toXMLString()),maxlen,o,prop);
          }
-         if(v is QName)
+         if(_loc7_ is QName)
          {
-            return String(v);
+            return ConsoleLib.string(_loc7_);
          }
-         if(v is Array || getQualifiedClassName(v).indexOf("__AS3__.vec::Vector.") == 0)
+         if(_loc7_ is Array || LogReferences.getQualifiedClassName(_loc7_).indexOf("__AS3__.vec::Vector.") == 0)
          {
-            str = "[";
-            len = int(v.length);
-            hasmaxlen = maxlen >= 0;
-            i = 0;
-            while(i < len)
+            _loc11_ = "[";
+            _loc12_ = _loc7_.length;
+            _loc13_ = maxlen >= 0;
+            _loc14_ = 0;
+            _loc15_ = _loc12_;
+            while(_loc14_ < _loc15_)
             {
-               strpart = this.makeString(v[i],null,false,maxlen);
-               str += (i ? ", " : "") + strpart;
-               maxlen -= strpart.length;
-               if(hasmaxlen && maxlen <= 0 && i < len - 1)
+               _loc16_ = _loc14_++;
+               _loc17_ = makeString(_loc7_[_loc16_],null,false,maxlen);
+               _loc11_ += (_loc16_ != 0 ? ", " : "") + _loc17_;
+               maxlen -= _loc17_.length;
+               if(_loc13_ && maxlen <= 0 && _loc16_ < _loc12_ - 1)
                {
-                  str += ", " + this.genLinkString(o,prop,"...");
+                  _loc11_ += ", " + genLinkString(o,prop,"...");
                   break;
                }
-               i++;
             }
-            return str + "]";
+            return _loc11_ + "]";
          }
-         if(Boolean(config.useObjectLinking) && Boolean(v) && typeof v == "object")
+         if(config.useObjectLinking && ConsoleLib.truthy(_loc7_) && ConsoleLib.typeOf(_loc7_) == "object")
          {
-            add = "";
-            if(v is ByteArray)
+            _loc11_ = "";
+            if(_loc7_ is ByteArray)
             {
-               add = " position:" + v.position + " length:" + v.length;
+               _loc11_ = " position:" + Std.string(_loc7_.position) + " length:" + Std.string(_loc7_.length);
             }
-            else if(v is Date || v is Rectangle || v is Point || v is Matrix || v is Event)
+            else if(_loc7_ is Date || _loc7_ is Rectangle || _loc7_ is Point || _loc7_ is Matrix || _loc7_ is Event)
             {
-               add = " " + String(v);
+               _loc11_ = " " + ConsoleLib.string(_loc7_);
             }
-            else if(v is DisplayObject && Boolean(v.name))
+            else if(_loc7_ is DisplayObject && ConsoleLib.truthy(_loc7_.name))
             {
-               add = " " + v.name;
+               _loc11_ = " " + Std.string(_loc7_.name);
             }
-            txt = "{" + this.genLinkString(o,prop,ShortClassName(v)) + EscHTML(add) + "}";
+            _loc6_ = "{" + genLinkString(o,prop,LogReferences.ShortClassName(_loc7_)) + LogReferences.EscHTML(_loc11_) + "}";
          }
          else
          {
-            if(v is ByteArray)
+            if(_loc7_ is ByteArray)
             {
-               txt = "[ByteArray position:" + ByteArray(v).position + " length:" + ByteArray(v).length + "]";
+               _loc6_ = "[ByteArray position:" + Std.string(_loc7_.position) + " length:" + Std.string(_loc7_.length) + "]";
             }
             else
             {
-               txt = String(v);
+               _loc6_ = ConsoleLib.string(_loc7_);
             }
             if(!html)
             {
-               return this.shortenString(EscHTML(txt),maxlen,o,prop);
+               return shortenString(LogReferences.EscHTML(_loc6_),maxlen,o,prop);
             }
          }
-         return txt;
+         return _loc6_;
       }
       
       public function makeRefTyped(v:*) : String
       {
-         if(Boolean(v) && Boolean(typeof v == "object") && !(v is QName))
+         if(ConsoleLib.truthy(v) && ConsoleLib.typeOf(v) == "object" && !(v is QName))
          {
-            return "{" + this.genLinkString(v,null,ShortClassName(v)) + "}";
+            return "{" + genLinkString(v,null,LogReferences.ShortClassName(v)) + "}";
          }
-         return ShortClassName(v);
+         return LogReferences.ShortClassName(v);
       }
       
-      private function genLinkString(o:*, prop:*, str:String) : String
+      public function inspect(obj:*, viewAll:Boolean = true, ch:String = undefined) : void
       {
-         if(Boolean(prop) && !(prop is String))
+         var _loc17_:* = 0;
+         var _loc18_:int = 0;
+         var _loc19_:int = 0;
+         var _loc20_:* = null as XML;
+         var _loc21_:* = null as XMLList;
+         var _loc22_:* = null as String;
+         var _loc23_:* = null as String;
+         var _loc24_:int = 0;
+         var _loc25_:int = 0;
+         var _loc26_:int = 0;
+         var _loc27_:* = null as String;
+         var _loc28_:* = null as DisplayObject;
+         var _loc29_:* = null as DisplayObjectContainer;
+         var _loc30_:* = null as DisplayObjectContainer;
+         var _loc33_:Boolean = false;
+         var _loc34_:* = null as Array;
+         var _loc35_:* = null as XML;
+         var _loc36_:* = null as Array;
+         var _loc37_:* = null;
+         var _loc38_:* = null;
+         if(!ConsoleLib.truthy(obj))
          {
-            o = o[prop];
-            prop = null;
+            report(obj,-2,true,ch);
+            return;
          }
-         var _loc4_:uint = this.setLogRef(o);
-         if(_loc4_)
+         var _loc5_:uint = setLogRef(obj);
+         var _loc6_:String = "";
+         if(!viewAll)
          {
-            return "<menu><a href=\'event:ref_" + _loc4_ + (prop ? "_" + prop : "") + "\'>" + str + "</a></menu>";
+            _loc6_ = " [<a href=\'event:refi\'>show inherited</a>]";
          }
-         return str;
+         var _loc7_:String = null;
+         if(_history != null)
+         {
+            _loc7_ = "<b>[<a href=\'event:refexit\'>exit</a>]";
+            if(_hisIndex > 1)
+            {
+               _loc7_ += " [<a href=\'event:refprev\'>previous</a>]";
+            }
+            if(_history != null && _hisIndex < int(_history.length))
+            {
+               _loc7_ += " [<a href=\'event:reffwd\'>forward</a>]";
+            }
+            _loc7_ += "</b> || [<a href=\'event:ref_" + ("" + _loc5_) + "\'>refresh</a>]";
+            _loc7_ = _loc7_ + ("</b> [<a href=\'event:refe_" + ("" + _loc5_) + "\'>explode</a>]");
+            if(config.commandLineAllowed)
+            {
+               _loc7_ += " [<a href=\'event:cl_" + ("" + _loc5_) + "\'>scope</a>]";
+            }
+            if(viewAll)
+            {
+               _loc7_ += " [<a href=\'event:refi\'>hide inherited</a>]";
+            }
+            else
+            {
+               _loc7_ += _loc6_;
+            }
+            report(_loc7_,-1,true,ch);
+            report("",1,true,ch);
+         }
+         var _loc8_:XML = Lib.describeType(obj);
+         var _loc9_:Boolean = Std.isOfType(obj,Class);
+         var _loc10_:* = _loc9_ ? obj : obj.constructor;
+         var _loc11_:XML = Lib.describeType(_loc10_);
+         var _loc12_:String = _loc8_.attribute("name").toString();
+         var _loc13_:String = _loc9_ ? "*" : "";
+         var _loc14_:String = "<b>{" + _loc13_ + genLinkString(obj,null,LogReferences.EscHTML(_loc12_)) + _loc13_ + "}</b>";
+         var _loc15_:Array = [];
+         if(_loc8_.attribute("isStatic").toString() == "true")
+         {
+            _loc15_.push("<b>static</b>");
+         }
+         if(_loc8_.attribute("isDynamic").toString() == "true")
+         {
+            _loc15_.push("dynamic");
+         }
+         if(_loc8_.attribute("isFinal").toString() == "true")
+         {
+            _loc15_.push("final");
+         }
+         if(int(_loc15_.length) > 0)
+         {
+            _loc14_ += " <p-1>" + _loc15_.join(" | ") + "</p-1>";
+         }
+         report(_loc14_,-2,true,ch);
+         var _loc16_:XMLList = _loc8_.child("extendsClass");
+         if(_loc16_.length() != 0)
+         {
+            _loc15_ = [];
+            _loc17_ = 0;
+            _loc18_ = _loc16_.length();
+            while(_loc17_ < _loc18_)
+            {
+               _loc19_ = _loc17_++;
+               _loc13_ = _loc16_[_loc19_].attribute("type").toString();
+               _loc15_.push(_loc13_.indexOf("*") < 0 ? makeValue(ConsoleLib.getDefinitionByName(_loc13_)) : LogReferences.EscHTML(_loc13_));
+               if(!viewAll)
+               {
+                  break;
+               }
+            }
+            report("<p10>Extends:</p10> " + _loc15_.join(" &gt; "),1,true,ch);
+         }
+         _loc16_ = _loc8_.child("implementsInterface");
+         if(_loc16_.length() != 0)
+         {
+            _loc15_ = [];
+            _loc17_ = 0;
+            _loc18_ = _loc16_.length();
+            while(_loc17_ < _loc18_)
+            {
+               _loc19_ = _loc17_++;
+               _loc15_.push(makeValue(ConsoleLib.getDefinitionByName(_loc16_[_loc19_].attribute("type").toString())));
+            }
+            report("<p10>Implements:</p10> " + _loc15_.join(", "),1,true,ch);
+         }
+         report("",1,true,ch);
+         _loc15_ = [];
+         _loc16_ = _loc8_.child("metadata");
+         _loc17_ = 0;
+         _loc18_ = _loc16_.length();
+         while(_loc17_ < _loc18_)
+         {
+            _loc19_ = _loc17_++;
+            _loc20_ = _loc16_[_loc19_];
+            if(_loc20_.attribute("name").toString() == "Event")
+            {
+               _loc21_ = _loc20_.child("arg");
+               _loc22_ = "";
+               _loc23_ = "";
+               _loc24_ = 0;
+               _loc25_ = _loc21_.length();
+               while(_loc24_ < _loc25_)
+               {
+                  _loc26_ = _loc24_++;
+                  _loc27_ = _loc21_[_loc26_].attribute("key").toString();
+                  if(_loc27_ == "name")
+                  {
+                     _loc22_ += _loc21_[_loc26_].attribute("value").toString();
+                  }
+                  else if(_loc27_ == "type")
+                  {
+                     _loc23_ += _loc21_[_loc26_].attribute("value").toString();
+                  }
+               }
+               if(_loc5_ != 0)
+               {
+                  _loc15_.push("<a href=\'event:cl_" + ("" + _loc5_) + "_dispatchEvent(new " + _loc23_ + "(\"" + _loc22_ + "\"))\'>" + _loc22_ + "</a><p0>(" + _loc23_ + ")</p0>");
+               }
+               else
+               {
+                  _loc15_.push(_loc22_ + "<p0>(" + _loc23_ + ")</p0>");
+               }
+            }
+         }
+         if(int(_loc15_.length) != 0)
+         {
+            report("<p10>Events:</p10> " + _loc15_.join("<p-1>; </p-1>"),1,true,ch);
+            report("",1,true,ch);
+         }
+         if(obj is DisplayObject)
+         {
+            _loc28_ = obj;
+            _loc29_ = _loc28_.parent;
+            if(_loc29_ != null)
+            {
+               _loc15_ = ["@" + _loc29_.getChildIndex(_loc28_)];
+               while(_loc29_ != null)
+               {
+                  _loc30_ = _loc29_;
+                  _loc29_ = _loc29_.parent;
+                  _loc22_ = _loc29_ != null ? "@" + _loc29_.getChildIndex(_loc30_) : "";
+                  _loc15_.push("<b>" + _loc30_.name + "</b>" + _loc22_ + makeValue(_loc30_));
+               }
+               report("<p10>Parents:</p10> " + _loc15_.join("<p-1> -> </p-1>") + "<br/>",1,true,ch);
+            }
+         }
+         if(obj is DisplayObjectContainer)
+         {
+            _loc15_ = [];
+            _loc29_ = obj;
+            _loc17_ = _loc29_.numChildren;
+            _loc18_ = 0;
+            _loc19_ = _loc17_;
+            while(_loc18_ < _loc19_)
+            {
+               _loc24_ = _loc18_++;
+               _loc28_ = _loc29_.getChildAt(_loc24_);
+               _loc15_.push("<b>" + _loc28_.name + "</b>@" + _loc24_ + makeValue(_loc28_));
+            }
+            if(_loc17_ != 0)
+            {
+               report("<p10>Children:</p10> " + _loc15_.join("<p-1>; </p-1>") + "<br/>",1,true,ch);
+            }
+         }
+         _loc16_ = _loc11_.descendants("constant");
+         _loc17_ = 0;
+         _loc18_ = _loc16_.length();
+         while(_loc17_ < _loc18_)
+         {
+            _loc19_ = _loc17_++;
+            _loc20_ = _loc16_[_loc19_];
+            _loc22_ = _loc20_.attribute("name").toString();
+            report(" const <p3>" + _loc22_ + "</p3>:" + _loc20_.attribute("type").toString() + " = " + makeValue(_loc10_,_loc22_) + "</p0>",1,true,ch);
+         }
+         if(_loc16_.length() != 0)
+         {
+            report("",1,true,ch);
+         }
+         var _loc31_:uint = 0;
+         var _loc32_:Boolean = false;
+         _loc16_ = _loc11_.descendants("method");
+         _loc17_ = 0;
+         _loc18_ = _loc16_.length();
+         while(_loc17_ < _loc18_)
+         {
+            _loc19_ = _loc17_++;
+            _loc20_ = _loc16_[_loc19_];
+            if(viewAll || _loc12_ == _loc20_.attribute("declaredBy").toString())
+            {
+               _loc32_ = true;
+               _loc33_ = ConsoleLib.string(_loc20_.parent().name()) != "factory";
+               _loc14_ = " " + (_loc33_ ? "static " : "") + "function ";
+               _loc34_ = [];
+               _loc21_ = _loc20_.child("parameter");
+               _loc24_ = 0;
+               _loc25_ = _loc21_.length();
+               while(_loc24_ < _loc25_)
+               {
+                  _loc26_ = _loc24_++;
+                  _loc35_ = _loc21_[_loc26_];
+                  _loc22_ = _loc35_.attribute("type").toString();
+                  _loc34_.push(_loc35_.attribute("optional").toString() == "true" ? "<i>" + _loc22_ + "</i>" : _loc22_);
+               }
+               _loc22_ = _loc20_.attribute("name").toString();
+               if(_loc5_ != 0 && (_loc33_ || !_loc9_))
+               {
+                  _loc14_ += "<a href=\'event:cl_" + ("" + _loc5_) + "_" + _loc22_ + "()\'><p3>" + _loc22_ + "</p3></a>";
+               }
+               else
+               {
+                  _loc14_ += "<p3>" + _loc22_ + "</p3>";
+               }
+               _loc14_ += "(" + _loc34_.join(", ") + "):" + _loc20_.attribute("returnType").toString();
+               report(_loc14_,1,true,ch);
+            }
+            else
+            {
+               _loc31_ += 1;
+            }
+         }
+         if(_loc31_ != 0)
+         {
+            report("   \t + " + ("" + _loc31_) + " inherited methods." + _loc6_,1,true,ch);
+         }
+         else if(_loc32_)
+         {
+            report("",1,true,ch);
+         }
+         _loc32_ = false;
+         _loc31_ = 0;
+         _loc16_ = _loc11_.descendants("accessor");
+         _loc17_ = 0;
+         _loc18_ = _loc16_.length();
+         while(_loc17_ < _loc18_)
+         {
+            _loc19_ = _loc17_++;
+            _loc20_ = _loc16_[_loc19_];
+            if(viewAll || _loc12_ == _loc20_.attribute("declaredBy").toString())
+            {
+               _loc32_ = true;
+               _loc33_ = ConsoleLib.string(_loc20_.parent().name()) != "factory";
+               _loc14_ = " ";
+               if(_loc33_)
+               {
+                  _loc14_ += "static ";
+               }
+               _loc22_ = _loc20_.attribute("access").toString();
+               if(_loc22_ == "readonly")
+               {
+                  _loc14_ += "get";
+               }
+               else if(_loc22_ == "writeonly")
+               {
+                  _loc14_ += "set";
+               }
+               else
+               {
+                  _loc14_ += "assign";
+               }
+               _loc23_ = _loc20_.attribute("name").toString();
+               _loc27_ = _loc20_.attribute("type").toString();
+               if(_loc5_ != 0 && (_loc33_ || !_loc9_))
+               {
+                  _loc14_ += " <a href=\'event:cl_" + ("" + _loc5_) + "_" + _loc23_ + "\'><p3>" + _loc23_ + "</p3></a>:" + _loc27_;
+               }
+               else
+               {
+                  _loc14_ += " <p3>" + _loc23_ + "</p3>:" + _loc27_;
+               }
+               if(_loc22_ != "writeonly" && (_loc33_ || !_loc9_))
+               {
+                  _loc14_ += " = " + makeValue(_loc33_ ? _loc10_ : obj,_loc23_);
+               }
+               report(_loc14_,1,true,ch);
+            }
+            else
+            {
+               _loc31_ += 1;
+            }
+         }
+         if(_loc31_ != 0)
+         {
+            report("   \t + " + ("" + _loc31_) + " inherited accessors." + _loc6_,1,true,ch);
+         }
+         else if(_loc32_)
+         {
+            report("",1,true,ch);
+         }
+         _loc16_ = _loc11_.descendants("variable");
+         _loc17_ = 0;
+         _loc18_ = _loc16_.length();
+         while(_loc17_ < _loc18_)
+         {
+            _loc19_ = _loc17_++;
+            _loc20_ = _loc16_[_loc19_];
+            _loc33_ = ConsoleLib.string(_loc20_.parent().name()) != "factory";
+            _loc14_ = _loc33_ ? " static" : "";
+            _loc22_ = _loc20_.attribute("name").toString();
+            if(_loc5_ != 0)
+            {
+               _loc14_ += " var <p3><a href=\'event:cl_" + ("" + _loc5_) + "_" + _loc22_ + " = \'>" + _loc22_ + "</a>";
+            }
+            else
+            {
+               _loc14_ += " var <p3>" + _loc22_;
+            }
+            _loc14_ += "</p3>:" + _loc20_.attribute("type").toString() + " = " + makeValue(_loc33_ ? _loc10_ : obj,_loc22_);
+            report(_loc14_,1,true,ch);
+         }
+         try
+         {
+            _loc17_ = 0;
+            _loc36_ = [];
+            _loc37_ = obj;
+            for(_loc17_ in _loc37_)
+            {
+               _loc36_.push(_loc17_);
+            }
+            _loc34_ = _loc36_;
+            _loc17_ = 0;
+            while(_loc17_ < int(_loc34_.length))
+            {
+               _loc37_ = _loc34_[_loc17_];
+               _loc17_++;
+               if(_loc37_ is String)
+               {
+                  if(_loc5_ != 0)
+                  {
+                     _loc14_ = "<a href=\'event:cl_" + ("" + _loc5_) + "_" + Std.string(_loc37_) + " = \'>" + Std.string(_loc37_) + "</a>";
+                  }
+                  else
+                  {
+                     _loc14_ = _loc37_;
+                  }
+                  report(" dynamic var <p3>" + _loc14_ + "</p3> = " + makeValue(obj,_loc37_),1,true,ch);
+               }
+               else
+               {
+                  report(" dictionary <p3>" + makeValue(_loc37_) + "</p3> = " + makeValue(obj,_loc37_),1,true,ch);
+               }
+            }
+         }
+         catch(_loc_e_:*)
+         {
+            _loc37_ = _loc_e_;
+            null;
+            _loc38_ = Exception.caught(_loc37_).unwrap();
+            report("Could not get dynamic values. " + ConsoleLib.string(_loc38_.message),9,false,ch);
+         }
+         if(obj is String)
+         {
+            report("",1,true,ch);
+            report("String",10,true,ch);
+            report(LogReferences.EscHTML(obj),1,true,ch);
+         }
+         else if(obj is XML || obj is XMLList)
+         {
+            report("",1,true,ch);
+            report("XMLString",10,true,ch);
+            report(LogReferences.EscHTML(obj.toXMLString()),1,true,ch);
+         }
+         if(_loc7_ != null)
+         {
+            report("",1,true,ch);
+            report(_loc7_,-1,true,ch);
+         }
       }
       
-      private function shortenString(str:String, maxlen:int, o:*, prop:* = null) : String
+      public function historyInc(i:int) : void
       {
-         if(maxlen >= 0 && str.length > maxlen)
-         {
-            str = str.substring(0,maxlen);
-            return str + this.genLinkString(o,prop," ...");
-         }
-         return str;
-      }
-      
-      private function historyInc(i:int) : void
-      {
-         this._hisIndex += i;
-         var _loc2_:* = this._history[this._hisIndex];
+         _hisIndex += i;
+         var _loc2_:* = _history[_hisIndex];
          if(_loc2_)
          {
-            this.focus(_loc2_,this._dofull);
+            focus(_loc2_,_dofull);
          }
       }
       
-      public function handleRefEvent(str:String) : void
+      public function handleString(str:String) : void
       {
-         var _loc2_:ByteArray = null;
-         if(remoter.remoting == Remoting.RECIEVER)
-         {
-            _loc2_ = new ByteArray();
-            _loc2_.writeUTF(str);
-            remoter.send("ref",_loc2_);
-         }
-         else
-         {
-            this.handleString(str);
-         }
-      }
-      
-      private function handleString(str:String) : void
-      {
-         var _loc2_:int = 0;
+         var _loc2_:* = 0;
          var _loc3_:uint = 0;
-         var _loc4_:String = null;
+         var _loc4_:* = null as String;
          var _loc5_:int = 0;
-         var _loc6_:Object = null;
+         var _loc6_:* = null;
          if(str == "refexit")
          {
-            this.exitFocus();
-            console.setViewingChannels();
+            exitFocus();
+            if(int([].length) == 0)
+            {
+               console.setViewingChannels();
+            }
+            else if(int([].length) == 1)
+            {
+               console.setViewingChannels([][0]);
+            }
+            else if(int([].length) == 2)
+            {
+               console.setViewingChannels([][0],[][1]);
+            }
+            else if(int([].length) == 3)
+            {
+               console.setViewingChannels([][0],[][1],[][2]);
+            }
+            else if(int([].length) == 4)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3]);
+            }
+            else if(int([].length) == 5)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4]);
+            }
+            else if(int([].length) == 6)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5]);
+            }
+            else if(int([].length) == 7)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6]);
+            }
+            else if(int([].length) == 8)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7]);
+            }
+            else if(int([].length) == 9)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8]);
+            }
+            else if(int([].length) == 10)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9]);
+            }
+            else if(int([].length) == 11)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9],[][10]);
+            }
+            else if(int([].length) == 12)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9],[][10],[][11]);
+            }
+            else if(int([].length) == 13)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9],[][10],[][11],[][12]);
+            }
+            else if(int([].length) == 14)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9],[][10],[][11],[][12],[][13]);
+            }
+            else if(int([].length) == 15)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9],[][10],[][11],[][12],[][13],[][14]);
+            }
+            else if(int([].length) == 16)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9],[][10],[][11],[][12],[][13],[][14],[][15]);
+            }
+            else if(int([].length) == 17)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9],[][10],[][11],[][12],[][13],[][14],[][15],[][16]);
+            }
+            else if(int([].length) == 18)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9],[][10],[][11],[][12],[][13],[][14],[][15],[][16],[][17]);
+            }
+            else if(int([].length) == 19)
+            {
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9],[][10],[][11],[][12],[][13],[][14],[][15],[][16],[][17],[][18]);
+            }
+            else
+            {
+               if(int([].length) != 20)
+               {
+                  throw "Too many rest arguments";
+               }
+               console.setViewingChannels([][0],[][1],[][2],[][3],[][4],[][5],[][6],[][7],[][8],[][9],[][10],[][11],[][12],[][13],[][14],[][15],[][16],[][17],[][18],[][19]);
+            }
          }
          else if(str == "refprev")
          {
-            this.historyInc(-2);
+            historyInc(-2);
          }
          else if(str == "reffwd")
          {
-            this.historyInc(0);
+            historyInc(0);
          }
          else if(str == "refi")
          {
-            this.focus(this._current,!this._dofull);
+            focus(_current,!_dofull);
          }
          else
          {
             _loc2_ = str.indexOf("_") + 1;
             if(_loc2_ > 0)
             {
-               _loc4_ = "";
+               _loc4_ = null;
                _loc5_ = str.indexOf("_",_loc2_);
                if(_loc5_ > 0)
                {
-                  _loc3_ = uint(str.substring(_loc2_,_loc5_));
+                  _loc3_ = uint(ConsoleLib.parseInt(str.substring(_loc2_,_loc5_)));
                   _loc4_ = str.substring(_loc5_ + 1);
                }
                else
                {
-                  _loc3_ = uint(str.substring(_loc2_));
+                  _loc3_ = uint(ConsoleLib.parseInt(str.substring(_loc2_)));
                }
-               _loc6_ = this.getRefById(_loc3_);
-               if(_loc4_)
+               _loc6_ = getRefById(_loc3_);
+               if(_loc4_ != null)
                {
-                  _loc6_ = _loc6_[_loc4_];
+                  _loc6_ = Reflect.field(_loc6_,_loc4_);
                }
-               if(_loc6_)
+               if(_loc6_ != null)
                {
                   if(str.indexOf("refe_") == 0)
                   {
-                     console.explodech(console.panels.mainPanel.reportChannel,_loc6_);
+                     console.explodech(console.get_panels().get_mainPanel().get_reportChannel(),_loc6_);
                   }
                   else
                   {
-                     this.focus(_loc6_,this._dofull);
+                     focus(_loc6_,_dofull);
                   }
                   return;
                }
@@ -339,443 +815,401 @@ package com.junkbyte.console.core
          }
       }
       
-      public function focus(o:*, full:Boolean = false) : void
+      public function handleRefEvent(str:String) : void
       {
-         remoter.send("focus");
-         console.clear(LogReferences.INSPECTING_CHANNEL);
-         console.setViewingChannels(LogReferences.INSPECTING_CHANNEL);
-         if(!this._history)
+         var _loc2_:* = null as ByteArray;
+         if(get_remoter().get_remoting() == 2)
          {
-            this._history = new Array();
+            _loc2_ = new ByteArray();
+            _loc2_.writeUTF(str);
+            get_remoter().send("ref",_loc2_);
          }
-         if(this._current != o)
+         else
          {
-            this._current = o;
-            if(this._history.length <= this._hisIndex)
-            {
-               this._history.push(o);
-            }
-            else
-            {
-               this._history[this._hisIndex] = o;
-            }
-            ++this._hisIndex;
+            handleString(str);
          }
-         this._dofull = full;
-         this.inspect(o,this._dofull);
       }
       
-      private function handleFocused() : void
+      public function handleFocused() : void
       {
-         console.clear(LogReferences.INSPECTING_CHANNEL);
-         console.setViewingChannels(LogReferences.INSPECTING_CHANNEL);
+         console.clear("⌂");
+         if(int(["⌂"].length) == 0)
+         {
+            console.setViewingChannels();
+         }
+         else if(int(["⌂"].length) == 1)
+         {
+            console.setViewingChannels(["⌂"][0]);
+         }
+         else if(int(["⌂"].length) == 2)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1]);
+         }
+         else if(int(["⌂"].length) == 3)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2]);
+         }
+         else if(int(["⌂"].length) == 4)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3]);
+         }
+         else if(int(["⌂"].length) == 5)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4]);
+         }
+         else if(int(["⌂"].length) == 6)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5]);
+         }
+         else if(int(["⌂"].length) == 7)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6]);
+         }
+         else if(int(["⌂"].length) == 8)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7]);
+         }
+         else if(int(["⌂"].length) == 9)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8]);
+         }
+         else if(int(["⌂"].length) == 10)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9]);
+         }
+         else if(int(["⌂"].length) == 11)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10]);
+         }
+         else if(int(["⌂"].length) == 12)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11]);
+         }
+         else if(int(["⌂"].length) == 13)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12]);
+         }
+         else if(int(["⌂"].length) == 14)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13]);
+         }
+         else if(int(["⌂"].length) == 15)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14]);
+         }
+         else if(int(["⌂"].length) == 16)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15]);
+         }
+         else if(int(["⌂"].length) == 17)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16]);
+         }
+         else if(int(["⌂"].length) == 18)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16],["⌂"][17]);
+         }
+         else if(int(["⌂"].length) == 19)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16],["⌂"][17],["⌂"][18]);
+         }
+         else
+         {
+            if(int(["⌂"].length) != 20)
+            {
+               throw "Too many rest arguments";
+            }
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16],["⌂"][17],["⌂"][18],["⌂"][19]);
+         }
       }
       
-      public function exitFocus() : void
+      public function getRefById(o:*) : *
       {
-         var _loc1_:ByteArray = null;
-         this._current = null;
-         this._dofull = false;
-         this._history = null;
-         this._hisIndex = 0;
-         if(remoter.remoting == Remoting.SENDER)
-         {
-            _loc1_ = new ByteArray();
-            _loc1_.writeUTF("refexit");
-            remoter.send("ref",_loc1_);
-         }
-         console.clear(LogReferences.INSPECTING_CHANNEL);
-      }
-      
-      public function inspect(obj:*, viewAll:Boolean = true, ch:String = null) : void
-      {
-         var refIndex:uint;
-         var showInherit:String;
-         var V:XML;
-         var cls:Object;
-         var clsV:XML;
-         var self:String;
-         var isClass:Boolean;
-         var st:String;
-         var str:String;
-         var props:Array;
-         var inherit:uint;
-         var menuStr:String = null;
-         var nodes:XMLList = null;
-         var constantX:XML = null;
-         var hasstuff:Boolean = false;
-         var isstatic:Boolean = false;
-         var methodX:XML = null;
-         var accessorX:XML = null;
-         var variableX:XML = null;
-         var extendX:XML = null;
-         var implementX:XML = null;
-         var metadataX:XML = null;
-         var mn:XMLList = null;
-         var en:String = null;
-         var et:String = null;
-         var disp:DisplayObject = null;
-         var theParent:DisplayObjectContainer = null;
-         var pr:DisplayObjectContainer = null;
-         var indstr:String = null;
-         var cont:DisplayObjectContainer = null;
-         var clen:int = 0;
-         var ci:int = 0;
-         var child:DisplayObject = null;
-         var params:Array = null;
-         var mparamsList:XMLList = null;
-         var paraX:XML = null;
-         var access:String = null;
-         var X:* = undefined;
-         if(!obj)
-         {
-            report(obj,-2,true,ch);
-            return;
-         }
-         refIndex = this.setLogRef(obj);
-         showInherit = "";
-         if(!viewAll)
-         {
-            showInherit = " [<a href=\'event:refi\'>show inherited</a>]";
-         }
-         if(this._history)
-         {
-            menuStr = "<b>[<a href=\'event:refexit\'>exit</a>]";
-            if(this._hisIndex > 1)
-            {
-               menuStr += " [<a href=\'event:refprev\'>previous</a>]";
-            }
-            if(Boolean(this._history) && this._hisIndex < this._history.length)
-            {
-               menuStr += " [<a href=\'event:reffwd\'>forward</a>]";
-            }
-            menuStr += "</b> || [<a href=\'event:ref_" + refIndex + "\'>refresh</a>]";
-            menuStr += "</b> [<a href=\'event:refe_" + refIndex + "\'>explode</a>]";
-            if(config.commandLineAllowed)
-            {
-               menuStr += " [<a href=\'event:cl_" + refIndex + "\'>scope</a>]";
-            }
-            if(viewAll)
-            {
-               menuStr += " [<a href=\'event:refi\'>hide inherited</a>]";
-            }
-            else
-            {
-               menuStr += showInherit;
-            }
-            report(menuStr,-1,true,ch);
-            report("",1,true,ch);
-         }
-         V = describeType(obj);
-         cls = obj is Class ? obj : obj.constructor;
-         clsV = describeType(cls);
-         self = V.@name;
-         isClass = obj is Class;
-         st = isClass ? "*" : "";
-         str = "<b>{" + st + this.genLinkString(obj,null,EscHTML(self)) + st + "}</b>";
-         props = [];
-         if(V.@isStatic == "true")
-         {
-            props.push("<b>static</b>");
-         }
-         if(V.@isDynamic == "true")
-         {
-            props.push("dynamic");
-         }
-         if(V.@isFinal == "true")
-         {
-            props.push("final");
-         }
-         if(props.length > 0)
-         {
-            str += " <p-1>" + props.join(" | ") + "</p-1>";
-         }
-         report(str,-2,true,ch);
-         nodes = V.extendsClass;
-         if(nodes.length())
-         {
-            props = [];
-            for each(extendX in nodes)
-            {
-               st = extendX.@type.toString();
-               props.push(st.indexOf("*") < 0 ? this.makeValue(getDefinitionByName(st)) : EscHTML(st));
-               if(!viewAll)
-               {
-                  break;
-               }
-            }
-            report("<p10>Extends:</p10> " + props.join(" &gt; "),1,true,ch);
-         }
-         nodes = V.implementsInterface;
-         if(nodes.length())
-         {
-            props = [];
-            for each(implementX in nodes)
-            {
-               props.push(this.makeValue(getDefinitionByName(implementX.@type.toString())));
-            }
-            report("<p10>Implements:</p10> " + props.join(", "),1,true,ch);
-         }
-         report("",1,true,ch);
-         props = [];
-         nodes = V.metadata.(@name == "Event");
-         if(nodes.length())
-         {
-            for each(metadataX in nodes)
-            {
-               mn = metadataX.arg;
-               en = mn.(@key == "name").@value;
-               et = mn.(@key == "type").@value;
-               if(refIndex)
-               {
-                  props.push("<a href=\'event:cl_" + refIndex + "_dispatchEvent(new " + et + "(\"" + en + "\"))\'>" + en + "</a><p0>(" + et + ")</p0>");
-               }
-               else
-               {
-                  props.push(en + "<p0>(" + et + ")</p0>");
-               }
-            }
-            report("<p10>Events:</p10> " + props.join("<p-1>; </p-1>"),1,true,ch);
-            report("",1,true,ch);
-         }
-         if(obj is DisplayObject)
-         {
-            disp = obj as DisplayObject;
-            theParent = disp.parent;
-            if(theParent)
-            {
-               props = new Array("@" + theParent.getChildIndex(disp));
-               while(theParent)
-               {
-                  pr = theParent;
-                  theParent = theParent.parent;
-                  indstr = theParent ? "@" + theParent.getChildIndex(pr) : "";
-                  props.push("<b>" + pr.name + "</b>" + indstr + this.makeValue(pr));
-               }
-               report("<p10>Parents:</p10> " + props.join("<p-1> -> </p-1>") + "<br/>",1,true,ch);
-            }
-         }
-         if(obj is DisplayObjectContainer)
-         {
-            props = [];
-            cont = obj as DisplayObjectContainer;
-            clen = cont.numChildren;
-            ci = 0;
-            while(ci < clen)
-            {
-               child = cont.getChildAt(ci);
-               props.push("<b>" + child.name + "</b>@" + ci + this.makeValue(child));
-               ci++;
-            }
-            if(clen)
-            {
-               report("<p10>Children:</p10> " + props.join("<p-1>; </p-1>") + "<br/>",1,true,ch);
-            }
-         }
-         props = [];
-         nodes = clsV..constant;
-         for each(constantX in nodes)
-         {
-            report(" const <p3>" + constantX.@name + "</p3>:" + constantX.@type + " = " + this.makeValue(cls,constantX.@name.toString()) + "</p0>",1,true,ch);
-         }
-         if(nodes.length())
-         {
-            report("",1,true,ch);
-         }
-         inherit = 0;
-         props = [];
-         nodes = clsV..method;
-         for each(methodX in nodes)
-         {
-            if(viewAll || self == methodX.@declaredBy)
-            {
-               hasstuff = true;
-               isstatic = methodX.parent().name() != "factory";
-               str = " " + (isstatic ? "static " : "") + "function ";
-               params = [];
-               mparamsList = methodX.parameter;
-               for each(paraX in mparamsList)
-               {
-                  params.push(paraX.@optional == "true" ? "<i>" + paraX.@type + "</i>" : paraX.@type);
-               }
-               if(Boolean(refIndex) && (isstatic || !isClass))
-               {
-                  str += "<a href=\'event:cl_" + refIndex + "_" + methodX.@name + "()\'><p3>" + methodX.@name + "</p3></a>";
-               }
-               else
-               {
-                  str += "<p3>" + methodX.@name + "</p3>";
-               }
-               str += "(" + params.join(", ") + "):" + methodX.@returnType;
-               report(str,1,true,ch);
-            }
-            else
-            {
-               inherit++;
-            }
-         }
-         if(inherit)
-         {
-            report("   \t + " + inherit + " inherited methods." + showInherit,1,true,ch);
-         }
-         else if(hasstuff)
-         {
-            report("",1,true,ch);
-         }
-         hasstuff = false;
-         inherit = 0;
-         props = [];
-         nodes = clsV..accessor;
-         for each(accessorX in nodes)
-         {
-            if(viewAll || self == accessorX.@declaredBy)
-            {
-               hasstuff = true;
-               isstatic = accessorX.parent().name() != "factory";
-               str = " ";
-               if(isstatic)
-               {
-                  str += "static ";
-               }
-               access = accessorX.@access;
-               if(access == "readonly")
-               {
-                  str += "get";
-               }
-               else if(access == "writeonly")
-               {
-                  str += "set";
-               }
-               else
-               {
-                  str += "assign";
-               }
-               if(Boolean(refIndex) && (isstatic || !isClass))
-               {
-                  str += " <a href=\'event:cl_" + refIndex + "_" + accessorX.@name + "\'><p3>" + accessorX.@name + "</p3></a>:" + accessorX.@type;
-               }
-               else
-               {
-                  str += " <p3>" + accessorX.@name + "</p3>:" + accessorX.@type;
-               }
-               if(access != "writeonly" && (isstatic || !isClass))
-               {
-                  str += " = " + this.makeValue(isstatic ? cls : obj,accessorX.@name.toString());
-               }
-               report(str,1,true,ch);
-            }
-            else
-            {
-               inherit++;
-            }
-         }
-         if(inherit)
-         {
-            report("   \t + " + inherit + " inherited accessors." + showInherit,1,true,ch);
-         }
-         else if(hasstuff)
-         {
-            report("",1,true,ch);
-         }
-         nodes = clsV..variable;
-         for each(variableX in nodes)
-         {
-            isstatic = variableX.parent().name() != "factory";
-            str = isstatic ? " static" : "";
-            if(refIndex)
-            {
-               str += " var <p3><a href=\'event:cl_" + refIndex + "_" + variableX.@name + " = \'>" + variableX.@name + "</a>";
-            }
-            else
-            {
-               str += " var <p3>" + variableX.@name;
-            }
-            str += "</p3>:" + variableX.@type + " = " + this.makeValue(isstatic ? cls : obj,variableX.@name.toString());
-            report(str,1,true,ch);
-         }
-         try
-         {
-            props = [];
-            for(X in obj)
-            {
-               if(X is String)
-               {
-                  if(refIndex)
-                  {
-                     str = "<a href=\'event:cl_" + refIndex + "_" + X + " = \'>" + X + "</a>";
-                  }
-                  else
-                  {
-                     str = X;
-                  }
-                  report(" dynamic var <p3>" + str + "</p3> = " + this.makeValue(obj,X),1,true,ch);
-               }
-               else
-               {
-                  report(" dictionary <p3>" + this.makeValue(X) + "</p3> = " + this.makeValue(obj,X),1,true,ch);
-               }
-            }
-         }
-         catch(e:Error)
-         {
-            report("Could not get dynamic values. " + e.message,9,false,ch);
-         }
-         if(obj is String)
-         {
-            report("",1,true,ch);
-            report("String",10,true,ch);
-            report(EscHTML(obj),1,true,ch);
-         }
-         else if(obj is XML || obj is XMLList)
-         {
-            report("",1,true,ch);
-            report("XMLString",10,true,ch);
-            report(EscHTML(obj.toXMLString()),1,true,ch);
-         }
-         if(menuStr)
-         {
-            report("",1,true,ch);
-            report(menuStr,-1,true,ch);
-         }
+         return _refRev.get(o);
       }
       
       public function getPossibleCalls(obj:*) : Array
       {
-         var _loc5_:XML = null;
-         var _loc6_:XML = null;
-         var _loc7_:XML = null;
-         var _loc8_:Array = null;
-         var _loc9_:XMLList = null;
-         var _loc10_:XML = null;
-         var _loc2_:Array = new Array();
-         var _loc3_:XML = describeType(obj);
-         var _loc4_:XMLList = _loc3_.method;
-         for each(_loc5_ in _loc4_)
+         var _loc7_:int = 0;
+         var _loc8_:* = null as XML;
+         var _loc9_:* = null as Array;
+         var _loc10_:* = null as XMLList;
+         var _loc11_:int = 0;
+         var _loc12_:int = 0;
+         var _loc13_:int = 0;
+         var _loc14_:* = null as XML;
+         var _loc15_:* = null as String;
+         var _loc2_:Array = [];
+         var _loc3_:XML = Lib.describeType(obj);
+         var _loc4_:XMLList = _loc3_.child("method");
+         var _loc5_:int = 0;
+         var _loc6_:int = _loc4_.length();
+         while(_loc5_ < _loc6_)
          {
-            _loc8_ = [];
-            _loc9_ = _loc5_.parameter;
-            for each(_loc10_ in _loc9_)
+            _loc7_ = _loc5_++;
+            _loc8_ = _loc4_[_loc7_];
+            _loc9_ = [];
+            _loc10_ = _loc8_.child("parameter");
+            _loc11_ = 0;
+            _loc12_ = _loc10_.length();
+            while(_loc11_ < _loc12_)
             {
-               _loc8_.push(_loc10_.@optional == "true" ? "<i>" + _loc10_.@type + "</i>" : _loc10_.@type);
+               _loc13_ = _loc11_++;
+               _loc14_ = _loc10_[_loc13_];
+               _loc15_ = _loc14_.attribute("type").toString();
+               _loc9_.push(_loc14_.attribute("optional").toString() == "true" ? "<i>" + _loc15_ + "</i>" : _loc15_);
             }
-            _loc2_.push([_loc5_.@name + "(",_loc8_.join(", ") + " ):" + _loc5_.@returnType]);
+            _loc2_.push([_loc8_.attribute("name").toString() + "(",_loc9_.join(", ") + " ):" + _loc8_.attribute("returnType").toString()]);
          }
-         _loc4_ = _loc3_.accessor;
-         for each(_loc6_ in _loc4_)
+         _loc4_ = _loc3_.child("accessor");
+         _loc5_ = 0;
+         _loc6_ = _loc4_.length();
+         while(_loc5_ < _loc6_)
          {
-            _loc2_.push([String(_loc6_.@name),String(_loc6_.@type)]);
+            _loc7_ = _loc5_++;
+            _loc2_.push([_loc4_[_loc7_].attribute("name").toString(),_loc4_[_loc7_].attribute("type").toString()]);
          }
-         _loc4_ = _loc3_.variable;
-         for each(_loc7_ in _loc4_)
+         _loc4_ = _loc3_.child("variable");
+         _loc5_ = 0;
+         _loc6_ = _loc4_.length();
+         while(_loc5_ < _loc6_)
          {
-            _loc2_.push([String(_loc7_.@name),String(_loc7_.@type)]);
+            _loc7_ = _loc5_++;
+            _loc2_.push([_loc4_[_loc7_].attribute("name").toString(),_loc4_[_loc7_].attribute("type").toString()]);
          }
          return _loc2_;
       }
       
-      private function makeValue(obj:*, prop:* = null) : String
+      public function genLinkString(o:*, prop:*, str:String) : String
       {
-         return this.makeString(obj,prop,false,config.useObjectLinking ? 100 : -1);
+         if(ConsoleLib.truthy(prop) && !(prop is String))
+         {
+            o = o[prop];
+            prop = null;
+         }
+         var _loc4_:uint = setLogRef(o);
+         if(_loc4_ != 0)
+         {
+            return "<menu><a href=\'event:ref_" + ("" + _loc4_) + (prop ? "_" + Std.string(prop) : "") + "\'>" + str + "</a></menu>";
+         }
+         return str;
+      }
+      
+      public function focus(o:*, full:Boolean = false) : void
+      {
+         get_remoter().send("focus");
+         console.clear("⌂");
+         if(int(["⌂"].length) == 0)
+         {
+            console.setViewingChannels();
+         }
+         else if(int(["⌂"].length) == 1)
+         {
+            console.setViewingChannels(["⌂"][0]);
+         }
+         else if(int(["⌂"].length) == 2)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1]);
+         }
+         else if(int(["⌂"].length) == 3)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2]);
+         }
+         else if(int(["⌂"].length) == 4)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3]);
+         }
+         else if(int(["⌂"].length) == 5)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4]);
+         }
+         else if(int(["⌂"].length) == 6)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5]);
+         }
+         else if(int(["⌂"].length) == 7)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6]);
+         }
+         else if(int(["⌂"].length) == 8)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7]);
+         }
+         else if(int(["⌂"].length) == 9)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8]);
+         }
+         else if(int(["⌂"].length) == 10)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9]);
+         }
+         else if(int(["⌂"].length) == 11)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10]);
+         }
+         else if(int(["⌂"].length) == 12)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11]);
+         }
+         else if(int(["⌂"].length) == 13)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12]);
+         }
+         else if(int(["⌂"].length) == 14)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13]);
+         }
+         else if(int(["⌂"].length) == 15)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14]);
+         }
+         else if(int(["⌂"].length) == 16)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15]);
+         }
+         else if(int(["⌂"].length) == 17)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16]);
+         }
+         else if(int(["⌂"].length) == 18)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16],["⌂"][17]);
+         }
+         else if(int(["⌂"].length) == 19)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16],["⌂"][17],["⌂"][18]);
+         }
+         else
+         {
+            if(int(["⌂"].length) != 20)
+            {
+               throw "Too many rest arguments";
+            }
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16],["⌂"][17],["⌂"][18],["⌂"][19]);
+         }
+         if(int(["⌂"].length) == 0)
+         {
+            console.setViewingChannels();
+         }
+         else if(int(["⌂"].length) == 1)
+         {
+            console.setViewingChannels(["⌂"][0]);
+         }
+         else if(int(["⌂"].length) == 2)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1]);
+         }
+         else if(int(["⌂"].length) == 3)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2]);
+         }
+         else if(int(["⌂"].length) == 4)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3]);
+         }
+         else if(int(["⌂"].length) == 5)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4]);
+         }
+         else if(int(["⌂"].length) == 6)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5]);
+         }
+         else if(int(["⌂"].length) == 7)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6]);
+         }
+         else if(int(["⌂"].length) == 8)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7]);
+         }
+         else if(int(["⌂"].length) == 9)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8]);
+         }
+         else if(int(["⌂"].length) == 10)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9]);
+         }
+         else if(int(["⌂"].length) == 11)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10]);
+         }
+         else if(int(["⌂"].length) == 12)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11]);
+         }
+         else if(int(["⌂"].length) == 13)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12]);
+         }
+         else if(int(["⌂"].length) == 14)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13]);
+         }
+         else if(int(["⌂"].length) == 15)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14]);
+         }
+         else if(int(["⌂"].length) == 16)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15]);
+         }
+         else if(int(["⌂"].length) == 17)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16]);
+         }
+         else if(int(["⌂"].length) == 18)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16],["⌂"][17]);
+         }
+         else if(int(["⌂"].length) == 19)
+         {
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16],["⌂"][17],["⌂"][18]);
+         }
+         else
+         {
+            if(int(["⌂"].length) != 20)
+            {
+               throw "Too many rest arguments";
+            }
+            console.setViewingChannels(["⌂"][0],["⌂"][1],["⌂"][2],["⌂"][3],["⌂"][4],["⌂"][5],["⌂"][6],["⌂"][7],["⌂"][8],["⌂"][9],["⌂"][10],["⌂"][11],["⌂"][12],["⌂"][13],["⌂"][14],["⌂"][15],["⌂"][16],["⌂"][17],["⌂"][18],["⌂"][19]);
+         }
+         if(_history == null)
+         {
+            _history = [];
+         }
+         if(_current != o)
+         {
+            _current = o;
+            if(int(_history.length) <= _hisIndex)
+            {
+               _history.push(o);
+            }
+            else
+            {
+               _history[_hisIndex] = o;
+            }
+            ++_hisIndex;
+         }
+         _dofull = full;
+         inspect(o,_dofull);
+      }
+      
+      public function exitFocus() : void
+      {
+         var _loc1_:* = null as ByteArray;
+         _current = null;
+         _dofull = false;
+         _history = null;
+         _hisIndex = 0;
+         if(get_remoter().get_remoting() == 1)
+         {
+            _loc1_ = new ByteArray();
+            _loc1_.writeUTF("refexit");
+            get_remoter().send("ref",_loc1_);
+         }
+         console.clear("⌂");
       }
    }
 }

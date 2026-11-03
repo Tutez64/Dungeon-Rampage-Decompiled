@@ -1,6 +1,7 @@
 package UI.Inventory
 {
    import Account.AvatarInfo;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
@@ -44,8 +45,8 @@ package UI.Inventory
       
       public function set ownedHero(avatarInfo:AvatarInfo) : void
       {
-         mLabel.text = GameMasterLocale.getGameMasterSubString("SKIN_NAME",avatarInfo.gmHero.Constant).toUpperCase();
-         mLevelLabel.text = avatarInfo.level.toString();
+         TextUtil.setText(mLabel,GameMasterLocale.getGameMasterSubString("SKIN_NAME",avatarInfo.gmHero.Constant).toUpperCase());
+         TextUtil.setText(mLevelLabel,avatarInfo.cloutLevel.toString());
          mLevelLabel.visible = true;
          mStar.visible = true;
          mDescriptionLabel.visible = false;
@@ -53,10 +54,11 @@ package UI.Inventory
       
       public function set unownedHero(gmHero:GMHero) : void
       {
-         mLabel.text = GameMasterLocale.getGameMasterSubString("SKIN_NAME",gmHero.Constant).toUpperCase();
+         TextUtil.setText(mLabel,GameMasterLocale.getGameMasterSubString("SKIN_NAME",gmHero.Constant).toUpperCase());
          mLevelLabel.visible = false;
          mStar.visible = false;
-         mDescriptionLabel.text = Locale.getString("HERO_NOT_UNLOCKED_TOOLTIP");
+         Locale.setText(mDescriptionLabel,"HERO_NOT_UNLOCKED_TOOLTIP",null,1.55);
+         TextUtil.fitToField(mDescriptionLabel);
          mDescriptionLabel.visible = true;
       }
    }

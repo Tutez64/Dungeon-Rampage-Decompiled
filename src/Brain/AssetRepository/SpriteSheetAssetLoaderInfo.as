@@ -1,6 +1,6 @@
 package Brain.AssetRepository
 {
-   import org.as3commons.collections.Map;
+   import Collections.Map;
    
    public class SpriteSheetAssetLoaderInfo extends AssetLoaderInfo
    {

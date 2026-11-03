@@ -10,6 +10,7 @@ package UI.EquipPicker
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import UI.Inventory.UIWeaponTooltip;
+   import flash.display.DisplayObject;
    import flash.display.MovieClip;
    import flash.geom.Point;
    
@@ -38,21 +39,24 @@ package UI.EquipPicker
       
       protected var mEquipResponseCallback:Function;
       
-      private var mClickedEquipedWeaponCallback:Function;
+      private var mClickedEquippedWeaponCallback:Function;
       
       private var mAllowEquipmentSwapping:Boolean;
       
-      public function AvatarEquipElement(dbFacade:DBFacade, keyLabel:String, root:MovieClip, tooltipClass:Class, unequipCallback:Function, handleDropCallback:Function, equipSlot:uint, clickedEquipedWeaponCallback:Function = null, equipResponseCallback:Function = null, allowEquipmentSwapping:Boolean = false)
+      private var mKeyLabel:String;
+      
+      public function AvatarEquipElement(dbFacade:DBFacade, keyLabel:String, root:MovieClip, tooltipClass:Class, unequipCallback:Function, handleDropCallback:Function, equipSlot:uint, clickedEquippedWeaponCallback:Function = null, equipResponseCallback:Function = null, allowEquipmentSwapping:Boolean = false)
       {
          super(dbFacade,root);
-         this.label.text = keyLabel;
+         mKeyLabel = keyLabel;
+         this.label.text = mKeyLabel;
          this.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
          mDBFacade = dbFacade;
          mUnequipCallback = unequipCallback;
          mHandleDropCallback = handleDropCallback;
          mEquipSlot = equipSlot;
          mEquipResponseCallback = equipResponseCallback;
-         mClickedEquipedWeaponCallback = clickedEquipedWeaponCallback;
+         mClickedEquippedWeaponCallback = clickedEquippedWeaponCallback;
          mAllowEquipmentSwapping = allowEquipmentSwapping;
          draggable = false;
          mContainerHeight = mRoot.frame.height;
@@ -129,9 +133,9 @@ package UI.EquipPicker
       {
          this.releaseCallbackThis = function(param1:UIButton):void
          {
-            if(mClickedEquipedWeaponCallback != null)
+            if(mClickedEquippedWeaponCallback != null)
             {
-               mClickedEquipedWeaponCallback(param1);
+               mClickedEquippedWeaponCallback(param1);
             }
          };
       }
@@ -220,6 +224,18 @@ package UI.EquipPicker
       public function deselect() : void
       {
          this.root.selected.visible = false;
+      }
+      
+      public function setLabelAsText() : void
+      {
+         this.label.visible = true;
+         this.label.text = mKeyLabel;
+      }
+      
+      public function setLabelAsControllerGlyph(controllerGlyph:DisplayObject) : void
+      {
+         this.label.visible = false;
+         root.addChild(controllerGlyph);
       }
    }
 }

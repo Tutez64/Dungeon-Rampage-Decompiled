@@ -52,7 +52,7 @@ package Floor
          }
          else
          {
-            mMessageClip.message_text_01.text = Locale.getString(mMessageKey);
+            Locale.setText(mMessageClip.message_text_01,mMessageKey);
          }
          if(mMessageClip.message_text_01.textWidth > 700)
          {

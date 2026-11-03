@@ -8,6 +8,14 @@ package Actor.Player.Input
    public class GamepadController
    {
       
+      public static const TOGGLE_MENU_ACTION:uint = 0;
+      
+      public static const OPEN_OPTIONS_MENU:uint = 1;
+      
+      public static const TOGGLE_CHAT_LOG_ACTION:uint = 2;
+      
+      public static const OPEN_CHAT_KEYBOARD_OPTION:uint = 3;
+      
       protected var mDBFacade:DBFacade;
       
       protected var mHeroOwner:HeroGameObjectOwner;
@@ -27,6 +35,8 @@ package Actor.Player.Input
       private var mReleasedCombatButtonsThisFrame:Vector.<int> = new Vector.<int>();
       
       private var mReleasedConsumableButtonsThisFrame:Vector.<int> = new Vector.<int>();
+      
+      private var mReleasedMenuButtonsThisFrame:Vector.<int> = new Vector.<int>();
       
       public function GamepadController(dbFacade:DBFacade, heroOwner:HeroGameObjectOwner, steamInputManager:SteamInputManager)
       {
@@ -62,11 +72,17 @@ package Actor.Player.Input
          return mReleasedConsumableButtonsThisFrame;
       }
       
+      public function get releasedMenuButtonsThisFrame() : Vector.<int>
+      {
+         return mReleasedMenuButtonsThisFrame;
+      }
+      
       public function init() : void
       {
          mPressedCombatButtonsThisFrame.length = 0;
          mReleasedCombatButtonsThisFrame.length = 0;
          mReleasedConsumableButtonsThisFrame.length = 0;
+         mReleasedMenuButtonsThisFrame.length = 0;
       }
       
       public function destroy() : void
@@ -79,6 +95,8 @@ package Actor.Player.Input
          mReleasedCombatButtonsThisFrame = null;
          mReleasedConsumableButtonsThisFrame.length = 0;
          mReleasedConsumableButtonsThisFrame = null;
+         mReleasedMenuButtonsThisFrame.length = 0;
+         mReleasedMenuButtonsThisFrame = null;
       }
       
       public function set combatDisabled(disableCombat:Boolean) : void
@@ -109,6 +127,7 @@ package Actor.Player.Input
          }
          handleAttackInputs();
          handleConsumableInputs();
+         handleMenuInputs();
       }
       
       private function calcMovementInput() : Vector3D
@@ -170,6 +189,31 @@ package Actor.Player.Input
          if(_loc2_)
          {
             mReleasedConsumableButtonsThisFrame.push(1);
+         }
+      }
+      
+      private function handleMenuInputs() : void
+      {
+         mReleasedMenuButtonsThisFrame.length = 0;
+         var _loc2_:Boolean = mSteamInputManager.releasedAction("toggle_menu");
+         if(_loc2_)
+         {
+            mReleasedMenuButtonsThisFrame.push(0);
+         }
+         var _loc3_:Boolean = mSteamInputManager.releasedAction("open_options_menu");
+         if(_loc3_)
+         {
+            mReleasedMenuButtonsThisFrame.push(1);
+         }
+         var _loc4_:Boolean = mSteamInputManager.releasedAction("toggle_chat_log");
+         if(_loc4_)
+         {
+            mReleasedMenuButtonsThisFrame.push(2);
+         }
+         var _loc1_:Boolean = mSteamInputManager.releasedAction("open_chat_keyboard");
+         if(_loc1_)
+         {
+            mReleasedMenuButtonsThisFrame.push(3);
          }
       }
    }

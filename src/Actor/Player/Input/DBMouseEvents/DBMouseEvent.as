@@ -8,9 +8,9 @@ package Actor.Player.Input.DBMouseEvents
       
       protected var mActor:ActorGameObject;
       
-      public function DBMouseEvent(type:String, actor:ActorGameObject, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function DBMouseEvent(mouseEventType:String, actor:ActorGameObject, bubbles:Boolean = false, cancelable:Boolean = false)
       {
-         super(type,bubbles,cancelable);
+         super(mouseEventType,bubbles,cancelable);
          mActor = actor;
       }
       

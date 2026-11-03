@@ -9,15 +9,11 @@ package Account
    import GameMasterDictionary.GMHero;
    import GameMasterDictionary.GMMapNode;
    import GameMasterDictionary.GMSkin;
-   import Metrics.PixelTracker;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.Set;
-   import org.as3commons.collections.framework.IIterator;
    
    public class AvatarInfo
    {
       
-      public static var mAvatarMapIndexes:Map = new Map();
+      public static const MAX_EFFECTIVE_LEVEL:uint = GMHero.MAX_LEVEL;
       
       private var mDBFacade:DBFacade;
       
@@ -58,6 +54,12 @@ package Account
       public var consumable2Id:uint;
       
       public var consumable2Count:uint;
+      
+      public var mAscensionLevel:uint;
+      
+      public var mNextAscensionGemCost:uint;
+      
+      public var mMaxSkillPoints:uint;
       
       public var mEquippedConsumables:Vector.<Consumable>;
       
@@ -102,7 +104,7 @@ package Account
       
       public function get skillPointsEarned() : uint
       {
-         return mGMHero.getTotalStatFromExp(this.experience);
+         return mMaxSkillPoints;
       }
       
       public function get skillPointsAvailable() : int
@@ -115,10 +117,44 @@ package Account
          return statUpgrade1 + statUpgrade2 + statUpgrade3 + statUpgrade4;
       }
       
-      public function get level() : uint
+      public function get cloutLevel() : uint
       {
          var _loc1_:GMHero = mDBFacade.gameMaster.heroById.itemFor(avatarType);
-         return _loc1_.getLevelFromExp(experience);
+         return _loc1_.getLevelFromExp(experience,mAscensionLevel);
+      }
+      
+      public function get effectiveLevel() : uint
+      {
+         return Math.min(cloutLevel,MAX_EFFECTIVE_LEVEL);
+      }
+      
+      public function get ogLevel() : uint
+      {
+         var _loc1_:GMHero = mDBFacade.gameMaster.heroById.itemFor(avatarType);
+         return Math.min(_loc1_.getLevelFromExp(experience,mAscensionLevel),100);
+      }
+      
+      public function get canAscend() : Boolean
+      {
+         if(mDBFacade.dbAccountInfo.premiumCurrency < mNextAscensionGemCost)
+         {
+            return false;
+         }
+         if(cloutLevel < GMHero.maxLevelForAscension(mAscensionLevel))
+         {
+            return false;
+         }
+         var _loc1_:uint = uint(mGMHero.getLevelIndex(experience,mAscensionLevel));
+         return experience >= mGMHero.getExpFromIndex(_loc1_);
+      }
+      
+      public function get levelForWeaponComparison() : uint
+      {
+         if(cloutLevel <= 99)
+         {
+            return cloutLevel;
+         }
+         return 9001;
       }
       
       public function get gmHero() : GMHero
@@ -148,12 +184,10 @@ package Account
       
       private function parseJson(avatarJson:Object) : void
       {
-         var _loc6_:AvatarMapNodeInfo = null;
-         var _loc7_:GMMapNode = null;
-         var _loc11_:* = 0;
-         var _loc10_:Utf8BitArray = null;
-         var _loc3_:IIterator = null;
-         var _loc4_:* = 0;
+         var _loc2_:AvatarMapNodeInfo = null;
+         var _loc3_:GMMapNode = null;
+         var _loc4_:uint = 0;
+         var _loc5_:Utf8BitArray = null;
          if(avatarJson == null)
          {
             return;
@@ -175,82 +209,50 @@ package Account
          consumable2Id = avatarJson.consumable2_id as uint;
          consumable2Count = avatarJson.consumable2_count as uint;
          mEquippedConsumables.push(new Consumable(1,consumable2Id,consumable2Count));
-         var _loc2_:Set = new Set();
-         var _loc5_:Set = null;
-         var _loc9_:Boolean = true;
-         if(mAvatarMapIndexes.hasKey(id))
-         {
-            _loc5_ = mAvatarMapIndexes.itemFor(id);
-            _loc9_ = false;
-         }
-         var _loc8_:uint = 0;
+         mAscensionLevel = avatarJson.ascension_level;
+         mMaxSkillPoints = avatarJson.max_skill_points;
+         mNextAscensionGemCost = avatarJson.ascension_gem_cost;
          if(mDBFacade.NODE_RULES == 0)
          {
-            _loc11_ = mCompletedMapnodeMask.getLength();
-            _loc8_ = 0;
-            while(_loc8_ < mCompletedMapnodeMask.getLength())
+            _loc4_ = 0;
+            while(_loc4_ < mCompletedMapnodeMask.getLength())
             {
-               if(mCompletedMapnodeMask.getBit(_loc8_))
+               if(mCompletedMapnodeMask.getBit(_loc4_))
                {
-                  _loc6_ = new AvatarMapNodeInfo();
-                  _loc7_ = mDBFacade.gameMaster.mapNodeByBitIndex.itemFor(_loc8_);
-                  if(_loc7_ == null)
+                  _loc2_ = new AvatarMapNodeInfo();
+                  _loc3_ = mDBFacade.gameMaster.mapNodeByBitIndex.itemFor(_loc4_);
+                  if(_loc3_ == null)
                   {
-                     Logger.warn("Unable to find map node for bit index: " + _loc8_);
+                     Logger.warn("Unable to find map node for bit index: " + _loc4_);
                   }
                   else
                   {
-                     _loc6_.node_id = _loc7_.Id;
-                     _loc2_.add(_loc7_.Id);
-                     _loc6_.trophy = _loc7_.NodeType == "BOSS" || _loc7_.NodeType == "INFINITE" ? 1 : 0;
-                     _loc6_.isCompleted = true;
-                     mMapNodes.push(_loc6_);
+                     _loc2_.node_id = _loc3_.Id;
+                     _loc2_.trophy = _loc3_.NodeType == GMMapNode.BOSS_NODE_TYPE || _loc3_.NodeType == GMMapNode.INFINITE_NODE_TYPE ? 1 : 0;
+                     _loc2_.isCompleted = true;
+                     mMapNodes.push(_loc2_);
                   }
                }
-               _loc8_++;
+               _loc4_++;
             }
          }
          else
          {
-            _loc10_ = mDBFacade.dbAccountInfo.getCompletedMapnodeMask();
-            _loc8_ = 0;
-            while(_loc8_ < _loc10_.getLength())
+            _loc5_ = mDBFacade.dbAccountInfo.getCompletedMapnodeMask();
+            _loc4_ = 0;
+            while(_loc4_ < _loc5_.getLength())
             {
-               if(_loc10_.getBit(_loc8_))
+               if(_loc5_.getBit(_loc4_))
                {
-                  _loc6_ = new AvatarMapNodeInfo();
-                  _loc7_ = mDBFacade.gameMaster.mapNodeByBitIndex.itemFor(_loc8_);
-                  _loc6_.node_id = _loc7_.Id;
-                  _loc2_.add(_loc7_.Id);
-                  _loc6_.trophy = mCompletedMapnodeMask.getBit(_loc8_) && (_loc7_.NodeType == "BOSS" || _loc7_.NodeType == "INFINITE") ? 1 : 0;
-                  _loc6_.isCompleted = mCompletedMapnodeMask.getBit(_loc8_);
-                  mMapNodes.push(_loc6_);
+                  _loc2_ = new AvatarMapNodeInfo();
+                  _loc3_ = mDBFacade.gameMaster.mapNodeByBitIndex.itemFor(_loc4_);
+                  _loc2_.node_id = _loc3_.Id;
+                  _loc2_.trophy = mCompletedMapnodeMask.getBit(_loc4_) && (_loc3_.NodeType == GMMapNode.BOSS_NODE_TYPE || _loc3_.NodeType == GMMapNode.INFINITE_NODE_TYPE) ? 1 : 0;
+                  _loc2_.isCompleted = mCompletedMapnodeMask.getBit(_loc4_);
+                  mMapNodes.push(_loc2_);
                }
-               _loc8_++;
+               _loc4_++;
             }
-         }
-         if(mDBFacade.accountId == accountId)
-         {
-            if(!_loc9_)
-            {
-               _loc3_ = _loc2_.iterator();
-               while(_loc3_.hasNext())
-               {
-                  _loc4_ = uint(_loc3_.next());
-                  if(!_loc5_.has(_loc4_))
-                  {
-                     PixelTracker.logMapNodeUnlocked(mDBFacade,_loc4_);
-                  }
-               }
-            }
-         }
-         if(mAvatarMapIndexes.has(id))
-         {
-            mAvatarMapIndexes.replaceFor(id,_loc2_);
-         }
-         else
-         {
-            mAvatarMapIndexes.add(id,_loc2_);
          }
       }
       

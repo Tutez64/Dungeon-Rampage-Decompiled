@@ -1,23 +1,20 @@
 package SteamInput
 {
-   import flash.utils.Dictionary;
+   import Input.KeyBindings.KeyBindings;
    
    public class KeyboardEventsSpoofMap
    {
       
-      private var mActionNamesToKeyCodes:Dictionary = new Dictionary();
+      private var mKeyBindings:KeyBindings;
       
       private var mActionNames:Vector.<String> = new Vector.<String>();
       
-      public function KeyboardEventsSpoofMap()
+      public function KeyboardEventsSpoofMap(keyBindings:KeyBindings)
       {
          super();
-         mActionNamesToKeyCodes["revive_ally"] = 32;
-         mActionNamesToKeyCodes["toggle_menu"] = 27;
-         for(var _loc1_:String in mActionNamesToKeyCodes)
-         {
-            mActionNames.push(_loc1_);
-         }
+         mKeyBindings = keyBindings;
+         mActionNames.push("revive_ally");
+         mActionNames.push("toggle_menu");
       }
       
       public function get actionNames() : Vector.<String>
@@ -27,7 +24,17 @@ package SteamInput
       
       public function getKeyCode(action:String) : int
       {
-         return mActionNamesToKeyCodes[action];
+         var _loc2_:int = 0;
+         switch(action)
+         {
+            case "revive_ally":
+               _loc2_ = mKeyBindings.getPrimary("reviveAlly");
+               return _loc2_ != 0 ? _loc2_ : mKeyBindings.getAlternate("reviveAlly");
+            case "toggle_menu":
+               return 27;
+            default:
+               return 0;
+         }
       }
    }
 }

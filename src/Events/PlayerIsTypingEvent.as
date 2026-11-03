@@ -11,10 +11,10 @@ package Events
       
       public var subtype:String;
       
-      public function PlayerIsTypingEvent(type:String, id:uint, subType:String, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function PlayerIsTypingEvent(inType:String, id:uint, subType:String, bubbles:Boolean = false, cancelable:Boolean = false)
       {
          subtype = subType;
-         super(type,id,bubbles,cancelable);
+         super(inType,id,bubbles,cancelable);
       }
    }
 }

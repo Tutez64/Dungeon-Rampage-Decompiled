@@ -140,6 +140,16 @@ package Brain.Camera
          mFadeTask = null;
       }
       
+      public function get color() : uint
+      {
+         return mColor ? mColor.x << 16 | mColor.y << 8 | mColor.z : 0;
+      }
+      
+      public function get alpha() : Number
+      {
+         return mRectSprite ? mRectSprite.alpha : 0;
+      }
+      
       public function forceStop() : void
       {
          if(mFadeTask && mRectSprite)

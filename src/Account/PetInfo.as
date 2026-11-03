@@ -1,5 +1,6 @@
 package Account
 {
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import GameMasterDictionary.GMNpc;
    
@@ -25,7 +26,7 @@ package Account
       
       override public function get iconScale() : Number
       {
-         return 68;
+         return DBGlobal.PET_ICON_NATIVE_SIZE;
       }
       
       public function get attackRating() : uint

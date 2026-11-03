@@ -3,6 +3,7 @@ package DistributedObjects
    import Brain.Event.EventComponent;
    import Brain.GameObject.GameObject;
    import Brain.Logger.Logger;
+   import Collections.Map;
    import Events.ClientExitCompleteEvent;
    import Events.MatchMakerLoadedEvent;
    import Events.RequestEntryFailedEvent;
@@ -12,7 +13,6 @@ package DistributedObjects
    import GeneratedCode.InfiniteMapNodeDetail;
    import GeneratedCode.MatchMakerNetworkComponent;
    import flash.events.Event;
-   import org.as3commons.collections.Map;
    
    public class MatchMaker extends GameObject implements IMatchMaker
    {
@@ -50,7 +50,7 @@ package DistributedObjects
       
       private function setInfiniteDungeonDetails() : void
       {
-         var _loc1_:* = null;
+         var _loc1_:InfiniteMapNodeDetail = null;
          mInfiniteDungeonDetails = new Map();
          for each(_loc1_ in mInfiniteMapNodeDetails)
          {

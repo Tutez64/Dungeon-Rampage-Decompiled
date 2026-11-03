@@ -13,6 +13,8 @@ package Actor
       
       public static const IDLE_VELOCITY_THRESHOLD:Number = 1;
       
+      public static const MIN_HEADING_SPEED:Number = 2;
+      
       private static const DEFAULT_SMOOTH_FACTOR:Number = 0.8;
       
       public static const LOCKED_HERO_MOVEMENT_TYPE:String = "locked_hero";
@@ -27,6 +29,10 @@ package Actor
       
       public static const ZERO_VECTOR:Vector3D = new Vector3D();
       
+      private static const sNewPos:Vector3D = new Vector3D();
+      
+      private static const sActorPos:Vector3D = new Vector3D();
+      
       protected var mTargetPosition:Point = new Point(0,0);
       
       protected var mActorGameObject:ActorGameObject;
@@ -34,6 +40,8 @@ package Actor
       protected var mView:ActorView;
       
       protected var mPositionLerpTask:Task;
+      
+      private var mLerpResting:Boolean;
       
       protected var mMovementType:String = "normal";
       
@@ -108,6 +116,7 @@ package Actor
             {
                mPositionLerpTask = mPreRenderWorkComponent.doEveryFrame(positionLerp);
             }
+            mLerpResting = false;
          }
          else
          {
@@ -124,36 +133,36 @@ package Actor
       
       protected function positionLerp(gameClock:GameClock) : void
       {
-         var _loc5_:Vector3D = null;
-         var _loc2_:Number = NaN;
-         var _loc3_:Number = NaN;
-         var _loc4_:Number = (1 - mSmoothFactor) * gameClock.timeScale;
+         if(mLerpResting)
+         {
+            return;
+         }
+         var _loc3_:Number = mView.positionX;
+         var _loc4_:Number = mView.positionY;
+         var _loc2_:Vector3D = sActorPos;
+         _loc2_.x = mActorGameObject.positionX;
+         _loc2_.y = mActorGameObject.positionY;
+         _loc2_.z = mActorGameObject.positionZ;
+         var _loc6_:Vector3D = _loc2_;
+         var _loc5_:Number = (1 - mSmoothFactor) * gameClock.timeScale;
          if(mWantSmoothTelemetry)
          {
-            _loc2_ = mView.position.x * (1 - _loc4_) + mActorGameObject.position.x * _loc4_;
-            _loc3_ = mView.position.y * (1 - _loc4_) + mActorGameObject.position.y * _loc4_;
-            _loc5_ = new Vector3D(_loc2_,_loc3_);
+            _loc6_ = sNewPos;
+            _loc6_.x = _loc3_ * (1 - _loc5_) + _loc2_.x * _loc5_;
+            _loc6_.y = _loc4_ * (1 - _loc5_) + _loc2_.y * _loc5_;
          }
-         else
-         {
-            _loc5_ = mActorGameObject.position;
-         }
-         mView.velocity = _loc5_.subtract(mView.position);
+         mView.velocity = new Vector3D(_loc6_.x - _loc3_,_loc6_.y - _loc4_,_loc6_.z);
          if(mView.velocity.nearEquals(ZERO_VECTOR,1))
          {
-            if(mPositionLerpTask)
-            {
-               mPositionLerpTask.destroy();
-               mPositionLerpTask = null;
-            }
+            mLerpResting = true;
             mView.heading = mActorGameObject.heading;
-            mView.position = mActorGameObject.position;
+            mView.position = _loc2_;
             mView.velocity.scaleBy(0);
          }
          else
          {
-            mView.position = _loc5_;
-            if(canMoveR)
+            mView.position = _loc6_;
+            if(canMoveR && (mView.velocity.length >= 2 || !mDBFacade.featureFlags.getFlagValue("smooth-run-and-direction-states")))
             {
                mView.heading = Math.atan2(mView.velocity.y,mView.velocity.x) * 180 / 3.141592653589793;
             }

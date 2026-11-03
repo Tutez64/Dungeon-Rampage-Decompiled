@@ -9,10 +9,10 @@ package Events
       
       public var eventName:String = "";
       
-      public function LEClientEvent(type:String, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function LEClientEvent(inType:String, bubbles:Boolean = false, cancelable:Boolean = false)
       {
          super("SEND_EVENT",bubbles,cancelable);
-         eventName = type;
+         eventName = inType;
       }
    }
 }

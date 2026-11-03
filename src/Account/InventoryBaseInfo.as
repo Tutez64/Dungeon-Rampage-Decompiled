@@ -1,9 +1,10 @@
 package Account
 {
+   import Collections.Map;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import GameMasterDictionary.GMChest;
    import GameMasterDictionary.GMInventoryBase;
-   import org.as3commons.collections.Map;
    
    public class InventoryBaseInfo
    {
@@ -43,7 +44,7 @@ package Account
       
       public function get iconScale() : Number
       {
-         return 100;
+         return DBGlobal.DEFAULT_ICON_NATIVE_SIZE;
       }
       
       public function get iconName() : String

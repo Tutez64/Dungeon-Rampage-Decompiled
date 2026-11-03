@@ -3,7 +3,6 @@ package Combat.Attack
    import Actor.ActorGameObject;
    import Actor.ActorView;
    import Facade.DBFacade;
-   import com.greensock.TweenMax;
    
    public class GlowTimelineAction extends AttackTimelineAction
    {
@@ -47,7 +46,7 @@ package Combat.Attack
       override public function execute(timeline:ScriptTimeline) : void
       {
          super.execute(timeline);
-         TweenMax.to(mActorView.body,mDuration,{"glowFilter":{
+         mDBFacade.mTween.tweenMaxTo(mActorView.body,mDuration,{"glowFilter":{
             "color":mGlowColor,
             "blurX":mBlurX,
             "blurY":mBlurY,

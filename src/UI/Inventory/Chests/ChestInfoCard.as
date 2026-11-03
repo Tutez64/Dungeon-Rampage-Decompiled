@@ -15,6 +15,7 @@ package UI.Inventory.Chests
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
    import Brain.Utils.MemoryTracker;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
@@ -91,11 +92,13 @@ package UI.Inventory.Chests
       
       private var mKeepChestCallbackDS:Function;
       
+      private var mIsActiveCallback:Function;
+      
       private var mDontUpdateChestInfo:Boolean;
       
       public var selectedHeroId:uint;
       
-      public function ChestInfoCard(dbFacade:DBFacade, sceneGraphComponent:SceneGraphComponent, root:MovieClip, abandonChestCallback:Function, openChestCallback:Function, abandonChestCallbackDS:Function, openChestCallbackDS:Function, keepChestCallbackDS:Function)
+      public function ChestInfoCard(dbFacade:DBFacade, sceneGraphComponent:SceneGraphComponent, root:MovieClip, abandonChestCallback:Function, openChestCallback:Function, abandonChestCallbackDS:Function, openChestCallbackDS:Function, keepChestCallbackDS:Function, isActiveCallback:Function = null)
       {
          super(dbFacade,root);
          mDBFacade = dbFacade;
@@ -107,6 +110,7 @@ package UI.Inventory.Chests
          mOpenChestCallbackDS = openChestCallbackDS;
          mAbandonChestCallbackDS = abandonChestCallbackDS;
          mKeepChestCallbackDS = keepChestCallbackDS;
+         mIsActiveCallback = isActiveCallback;
          setupChestCardUI();
          setupKeyCardUI();
          hide();
@@ -118,31 +122,31 @@ package UI.Inventory.Chests
          mChestCardMC.selection_01.visible = true;
          mChestCardMC.selection_02.visible = false;
          mChestCardAbandonButton = new UIButton(mDBFacade,mChestCardMC.selection_01.abandon);
-         mChestCardAbandonButton.label.text = Locale.getString("ABANDON");
+         Locale.setText(mChestCardAbandonButton.label,"ABANDON");
          mChestCardAbandonButton.releaseCallback = function():void
          {
             mAbandonChestCallback(mChestInfo);
          };
          mChestCardOpenButton = new UIButton(mDBFacade,mChestCardMC.selection_01.open);
-         mChestCardOpenButton.label.text = Locale.getString("UNLOCK");
+         Locale.setText(mChestCardOpenButton.label,"UNLOCK");
          mChestCardOpenButton.releaseCallback = function():void
          {
             mOpenChestCallback(mChestInfo);
          };
          mChestCardAbandonButtonDS = new UIButton(mDBFacade,mChestCardMC.selection_02.abandon);
-         mChestCardAbandonButtonDS.label.text = Locale.getString("ABANDON");
+         Locale.setText(mChestCardAbandonButtonDS.label,"ABANDON");
          mChestCardAbandonButtonDS.releaseCallback = function():void
          {
             mAbandonChestCallbackDS(mChestInfo);
          };
          mChestCardOpenButtonDS = new UIButton(mDBFacade,mChestCardMC.selection_02.open);
-         mChestCardOpenButtonDS.label.text = Locale.getString("UNLOCK");
+         Locale.setText(mChestCardOpenButtonDS.label,"UNLOCK");
          mChestCardOpenButtonDS.releaseCallback = function():void
          {
             mOpenChestCallbackDS(mChestInfo);
          };
          mChestCardKeepButtonDS = new UIButton(mDBFacade,mChestCardMC.selection_02.keep);
-         mChestCardKeepButtonDS.label.text = Locale.getString("KEEP");
+         Locale.setText(mChestCardKeepButtonDS.label,"KEEP");
          mChestCardKeepButtonDS.releaseCallback = function():void
          {
             mKeepChestCallbackDS(mChestInfo);
@@ -157,7 +161,7 @@ package UI.Inventory.Chests
          if(root.chest_card_keys)
          {
             mChestKeysMC = root.chest_card_keys;
-            mChestKeysMC.label.text = Locale.getString("KEYS_OWNED");
+            Locale.setText(mChestKeysMC.label,"KEYS_OWNED");
             mChestKeySlots = new Vector.<ChestKeySlot>();
          }
       }
@@ -198,7 +202,7 @@ package UI.Inventory.Chests
       public function refreshChestInfoUI() : void
       {
          loadIcon();
-         mChestCardMC.label.text = GameMasterLocale.getGameMasterSubString("CHEST_NAME",mChestInfo.gmChestInfo.Rarity);
+         TextUtil.setText(mChestCardMC.label,GameMasterLocale.getGameMasterSubString("CHEST_NAME",mChestInfo.gmChestInfo.Rarity));
          if(mChestInfo.isFromDungeonSummary())
          {
             mChestCardMC.selection_01.visible = false;
@@ -209,6 +213,57 @@ package UI.Inventory.Chests
             mChestCardMC.selection_01.visible = true;
             mChestCardMC.selection_02.visible = false;
          }
+      }
+      
+      public function setupMenuNavigation(returnObject:UIObject) : void
+      {
+         mChestCardAbandonButton.clearNavigationAndInteractions();
+         mChestCardOpenButton.clearNavigationAndInteractions();
+         mChestCardAbandonButtonDS.clearNavigationAndInteractions();
+         mChestCardOpenButtonDS.clearNavigationAndInteractions();
+         mChestCardKeepButtonDS.clearNavigationAndInteractions();
+         if(mChestInfo == null || returnObject == null)
+         {
+            return;
+         }
+         if(mChestInfo.isFromDungeonSummary())
+         {
+            mChestCardOpenButtonDS.downNavigation = mChestCardKeepButtonDS;
+            mChestCardKeepButtonDS.upNavigation = mChestCardOpenButtonDS;
+            mChestCardAbandonButtonDS.upNavigation = mChestCardOpenButtonDS;
+            mChestCardAbandonButtonDS.isToTheLeftOf(mChestCardKeepButtonDS);
+         }
+         else
+         {
+            mChestCardOpenButton.isAbove(mChestCardAbandonButton);
+            mChestCardOpenButton.rightNavigation = returnObject;
+            mChestCardAbandonButton.rightNavigation = returnObject;
+         }
+      }
+      
+      public function get menuEntryButton() : UIButton
+      {
+         return mChestInfo != null && mChestInfo.isFromDungeonSummary() ? mChestCardKeepButtonDS : mChestCardOpenButton;
+      }
+      
+      public function get dungeonSummaryAbandonButton() : UIButton
+      {
+         return mChestCardAbandonButtonDS;
+      }
+      
+      public function get inventoryAbandonButton() : UIButton
+      {
+         return mChestCardAbandonButton;
+      }
+      
+      public function get dungeonSummaryUnlockButton() : UIButton
+      {
+         return mChestCardOpenButtonDS;
+      }
+      
+      public function get dungeonSummaryKeepButton() : UIButton
+      {
+         return mChestCardKeepButtonDS;
       }
       
       public function refreshKeyInfoUI() : void
@@ -268,7 +323,7 @@ package UI.Inventory.Chests
          {
             mc = mChestCardMC;
          }
-         mc.hero_label.text = Locale.getString("OPENING_WITH");
+         Locale.setText(mc.hero_label,"OPENING_WITH");
          mSelectedHero = mDBFacade.gameMaster.Heroes[selectedHeroId];
          mHeroInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mSelectedHero.Id);
          if(mHeroInfo == null)
@@ -388,17 +443,17 @@ package UI.Inventory.Chests
          }
       }
       
-      public function showBuyKeysPopUp(swfAsset:SwfAsset) : void
+      public function showBuyKeysPopUp() : void
       {
          mSceneGraphComponent.fadeOut(0.5,0.75);
-         mChestBuyKeysPopUp = new ChestBuyKeysPopUp(mDBFacade,mAssetLoadingComponent,mSceneGraphComponent,swfAsset,mChestInfo.gmChestInfo,chestBuyCoinCallback,chestBuyGemCallback,closeBuyKeysPopUp,refreshHeroInfoUI);
+         mChestBuyKeysPopUp = new ChestBuyKeysPopUp(mDBFacade,mChestInfo.gmChestInfo,chestBuyCoinCallback,chestBuyGemCallback,closeBuyKeysPopUp,refreshHeroInfoUI);
       }
       
       private function chestBuyCoinCallback(val:Number) : Function
       {
          return function():void
          {
-            var _loc1_:* = 0;
+            var _loc1_:uint = 0;
             mDBFacade.metrics.log("ChestUnlockCoinTry",{
                "chestId":mChestInfo.gmId,
                "rarity":mChestInfo.rarity,
@@ -412,7 +467,7 @@ package UI.Inventory.Chests
                   "category":"storage"
                });
                closeBuyKeysPopUp();
-               mPurchasingPopUp = new DBUIPopup(mDBFacade,Locale.getString("PURCHASING..."));
+               mPurchasingPopUp = new DBUIPopup(mDBFacade,"",Locale.getString("PURCHASING..."));
                MemoryTracker.track(mPurchasingPopUp,"DBUIPopup - created in ChestInfoCard.chestBuyCoinCallback()");
                mSceneGraphComponent.addChild(mPurchasingPopUp.root,50);
                _loc1_ = mKeyThatCanOpenChest.gmKeyOffer.Id;
@@ -430,7 +485,7 @@ package UI.Inventory.Chests
       {
          return function():void
          {
-            var _loc1_:* = 0;
+            var _loc1_:uint = 0;
             mDBFacade.metrics.log("ChestUnlockGemTry",{
                "chestId":mChestInfo.gmId,
                "rarity":mChestInfo.rarity,
@@ -444,7 +499,7 @@ package UI.Inventory.Chests
                   "category":"storage"
                });
                closeBuyKeysPopUp();
-               mPurchasingPopUp = new DBUIPopup(mDBFacade,Locale.getString("PURCHASING..."));
+               mPurchasingPopUp = new DBUIPopup(mDBFacade,"",Locale.getString("PURCHASING..."));
                MemoryTracker.track(mPurchasingPopUp,"DBUIPopup - created in ChestInfoCard.chestBuyGemCallback()");
                mSceneGraphComponent.addChild(mPurchasingPopUp.root,50);
                _loc1_ = mKeyThatCanOpenChest.gmKeyOffer.Id;
@@ -460,16 +515,27 @@ package UI.Inventory.Chests
       
       private function boughtKey(details:*) : void
       {
-         mSceneGraphComponent.removeChild(mPurchasingPopUp.root);
-         mPurchasingPopUp.destroy();
-         mPurchasingPopUp = null;
+         if(mSceneGraphComponent == null)
+         {
+            return;
+         }
+         if(mPurchasingPopUp)
+         {
+            mSceneGraphComponent.removeChild(mPurchasingPopUp.root);
+            mPurchasingPopUp.destroy();
+            mPurchasingPopUp = null;
+         }
+         if(mIsActiveCallback != null && !mIsActiveCallback())
+         {
+            return;
+         }
          mChestCanBeOpened = true;
          mOpenChestCallback(mChestInfo);
       }
       
       private function boughtKeyError(err:*) : void
       {
-         mPurchasingPopUp = new DBUIPopup(mDBFacade,Locale.getString("Error with Key Purchase. Server Error!"));
+         mPurchasingPopUp = new DBUIPopup(mDBFacade,"",Locale.getString("Error with Key Purchase. Server Error!"));
          MemoryTracker.track(mPurchasingPopUp,"DBUIPopup - created in ChestInfoCard.boughtKeyError()");
          mSceneGraphComponent.addChild(mPurchasingPopUp.root,50);
       }

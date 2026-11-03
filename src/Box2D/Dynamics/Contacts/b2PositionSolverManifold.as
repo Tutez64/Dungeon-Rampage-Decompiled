@@ -1,46 +1,53 @@
 package Box2D.Dynamics.Contacts
 {
-   import Box2D.Collision.*;
-   import Box2D.Common.*;
-   import Box2D.Common.Math.*;
-   import Box2D.Dynamics.*;
+   import Box2D.Common.Math.b2Mat22;
+   import Box2D.Common.Math.b2Vec2;
+   import Box2D.Common.b2Settings;
+   import flash.Boot;
    
-   use namespace b2internal;
-   
-   internal class b2PositionSolverManifold
+   public class b2PositionSolverManifold
    {
       
-      private static var circlePointA:b2Vec2 = new b2Vec2();
+      public static var circlePointA:b2Vec2 = new b2Vec2();
       
-      private static var circlePointB:b2Vec2 = new b2Vec2();
+      public static var circlePointB:b2Vec2 = new b2Vec2();
+      
+      public var m_separations:Array;
+      
+      public var m_points:Array;
       
       public var m_normal:b2Vec2;
       
-      public var m_points:Vector.<b2Vec2>;
-      
-      public var m_separations:Vector.<Number>;
-      
       public function b2PositionSolverManifold()
       {
-         super();
-         this.m_normal = new b2Vec2();
-         this.m_separations = new Vector.<Number>(b2Settings.b2_maxManifoldPoints);
-         this.m_points = new Vector.<b2Vec2>(b2Settings.b2_maxManifoldPoints);
-         var _loc1_:* = 0;
-         while(_loc1_ < b2Settings.b2_maxManifoldPoints)
+         var _loc3_:int = 0;
+         if(Boot.skip_constructor)
          {
-            this.m_points[_loc1_] = new b2Vec2();
-            _loc1_++;
+            return;
          }
+         m_normal = new b2Vec2();
+         m_separations = [];
+         m_points = [];
+         var _loc1_:int = 0;
+         var _loc2_:int = b2Settings.b2_maxManifoldPoints;
+         while(_loc1_ < _loc2_)
+         {
+            _loc3_ = _loc1_++;
+            m_points[_loc3_] = new b2Vec2();
+         }
+      }
+      
+      public function initialize(cc:b2ContactConstraint) : void
+      {
+         Initialize(cc);
       }
       
       public function Initialize(cc:b2ContactConstraint) : void
       {
-         var _loc2_:* = 0;
          var _loc3_:Number = NaN;
          var _loc4_:Number = NaN;
-         var _loc5_:b2Mat22 = null;
-         var _loc6_:b2Vec2 = null;
+         var _loc5_:* = null as b2Mat22;
+         var _loc6_:* = null as b2Vec2;
          var _loc7_:Number = NaN;
          var _loc8_:Number = NaN;
          var _loc9_:Number = NaN;
@@ -51,10 +58,13 @@ package Box2D.Dynamics.Contacts
          var _loc14_:Number = NaN;
          var _loc15_:Number = NaN;
          var _loc16_:Number = NaN;
+         var _loc17_:int = 0;
+         var _loc18_:int = 0;
+         var _loc19_:int = 0;
          b2Settings.b2Assert(cc.pointCount > 0);
-         switch(cc.type)
+         switch(cc.type.index)
          {
-            case b2Manifold.e_circles:
+            case 0:
                _loc5_ = cc.bodyA.m_xf.R;
                _loc6_ = cc.localPoint;
                _loc9_ = cc.bodyA.m_xf.position.x + (_loc5_.col1.x * _loc6_.x + _loc5_.col2.x * _loc6_.y);
@@ -66,65 +76,67 @@ package Box2D.Dynamics.Contacts
                _loc13_ = _loc11_ - _loc9_;
                _loc14_ = _loc12_ - _loc10_;
                _loc15_ = _loc13_ * _loc13_ + _loc14_ * _loc14_;
-               if(_loc15_ > Number.MIN_VALUE * Number.MIN_VALUE)
+               if(_loc15_ > Number(Number.MIN_VALUE) * Number(Number.MIN_VALUE))
                {
                   _loc16_ = Math.sqrt(_loc15_);
-                  this.m_normal.x = _loc13_ / _loc16_;
-                  this.m_normal.y = _loc14_ / _loc16_;
+                  m_normal.x = _loc13_ / _loc16_;
+                  m_normal.y = _loc14_ / _loc16_;
                }
                else
                {
-                  this.m_normal.x = 1;
-                  this.m_normal.y = 0;
+                  m_normal.x = 1;
+                  m_normal.y = 0;
                }
-               this.m_points[0].x = 0.5 * (_loc9_ + _loc11_);
-               this.m_points[0].y = 0.5 * (_loc10_ + _loc12_);
-               this.m_separations[0] = _loc13_ * this.m_normal.x + _loc14_ * this.m_normal.y - cc.radius;
+               m_points[0].x = 0.5 * (_loc9_ + _loc11_);
+               m_points[0].y = 0.5 * (_loc10_ + _loc12_);
+               m_separations[0] = _loc13_ * m_normal.x + _loc14_ * m_normal.y - cc.radius;
                break;
-            case b2Manifold.e_faceA:
+            case 1:
                _loc5_ = cc.bodyA.m_xf.R;
                _loc6_ = cc.localPlaneNormal;
-               this.m_normal.x = _loc5_.col1.x * _loc6_.x + _loc5_.col2.x * _loc6_.y;
-               this.m_normal.y = _loc5_.col1.y * _loc6_.x + _loc5_.col2.y * _loc6_.y;
+               m_normal.x = _loc5_.col1.x * _loc6_.x + _loc5_.col2.x * _loc6_.y;
+               m_normal.y = _loc5_.col1.y * _loc6_.x + _loc5_.col2.y * _loc6_.y;
                _loc5_ = cc.bodyA.m_xf.R;
                _loc6_ = cc.localPoint;
                _loc7_ = cc.bodyA.m_xf.position.x + (_loc5_.col1.x * _loc6_.x + _loc5_.col2.x * _loc6_.y);
                _loc8_ = cc.bodyA.m_xf.position.y + (_loc5_.col1.y * _loc6_.x + _loc5_.col2.y * _loc6_.y);
                _loc5_ = cc.bodyB.m_xf.R;
-               _loc2_ = 0;
-               while(_loc2_ < cc.pointCount)
+               _loc17_ = 0;
+               _loc18_ = cc.pointCount;
+               while(_loc17_ < _loc18_)
                {
-                  _loc6_ = cc.points[_loc2_].localPoint;
+                  _loc19_ = _loc17_++;
+                  _loc6_ = cc.points[_loc19_].localPoint;
                   _loc3_ = cc.bodyB.m_xf.position.x + (_loc5_.col1.x * _loc6_.x + _loc5_.col2.x * _loc6_.y);
                   _loc4_ = cc.bodyB.m_xf.position.y + (_loc5_.col1.y * _loc6_.x + _loc5_.col2.y * _loc6_.y);
-                  this.m_separations[_loc2_] = (_loc3_ - _loc7_) * this.m_normal.x + (_loc4_ - _loc8_) * this.m_normal.y - cc.radius;
-                  this.m_points[_loc2_].x = _loc3_;
-                  this.m_points[_loc2_].y = _loc4_;
-                  _loc2_++;
+                  m_separations[_loc19_] = (_loc3_ - _loc7_) * m_normal.x + (_loc4_ - _loc8_) * m_normal.y - cc.radius;
+                  m_points[_loc19_].x = _loc3_;
+                  m_points[_loc19_].y = _loc4_;
                }
                break;
-            case b2Manifold.e_faceB:
+            case 2:
                _loc5_ = cc.bodyB.m_xf.R;
                _loc6_ = cc.localPlaneNormal;
-               this.m_normal.x = _loc5_.col1.x * _loc6_.x + _loc5_.col2.x * _loc6_.y;
-               this.m_normal.y = _loc5_.col1.y * _loc6_.x + _loc5_.col2.y * _loc6_.y;
+               m_normal.x = _loc5_.col1.x * _loc6_.x + _loc5_.col2.x * _loc6_.y;
+               m_normal.y = _loc5_.col1.y * _loc6_.x + _loc5_.col2.y * _loc6_.y;
                _loc5_ = cc.bodyB.m_xf.R;
                _loc6_ = cc.localPoint;
                _loc7_ = cc.bodyB.m_xf.position.x + (_loc5_.col1.x * _loc6_.x + _loc5_.col2.x * _loc6_.y);
                _loc8_ = cc.bodyB.m_xf.position.y + (_loc5_.col1.y * _loc6_.x + _loc5_.col2.y * _loc6_.y);
                _loc5_ = cc.bodyA.m_xf.R;
-               _loc2_ = 0;
-               while(_loc2_ < cc.pointCount)
+               _loc17_ = 0;
+               _loc18_ = cc.pointCount;
+               while(_loc17_ < _loc18_)
                {
-                  _loc6_ = cc.points[_loc2_].localPoint;
+                  _loc19_ = _loc17_++;
+                  _loc6_ = cc.points[_loc19_].localPoint;
                   _loc3_ = cc.bodyA.m_xf.position.x + (_loc5_.col1.x * _loc6_.x + _loc5_.col2.x * _loc6_.y);
                   _loc4_ = cc.bodyA.m_xf.position.y + (_loc5_.col1.y * _loc6_.x + _loc5_.col2.y * _loc6_.y);
-                  this.m_separations[_loc2_] = (_loc3_ - _loc7_) * this.m_normal.x + (_loc4_ - _loc8_) * this.m_normal.y - cc.radius;
-                  this.m_points[_loc2_].Set(_loc3_,_loc4_);
-                  _loc2_++;
+                  m_separations[_loc19_] = (_loc3_ - _loc7_) * m_normal.x + (_loc4_ - _loc8_) * m_normal.y - cc.radius;
+                  m_points[_loc19_].set(_loc3_,_loc4_);
                }
-               this.m_normal.x *= -1;
-               this.m_normal.y *= -1;
+               m_normal.x *= -1;
+               m_normal.y *= -1;
          }
       }
    }

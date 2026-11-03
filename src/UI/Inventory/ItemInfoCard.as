@@ -15,6 +15,7 @@ package UI.Inventory
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
    import Brain.Utils.MemoryTracker;
+   import Brain.Utils.TextUtil;
    import DBGlobals.DBGlobal;
    import DistributedObjects.DistributedDungeonSummary;
    import Facade.DBFacade;
@@ -31,7 +32,6 @@ package UI.Inventory
    import flash.filters.ColorMatrixFilter;
    import flash.geom.Point;
    import flash.text.TextField;
-   import flash.text.TextFormat;
    
    public class ItemInfoCard extends UIObject
    {
@@ -78,9 +78,9 @@ package UI.Inventory
       
       private var mSellPriceLabel:TextField;
       
-      private var mSellButton:UIButton;
+      internal var mSellButton:UIButton;
       
-      private var mEquipButton:UIButton;
+      internal var mEquipButton:UIButton;
       
       private var mCloseButton:UIButton;
       
@@ -130,7 +130,7 @@ package UI.Inventory
          mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          mEventComponent = new EventComponent(mDBFacade);
          mRoot.pet_stats.visible = false;
-         mRoot.ability.label_charge.text = Locale.getString("HOLD");
+         Locale.setText(mRoot.ability.label_charge,"HOLD");
          mHoldIcon = new UIObject(mDBFacade,mRoot.ability.icon);
          mHoldManaIcon = mRoot.ability.mana_icon_hold;
          mHoldManaIcon.visible = false;
@@ -140,7 +140,7 @@ package UI.Inventory
          mHoldIcon.tooltip = mHoldTooltip;
          mHoldIcon.tooltipPos = new Point(0,mHoldIcon.root.height * 0.5);
          mHoldTooltip.visible = false;
-         mRoot.ability.label_tap.text = Locale.getString("TAP");
+         Locale.setText(mRoot.ability.label_tap,"TAP");
          mTapIcon = new UIObject(mDBFacade,mRoot.ability.tap_icon);
          mTapTooltip = new UITapHoldTooltip(mDBFacade,chargeTooltipClass);
          mTapIcon.tooltip = mTapTooltip;
@@ -157,19 +157,19 @@ package UI.Inventory
          mTitleY = mLabel.y;
          mPowerIcon = mRoot.power;
          mPowerLabel = mRoot.power.label;
-         mRoot.power.attack_label.text = Locale.getString("POWER");
+         Locale.setText(mRoot.power.attack_label,"POWER");
          mLevelRequirement = mRoot.level_requirement;
          mLevelRequirementNotMet = mRoot.level_requirement_not_met;
          mModifierTitle = mRoot.ability.label_modifier;
          mModifiersList = new Vector.<UIModifier>();
          mSellButton = new UIButton(mDBFacade,mRoot.sell);
          mSellButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
-         mSellButton.label.text = Locale.getString("ITEM_CARD_SELL");
+         Locale.setText(mSellButton.label,"ITEM_CARD_SELL");
          mSellPriceLabel = mRoot.sell.sell_text as TextField;
          mSellPriceLabel.text = "";
          mSellButton.enabled = false;
          mSellItemCallback = sellItemCallback;
-         mSellButton.pressCallback = function():void
+         mSellButton.releaseCallback = function():void
          {
             mSellItemCallback(mInfo);
          };
@@ -282,23 +282,23 @@ package UI.Inventory
          var _loc2_:uint = uint(mInfo.sellCoins);
          mSellButton.enabled = true;
          mSellButton.visible = true;
-         mSellPriceLabel.text = _loc2_.toString();
+         TextUtil.setText(mSellPriceLabel,_loc2_.toString());
          mSellPriceLabel.visible = true;
          mRoot.pet_stats.visible = false;
          if(type == "weapon")
          {
-            mLabel.text = GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",mInfo.weaponAestheticConstant).toUpperCase();
-            mDescription.text = GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",mInfo.weaponAestheticConstant);
+            TextUtil.setText(mLabel,GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",mInfo.weaponAestheticConstant).toUpperCase());
+            TextUtil.setText(mDescription,GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",mInfo.weaponAestheticConstant));
          }
          else if(type == "stackable")
          {
-            mLabel.text = GameMasterLocale.getGameMasterSubString("STACKABLE_NAME",mInfo.gmInventoryBase.Constant).toUpperCase();
-            mDescription.text = GameMasterLocale.getGameMasterSubString("STACKABLE_DESCRIPTION",mInfo.gmInventoryBase.Constant);
+            TextUtil.setText(mLabel,GameMasterLocale.getGameMasterSubString("STACKABLE_NAME",mInfo.gmInventoryBase.Constant).toUpperCase());
+            TextUtil.setText(mDescription,GameMasterLocale.getGameMasterSubString("STACKABLE_DESCRIPTION",mInfo.gmInventoryBase.Constant));
          }
          else
          {
-            mLabel.text = mInfo.Name.toUpperCase();
-            mDescription.text = mInfo.Description;
+            TextUtil.setText(mLabel,mInfo.Name.toUpperCase());
+            TextUtil.setText(mDescription,mInfo.Description);
          }
          mModifierTitle.visible = false;
          clearModifiers();
@@ -339,7 +339,7 @@ package UI.Inventory
          {
             mEquipLimitTF.visible = true;
             mEquipLimitTF.y = 115;
-            mEquipLimitTF.text = Locale.getString("EQUIP_LIMIT") + _loc2_.gmStackable.EquipLimit.toString();
+            TextUtil.setText(mEquipLimitTF,Locale.getString("EQUIP_LIMIT") + _loc2_.gmStackable.EquipLimit.toString());
          }
          else
          {
@@ -366,9 +366,9 @@ package UI.Inventory
          {
             return;
          }
-         mRoot.pet_stats.pet_stats_power.label.text = Locale.getString("TAVERN_ATTACK_LABEL");
-         mRoot.pet_stats.pet_stats_speed.label.text = Locale.getString("TAVERN_SPEED_LABEL");
-         mRoot.pet_stats.pet_stats_defense.label.text = Locale.getString("TAVERN_DEFENSE_LABEL");
+         Locale.setText(mRoot.pet_stats.pet_stats_power.label,"TAVERN_ATTACK_LABEL");
+         Locale.setText(mRoot.pet_stats.pet_stats_speed.label,"TAVERN_SPEED_LABEL");
+         Locale.setText(mRoot.pet_stats.pet_stats_defense.label,"TAVERN_DEFENSE_LABEL");
          mRoot.pet_stats.petname_label.visible = false;
          mRoot.pet_stats.visible = true;
          mRoot.pet_stats.pet_stats_power.star1.visible = true;
@@ -449,17 +449,18 @@ package UI.Inventory
          mSellButton.visible = true;
          mSellButton.enabled = true;
          sellBackPrice = uint(petInfo.gmNpc.SellCoins);
-         mSellPriceLabel.text = sellBackPrice.toString();
-         mLabel.text = GameMasterLocale.getGameMasterSubString("PET_NAME",petInfo.gmNpc.Constant).toUpperCase();
-         mDescription.text = GameMasterLocale.getGameMasterSubString("PET_DESCRIPTION",petInfo.gmNpc.Constant);
+         TextUtil.setText(mSellPriceLabel,sellBackPrice.toString());
+         TextUtil.setText(mLabel,GameMasterLocale.getGameMasterSubString("PET_NAME",petInfo.gmNpc.Constant).toUpperCase());
+         TextUtil.setText(mDescription,GameMasterLocale.getGameMasterSubString("PET_DESCRIPTION",petInfo.gmNpc.Constant));
          loadIcon();
          if(petInfo.EquippedHero == 0)
          {
             mEquipButton.visible = true;
             mEquipButton.enabled = true;
-            mEquipButton.label.text = Locale.getString("ITEM_CARD_EQUIP");
+            Locale.setText(mEquipButton.label,"ITEM_CARD_EQUIP");
             mEquipButton.releaseCallback = function():void
             {
+               moveFocusOffInfoCardBeforeEquip();
                mPetEquipPicker.handleItemDrop(null,petInfo,1);
             };
          }
@@ -467,9 +468,10 @@ package UI.Inventory
          {
             mEquipButton.visible = true;
             mEquipButton.enabled = true;
-            mEquipButton.label.text = Locale.getString("ITEM_CARD_UNEQUIP");
+            Locale.setText(mEquipButton.label,"ITEM_CARD_UNEQUIP");
             mEquipButton.releaseCallback = function():void
             {
+               moveFocusOffInfoCardBeforeEquip();
                mPetEquipPicker.unequipPet(petInfo);
             };
          }
@@ -505,8 +507,6 @@ package UI.Inventory
          var preNameModifiers:String;
          var modifierList:Vector.<GMModifier>;
          var i:int;
-         var format:TextFormat;
-         var sizeMult:Number;
          this.setupInventoryBaseUI("weapon");
          mRoot.ability.visible = true;
          mDescription.visible = false;
@@ -585,9 +585,9 @@ package UI.Inventory
          loadItemType(gmWeaponItem);
          mPowerIcon.visible = true;
          mPowerLabel.visible = true;
-         mPowerLabel.text = power.toString();
-         mLevelRequirement.text = Locale.getString("ITEM_CARD_LEVEL_REQUIREMENT") + itemInfo.requiredLevel;
-         mLevelRequirementNotMet.text = Locale.getString("ITEM_CARD_LEVEL_REQUIREMENT") + itemInfo.requiredLevel;
+         TextUtil.setText(mPowerLabel,power.toString());
+         TextUtil.setText(mLevelRequirement,Locale.getString("ITEM_CARD_LEVEL_REQUIREMENT") + itemInfo.requiredLevel);
+         TextUtil.setText(mLevelRequirementNotMet,Locale.getString("ITEM_CARD_LEVEL_REQUIREMENT") + itemInfo.requiredLevel);
          if(!mHeroEquipPicker || !mHeroEquipPicker.currentlySelectedHero)
          {
             currentlySelectedAvatarInfo = mDBFacade.dbAccountInfo.activeAvatarInfo;
@@ -597,7 +597,7 @@ package UI.Inventory
             currentlySelectedAvatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mHeroEquipPicker.currentlySelectedHero.Id);
          }
          canEquip = 1;
-         if(currentlySelectedAvatarInfo && currentlySelectedAvatarInfo.level >= itemInfo.requiredLevel)
+         if(currentlySelectedAvatarInfo && currentlySelectedAvatarInfo.levelForWeaponComparison >= itemInfo.requiredLevel)
          {
             mLevelRequirement.visible = true;
             mLevelRequirementNotMet.visible = false;
@@ -624,21 +624,21 @@ package UI.Inventory
          {
             case 0:
                mRoot.unequippable.visible = false;
-               this.mDescription.text = mInfo.Description;
+               TextUtil.setText(this.mDescription,mInfo.Description);
                this.greyOffer(false);
                break;
             case 1:
                mRoot.unequippable.visible = true;
-               this.mDescription.text = Locale.getString("ITEM_CARD_UNUSABLE_LEVEL");
+               Locale.setText(this.mDescription,"ITEM_CARD_UNUSABLE_LEVEL");
                this.greyOffer(true);
                break;
             case 2:
                mRoot.unequippable.visible = true;
-               this.mDescription.text = Locale.getString("ITEM_CARD_UNUSABLE_MASTERCLASS");
+               Locale.setText(this.mDescription,"ITEM_CARD_UNUSABLE_MASTERCLASS");
                this.greyOffer(true);
          }
          mModifierTitle.visible = true;
-         mModifierTitle.text = Locale.getString("MODIFIERS");
+         Locale.setText(mModifierTitle,"MODIFIERS");
          preNameModifiers = "";
          modifierList = itemInfo.modifiers;
          i = 0;
@@ -654,28 +654,14 @@ package UI.Inventory
             mModifiersList.push(new UIModifier(mDBFacade,mRoot.ability.getChildByName("modifier_icon_3") as MovieClip,"",0,true,itemInfo.legendaryModifier));
             weaponName = GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",gmWeaponItem.getWeaponAesthetic(0,true).Constant);
          }
-         format = new TextFormat();
-         sizeMult = 0.1;
-         if(weaponName.length <= 34)
-         {
-            format.size = 13;
-            sizeMult = weaponName.length < 17 ? 0.2 : 0.1;
-            mLabel.y = mTitleY + mLabel.height * sizeMult;
-         }
-         else
-         {
-            format.size = 12;
-            mLabel.y = mTitleY;
-         }
          if(weaponName.indexOf("VINTAGE") >= 0)
          {
             mSellButton.visible = false;
             mEquipButton.root.x = mOriginalPosForEquipButton.x - 60;
             mEquipButton.root.y = mOriginalPosForEquipButton.y - 10;
          }
-         mLabel.defaultTextFormat = format;
-         mLabel.text = weaponName;
-         mLabel.text = mLabel.text.toUpperCase();
+         TextUtil.setText(mLabel,weaponName.toUpperCase());
+         mLabel.y = mLabel.numLines == 1 ? mTitleY + mLabel.height * 0.2 : mTitleY;
       }
       
       protected function clearModifiers() : void
@@ -718,7 +704,7 @@ package UI.Inventory
          {
             mEquipButton.visible = true;
             mEquipButton.releaseCallback = loadEquipOnAvatarPopup;
-            mEquipButton.label.text = Locale.getString("ITEM_CARD_EQUIP");
+            Locale.setText(mEquipButton.label,"ITEM_CARD_EQUIP");
          }
          else if(mDBFacade.dbAccountInfo.inventoryInfo.isThereEmptySpaceInWeaponStorage())
          {
@@ -726,6 +712,7 @@ package UI.Inventory
             mEquipButton.enabled = true;
             mEquipButton.releaseCallback = function():void
             {
+               moveFocusOffInfoCardBeforeEquip();
                if(mInfo is ItemInfo)
                {
                   mDBFacade.dbAccountInfo.inventoryInfo.unequipItemOffAvatar(mInfo as ItemInfo,mRefreshInventoryCallback);
@@ -734,13 +721,13 @@ package UI.Inventory
                {
                   if(!(mInfo is PetInfo))
                   {
-                     Logger.error("Item id: " + mInfo.databaseId + " being unequipped is not an ItemInfo.");
+                     Logger.error("Item being unequipped is not an ItemInfo.");
                      return;
                   }
                   mDBFacade.dbAccountInfo.inventoryInfo.unequipPet(mInfo as PetInfo,mRefreshInventoryCallback);
                }
             };
-            mEquipButton.label.text = Locale.getString("ITEM_CARD_UNEQUIP");
+            Locale.setText(mEquipButton.label,"ITEM_CARD_UNEQUIP");
          }
       }
       
@@ -759,7 +746,7 @@ package UI.Inventory
       {
          mEquipButton.enabled = false;
          mEquipButton.visible = false;
-         if(itemInfo.gmId == 60001 || itemInfo.gmId == 60018)
+         if(itemInfo.gmId == DBGlobal.RESSURECTION_POTION_STACK_ID || itemInfo.gmId == DBGlobal.PARTYBOMB_POTION_STACK_ID)
          {
             return;
          }
@@ -767,7 +754,7 @@ package UI.Inventory
          {
             mEquipButton.visible = true;
             mEquipButton.releaseCallback = tryActivateAccountBooster;
-            mEquipButton.label.text = Locale.getString("ITEM_CARD_USE");
+            Locale.setText(mEquipButton.label,"ITEM_CARD_USE");
          }
          else if(itemInfo.isEquipped == 0)
          {
@@ -776,7 +763,7 @@ package UI.Inventory
             {
                loadEquipOnAvatarPopup(true);
             };
-            mEquipButton.label.text = Locale.getString("ITEM_CARD_EQUIP");
+            Locale.setText(mEquipButton.label,"ITEM_CARD_EQUIP");
          }
          else
          {
@@ -784,14 +771,15 @@ package UI.Inventory
             mEquipButton.enabled = true;
             mEquipButton.releaseCallback = function():void
             {
+               moveFocusOffInfoCardBeforeEquip();
                if(mInfo is StackableInfo)
                {
                   unEquipConsumable(mInfo as StackableInfo,mRefreshInventoryCallback);
                   return;
                }
-               Logger.error("Item id: " + mInfo.databaseId + " being unequipped is not an ItemInfo.");
+               Logger.error("Item being unequipped is not a StackableInfo.");
             };
-            mEquipButton.label.text = Locale.getString("ITEM_CARD_UNEQUIP");
+            Locale.setText(mEquipButton.label,"ITEM_CARD_UNEQUIP");
          }
       }
       
@@ -844,8 +832,8 @@ package UI.Inventory
             {
                mWeaponTypeLabel.visible = true;
                mWeaponTypeUnequippableLabel.visible = true;
-               mWeaponTypeLabel.text = GameMasterLocale.getGameMasterSubString("WEAPON_ITEM_NAME",gmWeaponItem.Constant).toUpperCase();
-               mWeaponTypeUnequippableLabel.text = GameMasterLocale.getGameMasterSubString("WEAPON_ITEM_NAME",gmWeaponItem.Constant).toUpperCase();
+               TextUtil.setText(mWeaponTypeLabel,GameMasterLocale.getGameMasterSubString("WEAPON_ITEM_NAME",gmWeaponItem.Constant).toUpperCase());
+               TextUtil.setText(mWeaponTypeUnequippableLabel,GameMasterLocale.getGameMasterSubString("WEAPON_ITEM_NAME",gmWeaponItem.Constant).toUpperCase());
             }
             else
             {
@@ -880,6 +868,7 @@ package UI.Inventory
             Logger.error("Current item info on ItemInfoCard is not an ItemInfo.  info databaseId: " + mInfo.databaseId);
             return;
          }
+         moveFocusOffInfoCardBeforeEquip();
          mEquipPopup = new EquipItemToSlotPopup(mDBFacade,_loc4_.id,closeEquipCallback,isConsumable ? _loc3_ : _loc2_,null,isConsumable);
          MemoryTracker.track(mEquipPopup,"EquipItemToSlotPopup - created in ItemInfoCard.loadEquipOnAvatarPopup()");
       }
@@ -902,8 +891,22 @@ package UI.Inventory
             Logger.error("Current item info on ItemInfoCard is not an StackableInfo.  info databaseId: " + mInfo.databaseId);
             return;
          }
+         moveFocusOffInfoCardBeforeEquip();
          mEquipPopup = new EquipItemToSlotPopup(mDBFacade,-1,closeEquipCallback,_loc1_,clear);
          MemoryTracker.track(mEquipPopup,"EquipItemToSlotPopup - created in ItemInfoCard.loadEquipOnAccountPopup()");
+      }
+      
+      private function moveFocusOffInfoCardBeforeEquip() : void
+      {
+         var _loc1_:UIObject = mEquipButton.rightNavigation;
+         if(_loc1_ == null || !_loc1_.canBeFocused())
+         {
+            _loc1_ = mEquipButton.downNavigation;
+         }
+         if(_loc1_ != null && _loc1_.canBeFocused())
+         {
+            mDBFacade.menuNavigationController.setFocusedUiObject(_loc1_);
+         }
       }
       
       private function closeEquipCallback() : void
@@ -913,6 +916,13 @@ package UI.Inventory
             mEquipPopup.destroy();
             mEquipPopup = null;
          }
+      }
+      
+      internal function setupMenuNavigation() : void
+      {
+         mSellButton.clearNavigationAndInteractions();
+         mEquipButton.clearNavigationAndInteractions();
+         mSellButton.isToTheLeftOf(mEquipButton);
       }
    }
 }

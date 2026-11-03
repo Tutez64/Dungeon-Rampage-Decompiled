@@ -4,6 +4,8 @@ package UI.Inventory
    import Account.ItemInfo;
    import Brain.AssetRepository.SwfAsset;
    import Brain.Logger.Logger;
+   import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.Locale;
    import UI.Popup.DBUITwoButtonPopup;
@@ -19,7 +21,7 @@ package UI.Inventory
       public function UISellItemPopup(dbFacade:DBFacade, titleText:String, info:InventoryBaseInfo, leftText:String, leftCallback:Function, rightText:String, rightCallback:Function, allowClose:Boolean = true, closeCallback:Function = null)
       {
          mInfo = info;
-         super(dbFacade,titleText,null,leftText,leftCallback,rightText,rightCallback,allowClose,closeCallback);
+         super(dbFacade,"SELL_ITEM_POPUP",titleText,null,leftText,leftCallback,rightText,rightCallback,allowClose,closeCallback);
       }
       
       override public function destroy() : void
@@ -32,6 +34,25 @@ package UI.Inventory
          return "item_popup";
       }
       
+      override protected function setupMenuNavigation() : void
+      {
+         if(mRightButton == null || mLeftButton == null)
+         {
+            super.setupMenuNavigation();
+            return;
+         }
+         if(mCloseButton != null)
+         {
+            mCloseButton.isAbove(mRightButton);
+         }
+         mRightButton.isAbove(mLeftButton);
+      }
+      
+      override protected function getInitialFocusedNavigationObject() : UIObject
+      {
+         return mRightButton;
+      }
+      
       override protected function setupUI(swfAsset:SwfAsset, titleText:String, content:*, allowClose:Boolean, closeCallback:Function) : void
       {
          var itemInfo:ItemInfo;
@@ -42,8 +63,8 @@ package UI.Inventory
          mPopup.power.visible = itemInfo != null;
          if(itemInfo)
          {
-            mPopup.power.attack_label.text = Locale.getString("POWER");
-            mPopup.power.label.text = itemInfo.power.toString();
+            Locale.setText(mPopup.power.attack_label,"POWER");
+            TextUtil.setText(mPopup.power.label,itemInfo.power.toString());
          }
          swfPath = mInfo.uiSwfFilepath;
          iconName = mInfo.iconName;
@@ -62,7 +83,7 @@ package UI.Inventory
          mPopup.coin.visible = true;
          mPopup.coin.mouseEnabled = false;
          mPopup.coin.mouseChildren = false;
-         mPopup.price.text = mInfo.sellCoins.toString();
+         TextUtil.setText(mPopup.price,mInfo.sellCoins.toString());
          mPopup.price.mouseEnabled = false;
       }
    }

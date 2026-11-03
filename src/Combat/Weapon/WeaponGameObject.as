@@ -2,19 +2,23 @@ package Combat.Weapon
 {
    import Actor.ActorGameObject;
    import Actor.ActorView;
+   import Brain.AssetRepository.StarlingAssetMapper;
    import Brain.GameObject.GameObject;
    import Brain.Utils.MemoryTracker;
+   import Collections.Map;
    import Combat.Attack.AttackTimeline;
    import DistributedObjects.DistributedDungeonFloor;
+   import DistributedObjects.NPCGameObject;
+   import Effects.EffectGameObject;
    import Facade.DBFacade;
    import GameMasterDictionary.GMAttack;
    import GameMasterDictionary.GMLegendaryModifier;
    import GameMasterDictionary.GMModifier;
+   import GameMasterDictionary.GMProjectile;
    import GameMasterDictionary.GMRarity;
    import GameMasterDictionary.GMWeaponAesthetic;
    import GameMasterDictionary.GMWeaponItem;
    import GeneratedCode.WeaponDetails;
-   import org.as3commons.collections.Map;
    
    public class WeaponGameObject extends GameObject
    {
@@ -29,8 +33,6 @@ package Combat.Weapon
       
       protected var mAttackTimelineMap:Map;
       
-      protected var mWeaponCharge:Number;
-      
       protected var mWeaponDetails:WeaponDetails;
       
       protected var mGMWeapon:GMWeaponItem;
@@ -41,17 +43,19 @@ package Combat.Weapon
       
       private var mAttackSpeedModifier:Vector.<Number>;
       
-      private var mManaModifier:Number;
+      private var mManaModifier:Number = 1;
       
-      private var mChains:Number;
+      private var mChains:Number = 0;
       
-      private var mPierces:Number;
+      private var mPierces:Number = 0;
       
-      private var mCooldownReduction:Number;
+      private var mCooldownReduction:Number = 1;
       
-      private var mChargeReduction:Number;
+      private var mChargeReduction:Number = 1;
       
       private var mCollisionScale:Number = 1;
+      
+      private var mPreloadedEffectKeys:Object = {};
       
       protected var mWeaponView:WeaponView;
       
@@ -66,16 +70,10 @@ package Combat.Weapon
          super(dbFacade);
          mSlot = slot;
          mDBFacade = dbFacade;
-         mWeaponCharge = 1;
          mAttackSpeedModifier = new Vector.<Number>();
          mAttackSpeedModifier.push(1);
          mAttackSpeedModifier.push(1);
          mAttackSpeedModifier.push(1);
-         mChains = 0;
-         mPierces = 0;
-         mManaModifier = 1;
-         mCooldownReduction = 1;
-         mChargeReduction = 1;
          mWeaponDetails = weaponDetails;
          mGMRarity = mDBFacade.gameMaster.rarityById.itemFor(mWeaponDetails.rarity);
          mActorGameObject = actorGameObject;
@@ -101,6 +99,141 @@ package Combat.Weapon
          mWeaponAesthetic = mGMWeapon.getWeaponAesthetic(requiredLevel,mLegendaryModifier != null);
          mWeaponView = new WeaponView(mDBFacade,this);
          MemoryTracker.track(mWeaponView,"WeaponView - created in WeaponGameObject.constructor()");
+         preloadProjectileAssets();
+      }
+      
+      protected function preloadProjectileAssets() : void
+      {
+         if(mDBFacade.assetLoadingComponent == null || mDBFacade.starlingLayerManager == null)
+         {
+            return;
+         }
+         for each(var _loc1_:String in mGMWeapon.AttackArray)
+         {
+            if(_loc1_ == null)
+            {
+               break;
+            }
+            preloadProjectileAssetsForAttackConstant(_loc1_);
+         }
+         if(mGMWeapon.HoldingAttack)
+         {
+            preloadProjectileAssetsForAttackConstant(mGMWeapon.HoldingAttack);
+         }
+         if(mGMWeapon.ChargeAttack)
+         {
+            preloadProjectileAssetsForAttackConstant(mGMWeapon.ChargeAttack);
+         }
+      }
+      
+      protected function preloadProjectileAssetsForAttackConstant(attackConstant:String) : void
+      {
+         var _loc2_:GMAttack = mDBFacade.gameMaster.attackByConstant.itemFor(attackConstant);
+         if(_loc2_ == null)
+         {
+            return;
+         }
+         preloadProjectileAssetsForAttack(_loc2_);
+      }
+      
+      protected function preloadProjectileAssetsForAttack(gmAttack:GMAttack) : void
+      {
+         var _loc3_:GMProjectile = null;
+         if(gmAttack.Projectile)
+         {
+            _loc3_ = mDBFacade.gameMaster.projectileByConstant.itemFor(gmAttack.Projectile);
+            if(_loc3_ != null && _loc3_.SwfFilepath)
+            {
+               mDBFacade.assetLoadingComponent.queueStarlingAssetsForPath(DBFacade.buildFullDownloadPath(_loc3_.SwfFilepath),null,false,isBackgroundLoad,backgroundLoadTier);
+            }
+         }
+         if(mDBFacade.timelineFactory == null)
+         {
+            return;
+         }
+         var _loc4_:Object = mDBFacade.timelineFactory.getTimelineJson(gmAttack.AttackTimeline);
+         if(_loc4_ == null || _loc4_.frames == null)
+         {
+            return;
+         }
+         for each(var _loc5_:Object in _loc4_.frames)
+         {
+            for each(var _loc2_:Object in _loc5_.actions)
+            {
+               if(_loc2_ != null)
+               {
+                  if(_loc2_.attackEffectPath && _loc2_.attackEffectName)
+                  {
+                     queueEffectAtlas(DBFacade.buildFullDownloadPath(_loc2_.attackEffectPath),_loc2_.attackEffectName);
+                  }
+                  if((_loc2_.type == "effect" || _loc2_.type == "attackEffect") && _loc2_.path && _loc2_.name)
+                  {
+                     preloadEffectAsset(_loc2_);
+                  }
+               }
+            }
+         }
+      }
+      
+      private function preloadEffectAsset(action:Object) : void
+      {
+         var effectName:String;
+         var fullPath:String = DBFacade.buildFullDownloadPath(action.path);
+         var poolKey:String = fullPath + ":" + action.name;
+         if(mPreloadedEffectKeys[poolKey])
+         {
+            return;
+         }
+         mPreloadedEffectKeys[poolKey] = true;
+         if(action.managed)
+         {
+            queueEffectAtlas(fullPath,action.name);
+            return;
+         }
+         effectName = action.name;
+         queueEffectAtlas(fullPath,effectName,function():void
+         {
+            prewarmEffectPool(fullPath,effectName);
+         });
+      }
+      
+      private function queueEffectAtlas(fullPath:String, effectName:String, onComplete:Function = null) : void
+      {
+         if(StarlingAssetMapper.isPropLibraryPath(fullPath))
+         {
+            mDBFacade.assetLoadingComponent.queueStarlingAssetsForProps(fullPath,[effectName],onComplete,isBackgroundLoad,backgroundLoadTier);
+         }
+         else
+         {
+            mDBFacade.assetLoadingComponent.queueStarlingAssetsForPath(fullPath,onComplete,false,isBackgroundLoad,backgroundLoadTier);
+         }
+      }
+      
+      private function get isBackgroundLoad() : Boolean
+      {
+         return mActorGameObject != null && mActorGameObject.belongsToRemotePlayer;
+      }
+      
+      private function get backgroundLoadTier() : int
+      {
+         return mActorGameObject is NPCGameObject ? 4 : 2;
+      }
+      
+      private function prewarmEffectPool(swfPath:String, className:String) : void
+      {
+         if(className.indexOf("_angle") >= 0)
+         {
+            return;
+         }
+         if(mDBFacade == null || mDBFacade.effectPool == null)
+         {
+            return;
+         }
+         var _loc3_:EffectGameObject = mDBFacade.effectPool.checkout(mDBFacade,swfPath,className,null,null) as EffectGameObject;
+         if(_loc3_ != null)
+         {
+            mDBFacade.effectPool.checkin(_loc3_);
+         }
       }
       
       public function updateStatsForModifiers() : void
@@ -115,7 +248,7 @@ package Combat.Weapon
             mPierces += _loc1_.PIERCE;
             mCooldownReduction *= _loc1_.COOLDOWN_REDUC;
             mChargeReduction *= _loc1_.CHARGE_REDUC;
-            mCollisionScale = _loc1_.INCREASE_COLLISION;
+            mCollisionScale *= _loc1_.INCREASE_COLLISION;
          }
       }
       
@@ -189,6 +322,7 @@ package Combat.Weapon
          mGMWeapon = null;
          mAttackTimelineMap.clear();
          mAttackTimelineMap = null;
+         mPreloadedEffectKeys = null;
          mWeaponView.destroy();
          mWeaponView = null;
          mModifiers = null;

@@ -1,9 +1,9 @@
 package Brain.Render
 {
    import Brain.Utils.MemoryTracker;
+   import Collections.ArrayUtils;
    import flash.display.DisplayObject;
    import flash.display.Sprite;
-   import org.as3commons.collections.utils.ArrayUtils;
    
    public class Layer extends Sprite
    {
@@ -36,7 +36,7 @@ package Brain.Render
       
       public function sortLayer() : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          if(this.numChildren == 0)
          {
             return;
@@ -67,7 +67,7 @@ package Brain.Render
    }
 }
 
-import org.as3commons.collections.framework.IComparator;
+import Collections.IComparator;
 
 class ChildComparator implements IComparator
 {

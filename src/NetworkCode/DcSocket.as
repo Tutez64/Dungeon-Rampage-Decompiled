@@ -1,11 +1,11 @@
 package NetworkCode
 {
    import Brain.Clock.GameClock;
+   import Brain.Event.EventListeners;
    import Brain.GameObject.GameObject;
    import Brain.Logger.Logger;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Facade.DBFacade;
-   import GeneratedCode.*;
    import NetworkCode.Transport.ConnectDiagnostics;
    import NetworkCode.Transport.GameEndpoints;
    import NetworkCode.Transport.GameTransportEvent;
@@ -15,8 +15,6 @@ package NetworkCode
    import NetworkCode.Transport.TransportFailureText;
    import NetworkCode.Transport.TransportSelector;
    import NetworkCode.Transport.TransportSettings;
-   import flash.errors.*;
-   import flash.events.*;
    import flash.utils.ByteArray;
    import flash.utils.getTimer;
    import flash.utils.setTimeout;
@@ -27,6 +25,10 @@ package NetworkCode
       private static const RETRY_PASS_DELAY_MS:int = 1500;
       
       private var input_double_buffer:DcNetworkPacket;
+      
+      private var mPacket:DcNetworkPacket = new DcNetworkPacket();
+      
+      private var mPacketInUse:Boolean;
       
       protected var Doid_NetInterfaces:Object;
       
@@ -114,7 +116,7 @@ package NetworkCode
       
       private static function fromArray(array:ByteArray, colons:Boolean = false) : String
       {
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc3_:String = "";
          _loc4_ = 0;
          while(_loc4_ < array.length)
@@ -263,13 +265,13 @@ package NetworkCode
       
       private function configureListeners() : void
       {
-         mTransport.addEventListener("gameTransportConnected",connectHandler);
-         mTransport.addEventListener("gameTransportData",socketDataHandler);
-         mTransport.addEventListener("gameTransportClosed",closeHandler);
-         mTransport.addEventListener("gameTransportFailed",failedHandler);
-         mTransport.addEventListener("gameTransportReconnecting",reconnectingHandler);
-         mTransport.addEventListener("gameTransportReconnectAttempt",reconnectAttemptHandler);
-         mTransport.addEventListener("gameTransportResumed",resumedHandler);
+         EventListeners.add(mTransport,"gameTransportConnected",connectHandler);
+         EventListeners.add(mTransport,"gameTransportData",socketDataHandler);
+         EventListeners.add(mTransport,"gameTransportClosed",closeHandler);
+         EventListeners.add(mTransport,"gameTransportFailed",failedHandler);
+         EventListeners.add(mTransport,"gameTransportReconnecting",reconnectingHandler);
+         EventListeners.add(mTransport,"gameTransportReconnectAttempt",reconnectAttemptHandler);
+         EventListeners.add(mTransport,"gameTransportResumed",resumedHandler);
       }
       
       private function detachTransport(closeIt:Boolean) : void
@@ -278,13 +280,13 @@ package NetworkCode
          {
             return;
          }
-         mTransport.removeEventListener("gameTransportConnected",connectHandler);
-         mTransport.removeEventListener("gameTransportData",socketDataHandler);
-         mTransport.removeEventListener("gameTransportClosed",closeHandler);
-         mTransport.removeEventListener("gameTransportFailed",failedHandler);
-         mTransport.removeEventListener("gameTransportReconnecting",reconnectingHandler);
-         mTransport.removeEventListener("gameTransportReconnectAttempt",reconnectAttemptHandler);
-         mTransport.removeEventListener("gameTransportResumed",resumedHandler);
+         EventListeners.remove(mTransport,"gameTransportConnected",connectHandler);
+         EventListeners.remove(mTransport,"gameTransportData",socketDataHandler);
+         EventListeners.remove(mTransport,"gameTransportClosed",closeHandler);
+         EventListeners.remove(mTransport,"gameTransportFailed",failedHandler);
+         EventListeners.remove(mTransport,"gameTransportReconnecting",reconnectingHandler);
+         EventListeners.remove(mTransport,"gameTransportReconnectAttempt",reconnectAttemptHandler);
+         EventListeners.remove(mTransport,"gameTransportResumed",resumedHandler);
          if(closeIt)
          {
             mTransport.close();
@@ -660,8 +662,9 @@ package NetworkCode
       
       private function ProcessMoreSocketData(chunk:ByteArray) : void
       {
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc2_:DcNetworkPacket = null;
+         var _loc5_:Boolean = false;
          if(chunk == null || chunk.length == 0)
          {
             return;
@@ -684,9 +687,20 @@ package NetworkCode
                   input_double_buffer.position -= 2;
                   break;
                }
-               _loc2_ = new DcNetworkPacket();
+               _loc2_ = mPacketInUse ? new DcNetworkPacket() : mPacket;
+               _loc2_.length = 0;
                input_double_buffer.readBytes(_loc2_,0,_loc3_);
-               ProcessPacketFromWire(_loc2_);
+               _loc2_.position = 0;
+               _loc5_ = mPacketInUse;
+               mPacketInUse = true;
+               try
+               {
+                  ProcessPacketFromWire(_loc2_);
+               }
+               finally
+               {
+                  mPacketInUse = _loc5_;
+               }
             }
          }
          input_double_buffer.do_slide();
@@ -790,7 +804,7 @@ package NetworkCode
       public function destroy() : void
       {
          var _loc1_:Object = null;
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          Logger.debugch("WS","DcSocket destroy");
          if(mDBFacade.metrics)
          {

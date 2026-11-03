@@ -1,31 +1,32 @@
 package Box2D.Dynamics.Joints
 {
-   import Box2D.Common.b2internal;
    import Box2D.Dynamics.b2Body;
-   
-   use namespace b2internal;
+   import flash.Boot;
    
    public class b2JointDef
    {
       
-      public var type:int;
-      
       public var userData:*;
       
-      public var bodyA:b2Body;
-      
-      public var bodyB:b2Body;
+      public var type:int;
       
       public var collideConnected:Boolean;
       
+      public var bodyB:b2Body;
+      
+      public var bodyA:b2Body;
+      
       public function b2JointDef()
       {
-         super();
-         this.type = b2Joint.e_unknownJoint;
-         this.userData = null;
-         this.bodyA = null;
-         this.bodyB = null;
-         this.collideConnected = false;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         type = 0;
+         userData = null;
+         bodyA = null;
+         bodyB = null;
+         collideConnected = false;
       }
    }
 }

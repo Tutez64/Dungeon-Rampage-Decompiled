@@ -4,6 +4,7 @@ package Combat.Attack
    import Actor.ActorView;
    import Combat.Weapon.WeaponGameObject;
    import DistributedObjects.DistributedDungeonFloor;
+   import Effects.EffectIconInsert;
    import Facade.DBFacade;
    import GameMasterDictionary.GMWeaponAesthetic;
    import flash.geom.Vector3D;
@@ -25,28 +26,26 @@ package Combat.Attack
       
       protected var mWeapon:WeaponGameObject;
       
-      protected var mRegisterChargeEffectCallback:Function;
-      
-      public function PlayEffectAttackTimelineAction(actorGameObject:ActorGameObject, actorView:ActorView, dbFacade:DBFacade, distributedDungeonFloor:DistributedDungeonFloor, weapon:WeaponGameObject, registerChargeEffectCallback:Function, effectName:String, effectPath:String, xOffset:Number = 0, yOffset:Number = 0, headingOffset:Number = 0, headingOffsetAngle:Number = 0, playAtTarget:Boolean = false, parentToActor:Boolean = false, behindAvatar:Boolean = false, scale:Number = 1, autoAdjustHeading:Boolean = false, loop:Boolean = false, layer:String = "sorted", managed:Boolean = false, useTimelineSpeed:Boolean = false, invertAngles:Boolean = false, insertParentName:String = "", insertIconPath:String = "", insertIconName:String = "")
+      public function PlayEffectAttackTimelineAction(actorGameObject:ActorGameObject, actorView:ActorView, dbFacade:DBFacade, distributedDungeonFloor:DistributedDungeonFloor, weapon:WeaponGameObject, effectName:String, effectPath:String, xOffset:Number = 0, yOffset:Number = 0, headingOffset:Number = 0, headingOffsetAngle:Number = 0, playAtTarget:Boolean = false, parentToActor:Boolean = false, behindAvatar:Boolean = false, scale:Number = 1, autoAdjustHeading:Boolean = false, loop:Boolean = false, layer:String = "sorted", managed:Boolean = false, useTimelineSpeed:Boolean = false, invertAngles:Boolean = false, insertParentName:String = "", insertIconPath:String = "", insertIconName:String = "")
       {
          super(actorGameObject,actorView,dbFacade,effectName,effectPath,xOffset,yOffset,headingOffset,headingOffsetAngle,playAtTarget,parentToActor,behindAvatar,scale,autoAdjustHeading,loop,layer,managed,useTimelineSpeed,invertAngles,insertParentName,insertIconPath,insertIconName);
          mDistributedDungeonFloor = distributedDungeonFloor;
          mWeapon = weapon;
-         var _loc26_:Number = mWeapon != null ? mWeapon.collisionScale() : 1;
-         mScale *= _loc26_;
-         mXOffset *= _loc26_;
-         mYOffset *= _loc26_;
-         mRegisterChargeEffectCallback = registerChargeEffectCallback;
+         var _loc25_:Number = mWeapon != null ? mWeapon.collisionScale() : 1;
+         mScale *= _loc25_;
+         mXOffset *= _loc25_;
+         mYOffset *= _loc25_;
       }
       
-      public static function buildFromJson(actorGameObject:ActorGameObject, actorView:ActorView, dbFacade:DBFacade, distributedDungeonFloor:DistributedDungeonFloor, actionObj:Object, weapon:WeaponGameObject, registerChargeEffectCallback:Function) : PlayEffectAttackTimelineAction
+      public static function buildFromJson(actorGameObject:ActorGameObject, actorView:ActorView, dbFacade:DBFacade, distributedDungeonFloor:DistributedDungeonFloor, actionObj:Object, weapon:WeaponGameObject) : PlayEffectAttackTimelineAction
       {
-         return new PlayEffectAttackTimelineAction(actorGameObject,actorView,dbFacade,distributedDungeonFloor,weapon,registerChargeEffectCallback,actionObj.name,actionObj.path,actionObj.xOffset,actionObj.yOffset,actionObj.headingOffset,actionObj.headingOffsetAngle,actionObj.playAtTarget,actionObj.parentToActor,actionObj.behindAvatar,actionObj.scale,actionObj.autoAdjustHeading,actionObj.loop,actionObj.layer,actionObj.managed,actionObj.useTimelineSpeed,actionObj.invertAngles,actionObj.insertParentName,actionObj.insertIconPath,actionObj.insertIconName);
+         return new PlayEffectAttackTimelineAction(actorGameObject,actorView,dbFacade,distributedDungeonFloor,weapon,actionObj.name,actionObj.path,actionObj.xOffset,actionObj.yOffset,actionObj.headingOffset,actionObj.headingOffsetAngle,actionObj.playAtTarget,actionObj.parentToActor,actionObj.behindAvatar,actionObj.scale,actionObj.autoAdjustHeading,actionObj.loop,actionObj.layer,actionObj.managed,actionObj.useTimelineSpeed,actionObj.invertAngles,actionObj.insertParentName,actionObj.insertIconPath,actionObj.insertIconName);
       }
       
       override public function execute(timeline:ScriptTimeline) : void
       {
          var _loc5_:GMWeaponAesthetic = null;
+         var _loc8_:uint = 0;
          if(mPlayAtTarget && timeline.targetActor == null)
          {
             return;
@@ -61,10 +60,10 @@ package Combat.Attack
             _loc3_ = mActorGameObject;
          }
          var _loc4_:Vector3D = calculatePositionBasedOnOffsets(timeline.targetActor);
-         var _loc10_:String = mEffectName.substring();
+         var _loc11_:String = mEffectName.substring();
          var _loc7_:Number = mActorGameObject.heading;
          var _loc2_:Number = 0;
-         var _loc9_:Number = 0;
+         var _loc10_:Number = 0;
          if(mAutoAdjustHeading)
          {
             _loc2_ = _loc7_;
@@ -82,29 +81,29 @@ package Combat.Attack
             }
             if(_loc5_ && _loc5_.SwordTrailOverride)
             {
-               _loc10_ = _loc10_.replace("db_fx_attack",_loc5_.SwordTrailOverride);
+               _loc11_ = _loc11_.replace("db_fx_attack",_loc5_.SwordTrailOverride);
             }
             _loc6_ = convertAngleForEffectName(_loc7_);
-            _loc10_ += _loc6_.string;
-            if(_loc10_.indexOf("swing_angle") >= 0)
+            _loc11_ += _loc6_.string;
+            if(_loc11_.indexOf("swing_angle") >= 0)
             {
                if(mActorGameObject.actorView.currentAnim == "attack_swingRight")
                {
-                  _loc10_ += "_right";
+                  _loc11_ += "_right";
                }
                else
                {
-                  _loc10_ += "_left";
+                  _loc11_ += "_left";
                }
             }
          }
          if(_loc6_.flip)
          {
-            _loc9_ = 180;
+            _loc10_ = 180;
          }
-         var _loc8_:uint = 0;
-         _loc10_ = mDBFacade.customSkinVisualsOverrideHandler.customSkinBusterVisualOverrider(_loc10_,mActorGameObject);
-         _loc8_ = mActorGameObject.distributedDungeonFloor.effectManager.playEffect(DBFacade.buildFullDownloadPath(mEffectPath),_loc10_,_loc4_,_loc3_,mBehindAvatar,mScale,0,0,_loc9_,_loc2_,mLoop,mLayer,mManaged,mPlayRate,mDoIconInsert ? assetLoadedCallback(this) : null);
+         _loc11_ = mDBFacade.customSkinVisualsOverrideHandler.customSkinBusterVisualOverrider(_loc11_,mActorGameObject);
+         var _loc9_:EffectIconInsert = mDoIconInsert ? new EffectIconInsert(mInsertIconPath,mInsertIconName,mInsertParentName) : null;
+         _loc8_ = mActorGameObject.distributedDungeonFloor.effectManager.playEffect(DBFacade.buildFullDownloadPath(mEffectPath),_loc11_,_loc4_,_loc3_,mBehindAvatar,mScale,0,0,_loc10_,_loc2_,mLoop,mLayer,mManaged,mPlayRate,mDoIconInsert ? assetLoadedCallback(this) : null,_loc9_);
          if(mManaged)
          {
             timeline.mManagedEffects.add(_loc8_);
@@ -152,7 +151,6 @@ package Combat.Attack
       
       override public function destroy() : void
       {
-         mRegisterChargeEffectCallback = null;
          mWeapon = null;
          super.destroy();
       }

@@ -2,6 +2,7 @@ package UI.EquipPicker
 {
    import Account.ItemInfo;
    import Account.StackableInfo;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import GameMasterDictionary.GMStackable;
    import flash.display.MovieClip;
@@ -11,9 +12,9 @@ package UI.EquipPicker
       
       private var mStackableInfo:StackableInfo;
       
-      public function ConsumableEquipElement(dbFacade:DBFacade, keyLabel:String, root:MovieClip, tooltipClass:Class, unequipCallback:Function, handleDropCallback:Function, equipSlot:uint, clickedEquipedWeaponCallback:Function = null, equipResponseCallback:Function = null, allowEquipmentSwapping:Boolean = false)
+      public function ConsumableEquipElement(dbFacade:DBFacade, keyLabel:String, root:MovieClip, tooltipClass:Class, unequipCallback:Function, handleDropCallback:Function, equipSlot:uint, clickedEquippedWeaponCallback:Function = null, equipResponseCallback:Function = null, allowEquipmentSwapping:Boolean = false)
       {
-         super(dbFacade,keyLabel,root,tooltipClass,unequipCallback,handleDropCallback,equipSlot,clickedEquipedWeaponCallback,equipResponseCallback,allowEquipmentSwapping);
+         super(dbFacade,keyLabel,root,tooltipClass,unequipCallback,handleDropCallback,equipSlot,clickedEquippedWeaponCallback,equipResponseCallback,allowEquipmentSwapping);
          mRoot.textx.visible = false;
          mRoot.quantity.visible = false;
       }
@@ -49,7 +50,7 @@ package UI.EquipPicker
          }
          mRoot.textx.visible = true;
          mRoot.quantity.visible = true;
-         mRoot.quantity.text = count.toString();
+         TextUtil.setText(mRoot.quantity,count.toString());
       }
       
       public function get stackableInfo() : StackableInfo

@@ -1,8 +1,9 @@
 package Metrics
 {
+   import Brain.Event.EventListeners;
    import Brain.Logger.Logger;
    import Facade.DBFacade;
-   import com.maccherone.json.JSON;
+   import Json.JsonCodec;
    import flash.events.Event;
    import flash.net.URLLoader;
    import flash.net.URLRequest;
@@ -45,16 +46,16 @@ package Metrics
             }
             eventData[_loc6_] = mDBFacade.demographics[_loc6_];
          }
-         var _loc4_:String = com.maccherone.json.JSON.encode(eventData);
+         var _loc4_:String = JsonCodec.encode(eventData);
          var _loc7_:URLVariables = new URLVariables();
          _loc7_.e = eventName;
          _loc7_.parameters = _loc4_;
          _loc3_.data = _loc7_;
          _loc3_.method = "POST";
          var _loc5_:URLLoader = new URLLoader(_loc3_);
-         _loc5_.addEventListener("complete",completeHandler);
-         _loc5_.addEventListener("securityError",securityErrorHandler);
-         _loc5_.addEventListener("ioError",ioErrorHandler);
+         EventListeners.add(_loc5_,"complete",completeHandler);
+         EventListeners.add(_loc5_,"securityError",securityErrorHandler);
+         EventListeners.add(_loc5_,"ioError",ioErrorHandler);
          _loc5_.load(_loc3_);
       }
       

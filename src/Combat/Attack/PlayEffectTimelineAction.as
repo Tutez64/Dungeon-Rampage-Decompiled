@@ -6,6 +6,7 @@ package Combat.Attack
    import Brain.AssetRepository.SwfAsset;
    import Brain.Logger.Logger;
    import DistributedObjects.DistributedDungeonFloor;
+   import Effects.EffectIconInsert;
    import Facade.DBFacade;
    import flash.display.MovieClip;
    import flash.geom.Vector3D;
@@ -87,11 +88,7 @@ package Combat.Attack
             mScale = 1;
          }
          mPlayRate = 1;
-         mUseTimelineSpeed = false;
-         if(useTimelineSpeed)
-         {
-            mUseTimelineSpeed = true;
-         }
+         mUseTimelineSpeed = useTimelineSpeed;
          mInvertAngles = invertAngles;
          mInsertParentName = insertParentName;
          mInsertIconPath = insertIconPath;
@@ -255,10 +252,11 @@ package Combat.Attack
             _loc2_ = mActorGameObject;
          }
          var _loc3_:Vector3D = calculatePositionBasedOnOffsets(timeline.targetActor);
-         var _loc4_:uint = mActorGameObject.distributedDungeonFloor.effectManager.playEffect(DBFacade.buildFullDownloadPath(mEffectPath),mEffectName,_loc3_,_loc2_,mBehindAvatar,mScale,0,0,0,0,false,mLayer,mManaged,mPlayRate,mDoIconInsert ? assetLoadedCallback(this) : null);
+         var _loc4_:EffectIconInsert = mDoIconInsert ? new EffectIconInsert(mInsertIconPath,mInsertIconName,mInsertParentName) : null;
+         var _loc5_:uint = mActorGameObject.distributedDungeonFloor.effectManager.playEffect(DBFacade.buildFullDownloadPath(mEffectPath),mEffectName,_loc3_,_loc2_,mBehindAvatar,mScale,0,0,0,0,false,mLayer,mManaged,mPlayRate,mDoIconInsert ? assetLoadedCallback(this) : null,_loc4_);
          if(mManaged)
          {
-            timeline.mManagedEffects.add(_loc4_);
+            timeline.mManagedEffects.add(_loc5_);
          }
       }
    }

@@ -94,7 +94,7 @@ package UI.EquipPicker
       public function showWeaponComparison(gmWeaponItem:GMWeaponItem, power:uint) : void
       {
          var _loc4_:Boolean = false;
-         var _loc6_:* = undefined;
+         var _loc6_:Vector.<ItemInfo> = undefined;
          if(!mGMHero)
          {
             return;

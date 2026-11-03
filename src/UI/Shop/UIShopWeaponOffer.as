@@ -3,6 +3,8 @@ package UI.Shop
    import Account.AvatarInfo;
    import Brain.AssetRepository.SwfAsset;
    import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
@@ -18,7 +20,6 @@ package UI.Shop
    import flash.events.MouseEvent;
    import flash.geom.Point;
    import flash.text.TextField;
-   import flash.text.TextFormat;
    
    public class UIShopWeaponOffer extends UIShopOffer
    {
@@ -64,7 +65,7 @@ package UI.Shop
          if(mPower != null)
          {
             mPowerLabel = mPower.label;
-            mPower.attack_label.text = Locale.getString("POWER");
+            Locale.setText(mPower.attack_label,"POWER");
          }
          mTapIcon = new UIObject(mDBFacade,mRoot.tap_icon);
          mTapTooltip = new UITapHoldTooltip(mDBFacade,chargeTooltipClass);
@@ -77,9 +78,9 @@ package UI.Shop
          mWeaponDescTooltip = new UIWeaponDescTooltip(mDBFacade,descTooltipClass);
          mIconParent.tooltip = mWeaponDescTooltip;
          mWeaponDescTooltip.visible = false;
-         mRoot.label_tap.text = Locale.getString("TAP");
-         mRoot.label_charge.text = Locale.getString("HOLD");
-         mRoot.label_modifier.text = Locale.getString("MODIFIERS");
+         Locale.setText(mRoot.label_tap,"TAP");
+         Locale.setText(mRoot.label_charge,"HOLD");
+         Locale.setText(mRoot.label_modifier,"MODIFIERS");
          mUIModifierList = new Vector.<UIModifier>();
       }
       
@@ -107,7 +108,7 @@ package UI.Shop
       
       override protected function get nativeIconSize() : Number
       {
-         return 100;
+         return DBGlobal.WEAPON_ICON_NATIVE_SIZE;
       }
       
       public function setRolloverCallbacks(over:Function, out:Function) : void
@@ -151,14 +152,11 @@ package UI.Shop
          var preNameModifiers:String;
          var i:int;
          var avatarInfo:AvatarInfo;
-         var format:TextFormat;
-         var sizeMult:Number;
          var rarity:GMRarity;
          this.offer = gmOffer;
          mGMOfferDetail = this.offer.Details[0];
          mGMWeaponItem = mDBFacade.gameMaster.weaponItemById.itemFor(mGMOfferDetail.WeaponId);
          super.showOffer(gmOffer,gmHero);
-         weaponName = "";
          weaponName = GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",gmOffer.getOfferItemConstant(mDBFacade.gameMaster));
          mWeaponDescTooltip.setWeaponItem(mGMWeaponItem,mGMOfferDetail.Level);
          if(mGMOfferDetail.Rarity == "LEGENDARY")
@@ -222,7 +220,7 @@ package UI.Shop
             }
          }
          mPower.visible = true;
-         mPowerLabel.text = mGMOfferDetail.WeaponPower.toString();
+         TextUtil.setText(mPowerLabel,mGMOfferDetail.WeaponPower.toString());
          if(mGMOfferDetail.Modifier1 != null)
          {
             mUIModifierList.push(new UIModifier(mDBFacade,mRoot.modifier_icon_1,mGMOfferDetail.Modifier1));
@@ -257,45 +255,38 @@ package UI.Shop
             {
                mRibbonA.visible = false;
                mRibbonB.visible = true;
-               mRibbonB.timer.text = getDateString();
-               mRibbonB.limit_label.text = getQuantityString();
+               setRibbonTimerText(mRibbonB.timer);
+               TextUtil.setText(mRibbonB.limit_label,getQuantityString());
             }
             else
             {
                mRibbonA.visible = true;
                mRibbonB.visible = false;
-               mRibbonA.timer.text = getDateString();
+               setRibbonTimerText(mRibbonA.timer);
             }
          }
          avatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(gmHero.Id);
-         if(!avatarInfo || avatarInfo.level < mGMOfferDetail.Level)
+         if(!avatarInfo || avatarInfo.levelForWeaponComparison < mGMOfferDetail.Level)
          {
             mLevelStarLabel.textColor = mRequiresLabel.textColor = 15535124;
-         }
-         format = new TextFormat();
-         sizeMult = 0.1;
-         if(weaponName.length <= 32)
-         {
-            format.size = 13;
-            sizeMult = weaponName.length < 16 ? 0.2 : 0.1;
-            mTitle.y = mTitleY + mTitle.height * sizeMult;
-         }
-         else
-         {
-            format.size = 11;
-            mTitle.y = mTitleY;
          }
          if(mGMOfferDetail.Rarity == "LEGENDARY")
          {
             weaponName = GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",gmOffer.getOfferItemConstant(mDBFacade.gameMaster,"LEGENDARY",true)).toUpperCase();
          }
-         mTitle.defaultTextFormat = format;
-         mTitle.text = weaponName;
+         TextUtil.setText(mTitle,weaponName);
+         mTitle.y = mTitle.numLines == 1 ? mTitleY + mTitle.height * 0.2 : mTitleY;
          rarity = mDBFacade.gameMaster.rarityByConstant.itemFor(mGMOfferDetail.Rarity);
          if(rarity != null && rarity.TextColor)
          {
             mTitle.textColor = rarity.TextColor;
          }
+      }
+      
+      private function setRibbonTimerText(timer:TextField) : void
+      {
+         TextUtil.setText(timer,getDateString(),1.55);
+         TextUtil.fitToField(timer);
       }
       
       override protected function get offerDescription() : String

@@ -2,13 +2,13 @@ package Actor.Buffs
 {
    import Actor.ActorGameObject;
    import Actor.ActorView;
+   import Brain.Render.Tweens.TweenHandle;
    import Brain.Utils.MemoryTracker;
    import Facade.DBFacade;
    import Floor.FloorObject;
    import Floor.FloorView;
    import GameMasterDictionary.GMBuff;
    import GameMasterDictionary.StatVector;
-   import com.greensock.TimelineMax;
    
    public class BuffGameObject extends FloorObject
    {
@@ -33,7 +33,7 @@ package Actor.Buffs
       
       public var mSortLayer:String;
       
-      public var mCameraTweenMax:TimelineMax;
+      public var mCameraTweenMax:TweenHandle;
       
       public function BuffGameObject(facade:DBFacade, actorGameObject:ActorGameObject, actorView:ActorView, id:uint, remoteId:uint = 0, attackerId:uint = 0)
       {
@@ -58,7 +58,7 @@ package Actor.Buffs
          if(mActorGameObject.isOwner && mData.ShakeLocalCamera)
          {
             this.mDBFacade.camera.removeShakes();
-            mCameraTweenMax.kill();
+            mDBFacade.mTween.killTween(mCameraTweenMax);
          }
          mData = null;
          mParentView = null;
@@ -131,6 +131,11 @@ package Actor.Buffs
       public function get buffView() : BuffView
       {
          return mBuffView;
+      }
+      
+      public function get actorGameObject() : ActorGameObject
+      {
+         return mActorGameObject;
       }
       
       public function get buffData() : GMBuff

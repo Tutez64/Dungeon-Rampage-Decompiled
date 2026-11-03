@@ -6,9 +6,11 @@ package Actor.Player.Input
    import Actor.Player.Input.DBMouseEvents.MouseOverOnActorEvent;
    import Actor.Player.Input.DBMouseEvents.MouseUpOnActorEvent;
    import Brain.Event.EventComponent;
+   import Brain.Event.EventListeners;
    import Brain.Logger.Logger;
    import DistributedObjects.HeroGameObjectOwner;
    import Facade.DBFacade;
+   import UI.Cursor.UIMouseCursors;
    import flash.events.MouseEvent;
    import flash.geom.Vector3D;
    
@@ -57,6 +59,8 @@ package Actor.Player.Input
       
       protected var mActorMousedOver:ActorGameObject;
       
+      protected var mAttackCursorKey:uint = 0;
+      
       protected var mPotentialAttacksThisFrame:Array;
       
       private var mCombatDisabled:Boolean;
@@ -79,23 +83,23 @@ package Actor.Player.Input
          mEventComponent.addListener("MouseOverOnActorEvent",handleMouseOverOnActor);
          mEventComponent.addListener("MouseOutOnActorEvent",handleMouseOutOnActor);
          mEventComponent.addListener("DungeonBusterControlActivatedEvent",handleDungeonBusterControlActivated);
-         mDBFacade.stageRef.addEventListener("mouseDown",handleMouseDown);
-         mDBFacade.stageRef.addEventListener("mouseUp",handleMouseUp);
-         mDBFacade.stageRef.addEventListener("rightMouseDown",handleRightMouseDown);
-         mDBFacade.stageRef.addEventListener("rightMouseUp",handleRightMouseUp);
-         mDBFacade.stageRef.addEventListener("middleMouseDown",handleMiddleMouseDown);
-         mDBFacade.stageRef.addEventListener("middleMouseUp",handleMiddleMouseUp);
+         EventListeners.add(mDBFacade.stageRef,"mouseDown",handleMouseDown);
+         EventListeners.add(mDBFacade.stageRef,"mouseUp",handleMouseUp);
+         EventListeners.add(mDBFacade.stageRef,"rightMouseDown",handleRightMouseDown);
+         EventListeners.add(mDBFacade.stageRef,"rightMouseUp",handleRightMouseUp);
+         EventListeners.add(mDBFacade.stageRef,"middleMouseDown",handleMiddleMouseDown);
+         EventListeners.add(mDBFacade.stageRef,"middleMouseUp",handleMiddleMouseUp);
       }
       
       private function removeListeners() : void
       {
          mEventComponent.removeAllListeners();
-         mDBFacade.stageRef.removeEventListener("mouseDown",handleMouseDown);
-         mDBFacade.stageRef.removeEventListener("mouseUp",handleMouseUp);
-         mDBFacade.stageRef.removeEventListener("rightMouseDown",handleRightMouseDown);
-         mDBFacade.stageRef.removeEventListener("rightMouseUp",handleRightMouseUp);
-         mDBFacade.stageRef.removeEventListener("middleMouseDown",handleMiddleMouseDown);
-         mDBFacade.stageRef.removeEventListener("middleMouseUp",handleMiddleMouseUp);
+         EventListeners.remove(mDBFacade.stageRef,"mouseDown",handleMouseDown);
+         EventListeners.remove(mDBFacade.stageRef,"mouseUp",handleMouseUp);
+         EventListeners.remove(mDBFacade.stageRef,"rightMouseDown",handleRightMouseDown);
+         EventListeners.remove(mDBFacade.stageRef,"rightMouseUp",handleRightMouseUp);
+         EventListeners.remove(mDBFacade.stageRef,"middleMouseDown",handleMiddleMouseDown);
+         EventListeners.remove(mDBFacade.stageRef,"middleMouseUp",handleMiddleMouseUp);
       }
       
       protected function handleMouseDownOnActor(mouseDownEvent:MouseDownOnActorEvent) : void
@@ -115,6 +119,7 @@ package Actor.Player.Input
          if(mMouseOverActorThisFrame.actorView && mActorMousedOver.team != mHeroGameObjectOwner.team)
          {
             mMouseOverActorThisFrame.actorView.mouseOverHighlight();
+            pushAttackCursor();
          }
       }
       
@@ -128,7 +133,27 @@ package Actor.Player.Input
          if(mActorMousedOver == mMouseOutActorThisFrame)
          {
             mActorMousedOver = null;
+            popAttackCursor();
          }
+      }
+      
+      protected function pushAttackCursor() : void
+      {
+         if(mAttackCursorKey != 0)
+         {
+            return;
+         }
+         mAttackCursorKey = mDBFacade.mouseCursorManager.pushMouseCursor(UIMouseCursors.forWeapon(mDBFacade,mHeroGameObjectOwner.currentWeapon));
+      }
+      
+      protected function popAttackCursor() : void
+      {
+         if(mAttackCursorKey == 0)
+         {
+            return;
+         }
+         mDBFacade.mouseCursorManager.popMouseCursor(mAttackCursorKey);
+         mAttackCursorKey = 0;
       }
       
       private function handleDungeonBusterControlActivated(event:DungeonBusterControlActivatedEvent) : void
@@ -187,17 +212,17 @@ package Actor.Player.Input
       
       protected function determineMotion() : void
       {
-         Logger.error("determineMotion function is meant to be virtual and overriden by the subclasses.");
+         Logger.error("determineMotion function is meant to be virtual and overridden by the subclasses.");
       }
       
       protected function determineAttacks() : void
       {
-         Logger.error("determineAttacks function is meant to be virtual and overriden by the subclasses.");
+         Logger.error("determineAttacks function is meant to be virtual and overridden by the subclasses.");
       }
       
       protected function determineSelection() : void
       {
-         Logger.error("determineSelection function is meant to be virtual and overriden by the subclasses.");
+         Logger.error("determineSelection function is meant to be virtual and overridden by the subclasses.");
       }
       
       private function flushMouseEventVars() : void
@@ -219,7 +244,7 @@ package Actor.Player.Input
       
       public function move(inputType:String) : Boolean
       {
-         Logger.error("move function is meant to be virtual and overriden by the subclasses.");
+         Logger.error("move function is meant to be virtual and overridden by the subclasses.");
          return false;
       }
       
@@ -231,11 +256,13 @@ package Actor.Player.Input
       public function stop() : void
       {
          removeListeners();
+         popAttackCursor();
+         mActorMousedOver = null;
       }
       
       public function clearMovement() : void
       {
-         Logger.error("clearMovement is meant to be virtual and overriden by the subclasses.");
+         Logger.error("clearMovement is meant to be virtual and overridden by the subclasses.");
       }
       
       public function get potentialAttacksThisFrame() : Array

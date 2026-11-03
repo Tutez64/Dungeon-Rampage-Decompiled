@@ -1,10 +1,11 @@
 package com.junkbyte.console.view
 {
    import com.junkbyte.console.Console;
+   import com.junkbyte.console.ConsoleConfig;
    import com.junkbyte.console.KeyBind;
    import com.junkbyte.console.core.LogReferences;
+   import flash.Boot;
    import flash.display.DisplayObject;
-   import flash.display.DisplayObjectContainer;
    import flash.display.Stage;
    import flash.events.Event;
    import flash.events.KeyboardEvent;
@@ -12,174 +13,60 @@ package com.junkbyte.console.view
    import flash.geom.Point;
    import flash.text.TextField;
    import flash.text.TextFieldAutoSize;
-   import flash.utils.Dictionary;
+   import haxe.IMap;
+   import haxe.ds.ObjectMap;
    
    public class RollerPanel extends ConsolePanel
    {
       
-      public static const NAME:String = "rollerPanel";
+      public static var customContentProvider:*;
       
-      private var _settingKey:Boolean;
+      public static var NAME:String = "rollerPanel";
       
-      public function RollerPanel(m:Console)
+      public var _settingKey:Boolean;
+      
+      public function RollerPanel(m:Console = undefined)
       {
-         super(m);
-         name = NAME;
-         init(60,100,false);
-         txtField = makeTF("rollerPrints");
-         txtField.multiline = true;
-         txtField.autoSize = TextFieldAutoSize.LEFT;
-         registerTFRoller(txtField,this.onMenuRollOver,this.linkHandler);
-         registerDragger(txtField);
-         addChild(txtField);
-         addEventListener(Event.ENTER_FRAME,this._onFrame);
-         addEventListener(Event.REMOVED_FROM_STAGE,this.removeListeners);
-      }
-      
-      private function removeListeners(e:Event = null) : void
-      {
-         removeEventListener(Event.ENTER_FRAME,this._onFrame);
-         removeEventListener(Event.REMOVED_FROM_STAGE,this.removeListeners);
-         if(stage)
+         if(!Boot.skip_constructor)
          {
-            stage.removeEventListener(KeyboardEvent.KEY_DOWN,this.keyDownHandler);
-         }
-      }
-      
-      private function _onFrame(e:Event) : void
-      {
-         if(!console.stage)
-         {
-            this.close();
-            return;
-         }
-         if(this._settingKey)
-         {
-            txtField.htmlText = "<high><menu>Press a key to set [ <a href=\"event:cancel\"><b>cancel</b></a> ]</menu></high>";
-         }
-         else
-         {
-            txtField.htmlText = "<low>" + this.getMapString(false) + "</low>";
+            super(m);
+            name = "rollerPanel";
+            init(60,100,false);
+            txtField = makeTF("rollerPrints");
+            txtField.multiline = true;
             txtField.autoSize = TextFieldAutoSize.LEFT;
-            txtField.setSelection(0,0);
+            registerTFRoller(txtField,onMenuRollOver,linkHandler);
+            registerDragger(txtField);
+            addChild(txtField);
+            addEventListener(Event.ENTER_FRAME,_onFrame);
+            addEventListener(Event.REMOVED_FROM_STAGE,removeListeners);
          }
-         width = txtField.width + 4;
-         height = txtField.height;
       }
       
-      public function getMapString(dolink:Boolean) : String
+      public function removeListeners(e:Event = undefined) : void
       {
-         var _loc7_:DisplayObject = null;
-         var _loc8_:String = null;
-         var _loc9_:Array = null;
-         var _loc10_:DisplayObjectContainer = null;
-         var _loc11_:uint = 0;
-         var _loc12_:uint = 0;
-         var _loc13_:DisplayObject = null;
-         var _loc14_:uint = 0;
-         var _loc15_:String = null;
-         var _loc16_:uint = 0;
-         var _loc2_:Stage = console.stage;
-         var _loc3_:String = "";
-         if(!dolink)
+         removeEventListener(Event.ENTER_FRAME,_onFrame);
+         removeEventListener(Event.REMOVED_FROM_STAGE,removeListeners);
+         if(stage != null)
          {
-            _loc8_ = console.rollerCaptureKey ? console.rollerCaptureKey.key : "unassigned";
-            _loc3_ = "<menu> <a href=\"event:close\"><b>X</b></a></menu> Capture key: <menu><a href=\"event:capture\">" + _loc8_ + "</a></menu><br/>";
+            stage.removeEventListener(KeyboardEvent.KEY_DOWN,keyDownHandler);
          }
-         var _loc4_:Point = new Point(_loc2_.mouseX,_loc2_.mouseY);
-         if(_loc2_.areInaccessibleObjectsUnderPoint(_loc4_))
-         {
-            _loc3_ += "<p9>Inaccessible objects detected</p9><br/>";
-         }
-         var _loc5_:Array = _loc2_.getObjectsUnderPoint(_loc4_);
-         var _loc6_:Dictionary = new Dictionary(true);
-         if(_loc5_.length == 0)
-         {
-            _loc5_.push(_loc2_);
-         }
-         for each(_loc7_ in _loc5_)
-         {
-            _loc9_ = new Array(_loc7_);
-            _loc10_ = _loc7_.parent;
-            while(_loc10_)
-            {
-               _loc9_.unshift(_loc10_);
-               _loc10_ = _loc10_.parent;
-            }
-            _loc11_ = _loc9_.length;
-            _loc12_ = 0;
-            while(_loc12_ < _loc11_)
-            {
-               _loc13_ = _loc9_[_loc12_];
-               if(_loc6_[_loc13_] == undefined)
-               {
-                  _loc6_[_loc13_] = _loc12_;
-                  _loc14_ = _loc12_;
-                  while(_loc14_ > 0)
-                  {
-                     _loc3_ += _loc14_ == 1 ? " ∟" : " -";
-                     _loc14_--;
-                  }
-                  _loc15_ = _loc13_.name;
-                  if(dolink && console.config.useObjectLinking)
-                  {
-                     _loc16_ = console.refs.setLogRef(_loc13_);
-                     _loc15_ = "<a href=\'event:cl_" + _loc16_ + "\'>" + _loc15_ + "</a> " + console.refs.makeRefTyped(_loc13_);
-                  }
-                  else
-                  {
-                     _loc15_ = _loc15_ + " (" + LogReferences.ShortClassName(_loc13_) + ")";
-                  }
-                  if(_loc13_ == _loc2_)
-                  {
-                     _loc16_ = console.refs.setLogRef(_loc2_);
-                     if(_loc16_)
-                     {
-                        _loc3_ += "<p3><a href=\'event:cl_" + _loc16_ + "\'><i>Stage</i></a> ";
-                     }
-                     else
-                     {
-                        _loc3_ += "<p3><i>Stage</i> ";
-                     }
-                     _loc3_ += "[" + _loc2_.mouseX + "," + _loc2_.mouseY + "]</p3><br/>";
-                  }
-                  else if(_loc12_ == _loc11_ - 1)
-                  {
-                     _loc3_ += "<p5>" + _loc15_ + "</p5><br/>";
-                  }
-                  else
-                  {
-                     _loc3_ += "<p2><i>" + _loc15_ + "</i></p2><br/>";
-                  }
-               }
-               _loc12_++;
-            }
-         }
-         return _loc3_;
       }
       
-      override public function close() : void
+      public function onMenuRollOver(e:TextEvent) : void
       {
-         this.cancelCaptureKeySet();
-         this.removeListeners();
-         super.close();
-         console.panels.updateMenu();
-      }
-      
-      private function onMenuRollOver(e:TextEvent) : void
-      {
-         var _loc3_:KeyBind = null;
-         var _loc2_:String = e.text ? e.text.replace("event:","") : "";
+         var _loc3_:* = null as KeyBind;
+         var _loc2_:String = e.text != null ? StringTools.replace(e.text,"event:","") : "";
          if(_loc2_ == "close")
          {
             _loc2_ = "Close";
          }
          else if(_loc2_ == "capture")
          {
-            _loc3_ = console.rollerCaptureKey;
-            if(_loc3_)
+            _loc3_ = console.get_rollerCaptureKey();
+            if(_loc3_ != null)
             {
-               _loc2_ = "Unassign key ::" + _loc3_.key;
+               _loc2_ = "Unassign key ::" + _loc3_.get_key();
             }
             else
             {
@@ -194,56 +81,201 @@ package com.junkbyte.console.view
          {
             _loc2_ = null;
          }
-         console.panels.tooltip(_loc2_,this);
+         console.get_panels().tooltip(_loc2_,this);
       }
       
-      protected function linkHandler(e:TextEvent) : void
+      public function linkHandler(e:TextEvent) : void
       {
          TextField(e.currentTarget).setSelection(0,0);
          if(e.text == "close")
          {
-            this.close();
+            close();
          }
          else if(e.text == "capture")
          {
-            if(console.rollerCaptureKey)
+            if(console.get_rollerCaptureKey() != null)
             {
                console.setRollerCaptureKey(null);
             }
             else
             {
-               this._settingKey = true;
-               stage.addEventListener(KeyboardEvent.KEY_DOWN,this.keyDownHandler,false,0,true);
+               _settingKey = true;
+               stage.addEventListener(KeyboardEvent.KEY_DOWN,keyDownHandler,false,0,true);
             }
-            console.panels.tooltip(null);
+            console.get_panels().tooltip(null);
          }
          else if(e.text == "cancel")
          {
-            this.cancelCaptureKeySet();
-            console.panels.tooltip(null);
+            cancelCaptureKeySet();
+            console.get_panels().tooltip(null);
          }
          e.stopPropagation();
       }
       
-      private function cancelCaptureKeySet() : void
+      public function keyDownHandler(e:KeyboardEvent) : void
       {
-         this._settingKey = false;
-         if(stage)
-         {
-            stage.removeEventListener(KeyboardEvent.KEY_DOWN,this.keyDownHandler);
-         }
-      }
-      
-      private function keyDownHandler(e:KeyboardEvent) : void
-      {
-         if(!e.charCode)
+         if(e.charCode == 0)
          {
             return;
          }
-         var _loc2_:String = String.fromCharCode(e.charCode);
-         this.cancelCaptureKeySet();
-         console.setRollerCaptureKey(_loc2_,e.shiftKey,e.ctrlKey,e.altKey);
-         console.panels.tooltip(null);
+         var _loc2_:int = int(e.charCode);
+         var _loc3_:String = _loc2_ < 65536 ? String["fromCharCode"](_loc2_) : Boot.fromCodePoint(_loc2_);
+         cancelCaptureKeySet();
+         console.setRollerCaptureKey(_loc3_,e.shiftKey,e.ctrlKey,e.altKey);
+         console.get_panels().tooltip(null);
+      }
+      
+      public function getMapString(dolink:Boolean) : String
+      {
+         var _loc4_:* = null as String;
+         var _loc9_:* = null as DisplayObject;
+         var _loc10_:* = null as Array;
+         var _loc11_:* = null as DisplayObject;
+         var _loc12_:int = 0;
+         var _loc13_:int = 0;
+         var _loc14_:int = 0;
+         var _loc15_:int = 0;
+         var _loc16_:* = null;
+         var _loc17_:int = 0;
+         var _loc18_:uint = 0;
+         var _loc2_:Stage = console.stage;
+         var _loc3_:String = "";
+         if(!dolink)
+         {
+            _loc4_ = console.get_rollerCaptureKey() != null ? console.get_rollerCaptureKey().get_key() : "unassigned";
+            _loc3_ = "<menu> <a href=\"event:close\"><b>X</b></a></menu> Capture key: <menu><a href=\"event:capture\">" + _loc4_ + "</a></menu><br/>";
+         }
+         var _loc5_:Point = new Point(_loc2_.mouseX,_loc2_.mouseY);
+         if(_loc2_.areInaccessibleObjectsUnderPoint(_loc5_))
+         {
+            _loc3_ += "<p9>Inaccessible objects detected</p9><br/>";
+         }
+         var _loc6_:Array = _loc2_.getObjectsUnderPoint(_loc5_);
+         var _loc7_:IMap = new ObjectMap();
+         if(int(_loc6_.length) == 0)
+         {
+            _loc6_.push(_loc2_);
+         }
+         var _loc8_:int = 0;
+         while(_loc8_ < int(_loc6_.length))
+         {
+            _loc9_ = _loc6_[_loc8_];
+            _loc8_++;
+            _loc10_ = [_loc9_];
+            _loc11_ = _loc9_.parent;
+            while(_loc11_ != null)
+            {
+               _loc10_.unshift(_loc11_);
+               _loc11_ = _loc11_.parent;
+            }
+            _loc12_ = int(_loc10_.length);
+            _loc13_ = 0;
+            _loc14_ = _loc12_;
+            while(_loc13_ < _loc14_)
+            {
+               _loc15_ = _loc13_++;
+               _loc16_ = _loc10_[_loc15_];
+               if(_loc7_[_loc16_] == null)
+               {
+                  _loc7_[_loc16_] = _loc15_;
+                  _loc17_ = _loc15_;
+                  while(_loc17_ > 0)
+                  {
+                     _loc3_ += _loc17_ == 1 ? " ∟" : " -";
+                     _loc17_--;
+                  }
+                  if(_loc16_ is DisplayObject)
+                  {
+                     _loc4_ = _loc16_.name;
+                  }
+                  else if(Reflect.hasField(_loc16_,"name"))
+                  {
+                     _loc4_ = _loc16_.name;
+                  }
+                  else
+                  {
+                     _loc4_ = "instance";
+                  }
+                  if(dolink && console.get_config().useObjectLinking)
+                  {
+                     _loc18_ = console.get_refs().setLogRef(_loc16_);
+                     _loc4_ = "<a href=\'event:cl_" + ("" + _loc18_) + "\'>" + _loc4_ + "</a> " + console.get_refs().makeRefTyped(_loc16_);
+                  }
+                  else
+                  {
+                     _loc4_ = _loc4_ + " (" + LogReferences.ShortClassName(_loc16_) + ")";
+                  }
+                  if(_loc16_ == _loc2_)
+                  {
+                     _loc18_ = console.get_refs().setLogRef(_loc2_);
+                     if(_loc18_ != 0)
+                     {
+                        _loc3_ += "<p3><a href=\'event:cl_" + ("" + _loc18_) + "\'><i>Stage</i></a> ";
+                     }
+                     else
+                     {
+                        _loc3_ += "<p3><i>Stage</i> ";
+                     }
+                     _loc3_ += "[" + Std.string(int(Math.round(_loc2_.mouseX * 10000000)) / 10000000) + "," + Std.string(int(Math.round(_loc2_.mouseY * 10000000)) / 10000000) + "]</p3><br/>";
+                  }
+                  else if(_loc15_ == _loc12_ - 1)
+                  {
+                     _loc3_ += "<p5>" + _loc4_ + "</p5><br/>";
+                  }
+                  else
+                  {
+                     _loc3_ += "<p2><i>" + _loc4_ + "</i></p2><br/>";
+                  }
+               }
+            }
+         }
+         if(RollerPanel.customContentProvider != null)
+         {
+            _loc4_ = RollerPanel.customContentProvider(_loc2_.mouseX,_loc2_.mouseY,dolink);
+            if(_loc4_ != null && _loc4_ != "")
+            {
+               _loc3_ += _loc4_;
+            }
+         }
+         return _loc3_;
+      }
+      
+      override public function close() : void
+      {
+         cancelCaptureKeySet();
+         removeListeners();
+         super.close();
+         console.get_panels().updateMenu();
+      }
+      
+      public function cancelCaptureKeySet() : void
+      {
+         _settingKey = false;
+         if(stage != null)
+         {
+            stage.removeEventListener(KeyboardEvent.KEY_DOWN,keyDownHandler);
+         }
+      }
+      
+      public function _onFrame(e:Event) : void
+      {
+         if(console.stage == null)
+         {
+            close();
+            return;
+         }
+         if(_settingKey)
+         {
+            txtField.htmlText = "<high><menu>Press a key to set [ <a href=\"event:cancel\"><b>cancel</b></a> ]</menu></high>";
+         }
+         else
+         {
+            txtField.htmlText = "<low>" + getMapString(false) + "</low>";
+            txtField.autoSize = TextFieldAutoSize.LEFT;
+            txtField.setSelection(0,0);
+         }
+         set_width(txtField.width + 4);
+         set_height(txtField.height);
       }
    }
 }

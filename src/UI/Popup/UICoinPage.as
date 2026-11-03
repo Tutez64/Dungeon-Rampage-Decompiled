@@ -2,6 +2,7 @@ package UI.Popup
 {
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.Locale;
    import flash.display.MovieClip;
@@ -18,9 +19,10 @@ package UI.Popup
          {
             var _loc2_:Class = param1.getClass("popup_coming_soon_content");
             mContentMC = new _loc2_() as MovieClip;
-            mContentMC.message_label.text = Locale.getString("HOW_TO_COINS_CONTENT");
+            Locale.setText(mContentMC.message_label,"HOW_TO_COINS_CONTENT",null,1.55);
+            TextUtil.fitToField(mContentMC.message_label);
          });
-         super(dbFacade,Locale.getString("HOW_TO_COINS_TITLE"),mContentMC,true,true,destroyPopup,true,true,"COINS_HEADER_POPUP");
+         super(dbFacade,"COINS_HEADER_POPUP",Locale.getString("HOW_TO_COINS_TITLE"),mContentMC,true,true,destroyPopup,true);
       }
       
       private function destroyPopup() : void

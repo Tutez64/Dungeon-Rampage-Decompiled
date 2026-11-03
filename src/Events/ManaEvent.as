@@ -9,11 +9,11 @@ package Events
       
       public var maxMana:uint;
       
-      public function ManaEvent(type:String, id:uint, mana:uint, maxMana:uint, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function ManaEvent(inType:String, id:uint, mana:uint, maxMana:uint, bubbles:Boolean = false, cancelable:Boolean = false)
       {
          this.mana = mana;
          this.maxMana = maxMana;
-         super(type,id,bubbles,cancelable);
+         super(inType,id,bubbles,cancelable);
       }
    }
 }

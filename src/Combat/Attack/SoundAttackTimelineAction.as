@@ -4,6 +4,7 @@ package Combat.Attack
    import Actor.ActorView;
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.Sound.SoundAsset;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import GameMasterDictionary.GMAttack;
    import Sound.DBSoundComponent;
@@ -36,7 +37,7 @@ package Combat.Attack
          gmAttack = mDBFacade.gameMaster.attackById.itemFor(mAttackType);
          if(gmAttack && gmAttack.AttackSound)
          {
-            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),gmAttack.AttackSound,function(param1:SoundAsset):void
+            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),gmAttack.AttackSound,function(param1:SoundAsset):void
             {
                mSoundComponent.playSfxOneShot(param1,mActorView.worldCenter,0,gmAttack.AttackVolume);
             });

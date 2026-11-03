@@ -39,10 +39,6 @@ package Collision
       
       private var mCirclesToShow:Vector.<ShapeRecord> = new Vector.<ShapeRecord>();
       
-      private var mAstarGridRects:Vector.<AstarGridRectangleDraw> = new Vector.<AstarGridRectangleDraw>();
-      
-      private var mAstarGridCircs:Vector.<AstarGridCircleDraw> = new Vector.<AstarGridCircleDraw>();
-      
       public function DBBox2DVisualizer(dbFacade:DBFacade, box2dWorld:b2World, wantAllCollisions:Boolean = false, wantCombatCollisions:Boolean = false, wantNavigationCollisions:Boolean = false, wantAStarVisuals:Boolean = false)
       {
          super(box2dWorld,wantAllCollisions,wantCombatCollisions,wantNavigationCollisions,wantAStarVisuals);
@@ -54,8 +50,6 @@ package Collision
          mDebugDraw.SetDrawScale(50);
          mHeroCircleAttacks = new Vector.<CircleAttackRecord>();
          mHeroPolyAttacks = new Vector.<PolygonShapeRecord>();
-         mAstarGridCircs = new Vector.<AstarGridCircleDraw>();
-         mAstarGridRects = new Vector.<AstarGridRectangleDraw>();
          mRayCasts = new Vector.<RayCastDraw>();
       }
       
@@ -63,18 +57,14 @@ package Collision
       {
          var _loc5_:b2PolygonShape = null;
          var _loc4_:PolygonShapeRecord = null;
-         var _loc7_:* = 0;
-         var _loc8_:* = 0;
+         var _loc7_:uint = 0;
+         var _loc8_:uint = 0;
          var _loc9_:b2CircleShape = null;
          var _loc2_:Number = NaN;
          super.update(gameClock);
          if(mWantAllCollisions || mWantCombatCollisions)
          {
             drawCombatCollisions();
-         }
-         if(mWantAllCollisions || mWantAStarVisuals)
-         {
-            drawAStarVisuals();
          }
          var _loc3_:Vector.<PolygonShapeRecord> = new Vector.<PolygonShapeRecord>();
          var _loc6_:b2Color = new b2Color(0,0,1);
@@ -104,7 +94,7 @@ package Collision
       
       private function drawCombatCollisions() : void
       {
-         var _loc10_:* = 0;
+         var _loc10_:uint = 0;
          var _loc9_:CircleAttackRecord = null;
          var _loc14_:b2CircleShape = null;
          var _loc7_:b2Vec2 = null;
@@ -169,52 +159,6 @@ package Collision
          mRayCasts = _loc13_;
       }
       
-      private function drawAStarVisuals() : void
-      {
-         var _loc4_:* = 0;
-         var _loc6_:AstarGridCircleDraw = null;
-         var _loc7_:b2CircleShape = null;
-         var _loc3_:b2Vec2 = null;
-         var _loc8_:Number = NaN;
-         var _loc9_:b2Vec2 = null;
-         var _loc10_:AstarGridRectangleDraw = null;
-         var _loc5_:b2PolygonShape = null;
-         var _loc2_:Vector.<AstarGridCircleDraw> = new Vector.<AstarGridCircleDraw>();
-         _loc4_ = 0;
-         while(_loc4_ < mAstarGridCircs.length)
-         {
-            _loc6_ = mAstarGridCircs[_loc4_];
-            _loc7_ = _loc6_.mCircle;
-            _loc7_.GetLocalPosition();
-            _loc3_ = b2Math.MulX(_loc6_.mTransform,_loc7_.GetLocalPosition());
-            _loc8_ = _loc7_.GetRadius();
-            _loc9_ = _loc6_.mTransform.R.col1;
-            _loc6_.mlife--;
-            if(_loc6_.mlife > 0)
-            {
-               _loc2_.push(_loc6_);
-            }
-            mDebugDraw.DrawSolidCircle(_loc3_,_loc8_,_loc9_,_loc6_.mColor);
-            _loc4_++;
-         }
-         mAstarGridCircs = _loc2_;
-         var _loc1_:Vector.<AstarGridRectangleDraw> = new Vector.<AstarGridRectangleDraw>();
-         _loc4_ = 0;
-         while(_loc4_ < mAstarGridRects.length)
-         {
-            _loc10_ = mAstarGridRects[_loc4_];
-            _loc5_ = _loc10_.mRectangle;
-            _loc10_.mlife--;
-            if(_loc10_.mlife > 0)
-            {
-               _loc1_.push(_loc10_);
-            }
-            mDebugDraw.DrawSolidPolygon(_loc5_.GetVertices(),_loc5_.GetVertexCount(),_loc10_.mColor);
-            _loc4_++;
-         }
-         mAstarGridRects = _loc1_;
-      }
-      
       public function reportCircleAttack(transform:b2Transform, circle:b2CircleShape, lifetimeInFrames:uint = 24) : void
       {
          var _loc4_:CircleAttackRecord = new CircleAttackRecord();
@@ -232,32 +176,6 @@ package Collision
          _loc4_.mLife = lifetimeInFrames;
          _loc4_.buildVerticies();
          mHeroPolyAttacks.push(_loc4_);
-      }
-      
-      public function makeAGridCircle(transform:b2Transform, color:b2Color, lifetimeInFrames:uint = 24) : void
-      {
-         var _loc4_:AstarGridCircleDraw = new AstarGridCircleDraw();
-         _loc4_.mCircle = new b2CircleShape(0.6);
-         _loc4_.mTransform = transform;
-         _loc4_.mColor = color;
-         _loc4_.mlife = lifetimeInFrames;
-         mAstarGridCircs.push(_loc4_);
-      }
-      
-      public function makeAGridRectangle(transform:b2Transform, color:b2Color, lifetimeInFrames:uint = 24) : void
-      {
-         var _loc5_:AstarGridRectangleDraw = new AstarGridRectangleDraw();
-         _loc5_.mRectangle = new b2PolygonShape();
-         var _loc4_:Array = [];
-         _loc4_[0] = new b2Vec2(transform.position.x + 0.5,transform.position.y + 0.5);
-         _loc4_[1] = new b2Vec2(transform.position.x + 0.5,transform.position.y - 0.5);
-         _loc4_[2] = new b2Vec2(transform.position.x - 0.5,transform.position.y - 0.5);
-         _loc4_[3] = new b2Vec2(transform.position.x - 0.5,transform.position.y + 0.5);
-         _loc5_.mRectangle.SetAsArray(_loc4_,_loc4_.length);
-         _loc5_.mTransform = transform;
-         _loc5_.mColor = color;
-         _loc5_.mlife = lifetimeInFrames;
-         mAstarGridRects.push(_loc5_);
       }
       
       public function reportShape(shape:b2Shape, transform:b2Transform, lifeTimeInFrames:uint = 24) : void
@@ -307,8 +225,6 @@ package Collision
          mRayCasts = null;
          mPolysToShow = null;
          mCirclesToShow = null;
-         mAstarGridRects = null;
-         mAstarGridCircs = null;
       }
    }
 }
@@ -318,7 +234,6 @@ import Box2D.Collision.Shapes.b2PolygonShape;
 import Box2D.Collision.Shapes.b2Shape;
 import Box2D.Common.Math.b2Transform;
 import Box2D.Common.Math.b2Vec2;
-import Box2D.Common.b2Color;
 
 class CircleAttackRecord
 {
@@ -330,42 +245,6 @@ class CircleAttackRecord
    public var mlife:uint;
    
    public function CircleAttackRecord()
-   {
-      super();
-   }
-}
-
-class AstarGridCircleDraw
-{
-   
-   public static const GRID_RADIUS:Number = 0.6;
-   
-   public var mTransform:b2Transform;
-   
-   public var mCircle:b2CircleShape;
-   
-   public var mColor:b2Color;
-   
-   public var mlife:uint;
-   
-   public function AstarGridCircleDraw()
-   {
-      super();
-   }
-}
-
-class AstarGridRectangleDraw
-{
-   
-   public var mTransform:b2Transform;
-   
-   public var mRectangle:b2PolygonShape;
-   
-   public var mColor:b2Color;
-   
-   public var mlife:uint;
-   
-   public function AstarGridRectangleDraw()
    {
       super();
    }
@@ -391,7 +270,7 @@ class PolygonShapeRecord
    
    public function buildVerticies() : void
    {
-      var _loc3_:* = 0;
+      var _loc3_:uint = 0;
       var _loc2_:b2Vec2 = null;
       var _loc1_:b2PolygonShape = mShape as b2PolygonShape;
       mVerticies = [];

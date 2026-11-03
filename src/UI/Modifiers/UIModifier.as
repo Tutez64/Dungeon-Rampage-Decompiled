@@ -2,6 +2,7 @@ package UI.Modifiers
 {
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
+   import Brain.Event.EventListeners;
    import Brain.Logger.Logger;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
@@ -120,8 +121,8 @@ package UI.Modifiers
             }
             mToolTip = new UIModifierTooltip(mDBFacade,mRoot,param1,mGMLegendaryModifier != null ? GameMasterLocale.getGameMasterSubString("LEGENDARY_MODIFIER_NAME",mGMLegendaryModifier.Constant) : GameMasterLocale.getGameMasterSubString("MODIFIER_NAME",mGMModifier.Constant),mGMLegendaryModifier != null ? GameMasterLocale.getGameMasterSubString("LEGENDARY_MODIFIER_DESCRIPTION",mGMLegendaryModifier.Constant) : GameMasterLocale.getGameMasterSubString("MODIFIER_DESCRIPTION",mGMModifier.Constant));
             mToolTip.hide();
-            mRoot.addEventListener("rollOver",onMouseOver);
-            mRoot.addEventListener("rollOut",onMouseOut);
+            EventListeners.add(mRoot,"rollOver",onMouseOver);
+            EventListeners.add(mRoot,"rollOut",onMouseOut);
          });
       }
       
@@ -143,8 +144,8 @@ package UI.Modifiers
          }
          if(mRoot)
          {
-            mRoot.removeEventListener("rollOver",onMouseOver);
-            mRoot.removeEventListener("rollOut",onMouseOut);
+            EventListeners.remove(mRoot,"rollOver",onMouseOver);
+            EventListeners.remove(mRoot,"rollOut",onMouseOut);
             mParentMC.removeChild(mRoot);
          }
          mRoot = null;

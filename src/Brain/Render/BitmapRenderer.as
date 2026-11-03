@@ -1,6 +1,7 @@
 package Brain.Render
 {
    import Brain.Clock.GameClock;
+   import Brain.Event.EventListeners;
    import Brain.Utils.MemoryTracker;
    import Brain.WorkLoop.Task;
    import Brain.WorkLoop.WorkComponent;
@@ -29,15 +30,15 @@ package Brain.Render
          mBitmap.smoothing = mSmoothing;
          mBitmap.pixelSnapping = "auto";
          mWorkComponent = workComponent;
-         mBitmap.addEventListener("addedToStage",onAdd);
-         mBitmap.addEventListener("removedFromStage",onRemove);
+         EventListeners.add(mBitmap,"addedToStage",onAdd);
+         EventListeners.add(mBitmap,"removedFromStage",onRemove);
          MemoryTracker.track(this,"BitmapRenderer - created in BitmapRenderer()","brain");
       }
       
       public function destroy() : void
       {
-         mBitmap.removeEventListener("addedToStage",onAdd);
-         mBitmap.removeEventListener("removedFromStage",onRemove);
+         EventListeners.remove(mBitmap,"addedToStage",onAdd);
+         EventListeners.remove(mBitmap,"removedFromStage",onRemove);
          onRemove();
          mWorkComponent.destroy();
          mWorkComponent = null;
@@ -60,6 +61,11 @@ package Brain.Render
             mOnFrameTask.destroy();
             mOnFrameTask = null;
          }
+      }
+      
+      public function get backendType() : String
+      {
+         return "flash";
       }
       
       public function set center(value:Point) : void

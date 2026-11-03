@@ -10,9 +10,9 @@ package GeneratedCode
       
       private var the_instance:PresenceManager;
       
-      public const FLID_friendState:uint = 188;
+      public const FLID_friendState:uint = 196;
       
-      public const FLID_addFriends:uint = 189;
+      public const FLID_addFriends:uint = 197;
       
       public function PresenceManagerNetworkComponent(Inst:PresenceManager, gs:GeneratedDcSocket, id:uint)
       {
@@ -32,7 +32,7 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 188)
+         switch(int(fieldid) - 196)
          {
             case 0:
                recv_friendState(packet);
@@ -64,10 +64,10 @@ package GeneratedCode
       {
          var whofunc:Function;
          var outpacket:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(outpacket,189);
+         Prepare_FieldUpdate(outpacket,197);
          whofunc = function():void
          {
-            var _loc2_:* = 0;
+            var _loc2_:uint = 0;
             var _loc3_:uint = who.length;
             var _loc1_:DcNetworkPacket = outpacket;
             outpacket = new DcNetworkPacket();

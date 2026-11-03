@@ -5,9 +5,9 @@ package Brain.WorkLoop
    public class LogicalWorkComponent extends WorkComponent
    {
       
-      public function LogicalWorkComponent(facade:Facade, ownerName:String = null)
+      public function LogicalWorkComponent(facade:Facade, ownerName:String = null, category:String = "brain")
       {
-         super(facade,facade.logicalWorkManager,ownerName);
+         super(facade,facade.logicalWorkManager,ownerName,category);
       }
    }
 }

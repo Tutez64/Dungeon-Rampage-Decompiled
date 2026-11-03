@@ -5,7 +5,9 @@ package StateMachine.MainStateMachine
    import Brain.Logger.Logger;
    import Brain.SceneGraph.SceneGraphComponent;
    import Brain.StateMachine.State;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
+   import Facade.LoadingPrewarm;
    import Facade.TrickleCacheLoader;
    import Town.TownStateMachine;
    import UI.Leaderboard.UILeaderboard;
@@ -70,7 +72,10 @@ package StateMachine.MainStateMachine
       {
          Logger.debug("MAIN STATE MACHINE TRANSITION -- ENTERING TOWN STATE");
          super.enterState();
+         LoadingPrewarm.cancelAll();
          mDBFacade.dbAccountInfo.setPresenceTask("TOWN");
+         mDBFacade.steamAchievementsHelper.unlockOwnedHeroes(mDBFacade.dbAccountInfo.inventoryInfo.avatars);
+         mDBFacade.steamAchievementsHelper.updateHeroProgressStats(mDBFacade.dbAccountInfo.inventoryInfo.avatars);
          mTownStateMachine = new TownStateMachine(mDBFacade);
          mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          mSceneGraphComponent = new SceneGraphComponent(mDBFacade,"TownState");
@@ -138,7 +143,7 @@ package StateMachine.MainStateMachine
       {
          TrickleCacheLoader.swfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/FX/db_fx_library.swf"),mDBFacade);
          TrickleCacheLoader.swfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/Doobers/db_items_doobers.swf"),mDBFacade);
-         TrickleCacheLoader.swfAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),mDBFacade);
+         TrickleCacheLoader.swfAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),mDBFacade);
          TrickleCacheLoader.swfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_nametag.swf"),mDBFacade);
          TrickleCacheLoader.swfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_loading_screen.swf"),mDBFacade);
       }

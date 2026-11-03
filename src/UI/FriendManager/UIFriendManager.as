@@ -7,22 +7,25 @@ package UI.FriendManager
    import Brain.Render.MovieClipRenderController;
    import Brain.SceneGraph.SceneGraphComponent;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
    import Brain.UI.UIRadioButton;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.Locale;
    import Town.TownHeader;
    import Town.TownStateMachine;
    import UI.FriendManager.States.UIBlocked;
+   import UI.FriendManager.States.UIFMState;
    import UI.FriendManager.States.UIFriends;
    import UI.FriendManager.States.UIInvite;
    import UI.FriendManager.States.UIPending;
    import UI.UINewsFeed.UINewsFeedController;
    import flash.display.MovieClip;
    import flash.filters.ColorMatrixFilter;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class UIFriendManager
    {
@@ -38,6 +41,8 @@ package UI.FriendManager
       public static const STATE_INVITE:uint = 4;
       
       public static var FRIENDSHIP_MADE:String = "FRIENDSHIP_MADE";
+      
+      private static const TAB_NAVIGATION_ORDER:Vector.<uint> = new <uint>[1,4,2,3];
       
       private var mDBFacade:DBFacade;
       
@@ -103,7 +108,7 @@ package UI.FriendManager
          if(e.errorID == -290)
          {
             Logger.warn(_loc4_ + " failed with too many friends: " + e.message);
-            dbFacade.errorPopup(Locale.getString("DRINVITE_FAILED_TOO_MANY_FRIENDS_POPUP_TITLE"),Locale.getString("DRINVITE_FAILED_TOO_MANY_FRIENDS_POPUP_DESC") + e.message);
+            dbFacade.errorPopup(Locale.getString("DRINVITE_FAILED_TOO_MANY_FRIENDS_POPUP_TITLE"),Locale.getString("DRINVITE_FAILED_TOO_MANY_FRIENDS_POPUP_DESC") + e.message,"TOO_MANY_FRIENDS_POPUP");
          }
          else
          {
@@ -128,7 +133,7 @@ package UI.FriendManager
          {
             tabButton = iter.next();
             tabInt = iter.key;
-            tabButton.label.text = Locale.getString("FRIEND_MANAGEMENT_TAB_" + tabInt.toString());
+            Locale.setText(tabButton.label,"FRIEND_MANAGEMENT_TAB_" + tabInt.toString());
             tabButton.root.category = tabInt;
             tabButton.root.new_label.visible = false;
             tabButton.releaseCallbackThis = function(param1:UIButton):void
@@ -189,7 +194,9 @@ package UI.FriendManager
       
       public function changeTab(radioButton:UIRadioButton) : void
       {
-         var wrappedCallBack:Function = function():void
+         var wrappedCallBack:Function;
+         radioButton.selected = true;
+         wrappedCallBack = function():void
          {
             changeState(radioButton.root.category);
          };
@@ -208,16 +215,114 @@ package UI.FriendManager
          }
          currentState = newState;
          states.itemFor(currentState).enter();
+         linkTabsToCurrentState();
+      }
+      
+      public function showPreviousTab() : void
+      {
+         showAdjacentTab(-1);
+      }
+      
+      public function showNextTab() : void
+      {
+         showAdjacentTab(1);
+      }
+      
+      private function showAdjacentTab(direction:int) : void
+      {
+         var _loc5_:int = TAB_NAVIGATION_ORDER.indexOf(currentState);
+         if(_loc5_ < 0)
+         {
+            return;
+         }
+         var _loc4_:int = (_loc5_ + direction + TAB_NAVIGATION_ORDER.length) % TAB_NAVIGATION_ORDER.length;
+         var _loc3_:UIRadioButton = mTabButtons.itemFor(TAB_NAVIGATION_ORDER[_loc4_]);
+         changeTab(_loc3_);
+         var _loc2_:UIObject = (states.itemFor(currentState) as UIFMState).getFirstNavigationUIObject();
+         if(_loc2_ != null && _loc2_.canBeFocused())
+         {
+            mDBFacade.menuNavigationController.setFocusedUiObject(_loc2_);
+         }
+         else if(_loc3_.canBeFocused())
+         {
+            mDBFacade.menuNavigationController.setFocusedUiObject(_loc3_);
+         }
+      }
+      
+      public function setupMenuNavigation() : void
+      {
+         var _loc3_:UIRadioButton = mTabButtons.itemFor(1);
+         var _loc4_:UIRadioButton = mTabButtons.itemFor(4);
+         var _loc1_:UIRadioButton = mTabButtons.itemFor(2);
+         var _loc2_:UIRadioButton = mTabButtons.itemFor(3);
+         _loc3_.isToTheLeftOf(_loc4_);
+         _loc4_.isToTheLeftOf(_loc1_);
+         _loc1_.isToTheLeftOf(_loc2_);
+         mTownHeader.addCoinButton.isAbove(_loc3_);
+         _loc4_.upNavigation = mTownHeader.addCoinButton;
+         mTownHeader.addGemButton.isAbove(_loc1_);
+         mTownHeader.closeButton.isAbove(_loc2_);
+         linkTabsToCurrentState();
+      }
+      
+      public function resetMenuNavigation() : void
+      {
+         var _loc2_:UIRadioButton = null;
+         var _loc1_:IMapIterator = mTabButtons.iterator() as IMapIterator;
+         while(_loc1_.hasNext())
+         {
+            _loc2_ = _loc1_.next();
+            _loc2_.clearNavigationAndInteractions();
+            _loc2_.setFocused(false);
+         }
+      }
+      
+      public function get currentTabButton() : UIRadioButton
+      {
+         if(currentState < 0)
+         {
+            return null;
+         }
+         return mTabButtons.itemFor(currentState);
+      }
+      
+      public function linkTabsToCurrentState() : void
+      {
+         var _loc2_:UIRadioButton = null;
+         var _loc3_:IMapIterator = mTabButtons.iterator() as IMapIterator;
+         while(_loc3_.hasNext())
+         {
+            _loc2_ = _loc3_.next();
+            _loc2_.clearDownNavigation();
+         }
+         if(currentState < 0)
+         {
+            return;
+         }
+         var _loc1_:UIObject = (states.itemFor(currentState) as UIFMState).getFirstNavigationUIObject();
+         if(_loc1_ == null)
+         {
+            return;
+         }
+         _loc3_ = mTabButtons.iterator() as IMapIterator;
+         while(_loc3_.hasNext())
+         {
+            _loc2_ = _loc3_.next();
+            _loc2_.downNavigation = _loc1_;
+         }
+         _loc1_.clearUpNavigation();
+         _loc1_.upNavigation = mTabButtons.itemFor(currentState);
       }
       
       public function updateHeading(str:String) : void
       {
-         mRoot.avatar_heading_text.text = str;
+         TextUtil.setText(mRoot.avatar_heading_text,str);
       }
       
       public function updateDescription(str:String, selectable:Boolean = false) : void
       {
-         mRoot.avatar_description_text.text = str;
+         TextUtil.setText(mRoot.avatar_description_text,str,2.73);
+         TextUtil.fitToField(mRoot.avatar_description_text);
          mRoot.avatar_description_text.selectable = selectable;
       }
       
@@ -270,6 +375,7 @@ package UI.FriendManager
       public function destroy() : void
       {
          var _loc2_:UIRadioButton = null;
+         var _loc3_:UIFMState = null;
          var _loc1_:IMapIterator = mTabButtons.iterator() as IMapIterator;
          while(_loc1_.hasNext())
          {
@@ -284,11 +390,25 @@ package UI.FriendManager
             mAlertRenderer = null;
          }
          cleanUp();
+         var _loc4_:IMapIterator = states.iterator() as IMapIterator;
+         while(_loc4_.hasNext())
+         {
+            _loc3_ = _loc4_.next() as UIFMState;
+            if(_loc3_)
+            {
+               _loc3_.destroy();
+            }
+         }
+         states.clear();
          states = null;
          mDBFacade = null;
          mSwfAsset = null;
          mTownHeader = null;
-         mNewsFeedController.stopFeedTask();
+         if(mNewsFeedController)
+         {
+            mNewsFeedController.destroy();
+            mNewsFeedController = null;
+         }
          mSceneGraphComponent.destroy();
          mAssetLoadingComponent.destroy();
          mLogicalWorkComponent.destroy();

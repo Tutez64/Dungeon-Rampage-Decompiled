@@ -10,31 +10,31 @@ package GeneratedCode
       
       private var the_instance:DistributedDungeonFloor;
       
-      public const FLID_mapNodeId:uint = 192;
+      public const FLID_mapNodeId:uint = 200;
       
-      public const FLID_coliseumTierConstant:uint = 193;
+      public const FLID_coliseumTierConstant:uint = 201;
       
-      public const FLID_tileLibrary:uint = 194;
+      public const FLID_tileLibrary:uint = 202;
       
-      public const FLID_tiles:uint = 195;
+      public const FLID_tiles:uint = 203;
       
-      public const FLID_baseLining:uint = 196;
+      public const FLID_baseLining:uint = 204;
       
-      public const FLID_introMovieSwfFilePath:uint = 197;
+      public const FLID_introMovieSwfFilePath:uint = 205;
       
-      public const FLID_introMovieAssetClassName:uint = 198;
+      public const FLID_introMovieAssetClassName:uint = 206;
       
-      public const FLID_currentFloorNum:uint = 199;
+      public const FLID_currentFloorNum:uint = 207;
       
-      public const FLID_activeDungeonModifiers:uint = 200;
+      public const FLID_activeDungeonModifiers:uint = 208;
       
-      public const FLID_show_text:uint = 201;
+      public const FLID_show_text:uint = 209;
       
-      public const FLID_play_sound:uint = 202;
+      public const FLID_play_sound:uint = 210;
       
-      public const FLID_trigger_camera_zoom:uint = 203;
+      public const FLID_trigger_camera_zoom:uint = 211;
       
-      public const FLID_trigger_camera_shake:uint = 204;
+      public const FLID_trigger_camera_shake:uint = 212;
       
       public function DistributedDungeonFloorNetworkComponent(Inst:DistributedDungeonFloor, gs:GeneratedDcSocket, id:uint)
       {
@@ -54,7 +54,7 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 192)
+         switch(int(fieldid) - 200)
          {
             case 0:
                recv_mapNodeId(packet);

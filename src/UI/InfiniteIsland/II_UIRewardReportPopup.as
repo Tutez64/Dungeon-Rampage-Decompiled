@@ -1,7 +1,10 @@
 package UI.InfiniteIsland
 {
    import Brain.AssetRepository.SwfAsset;
+   import Brain.Event.EventListeners;
    import Brain.Render.MovieClipRenderController;
+   import Brain.Utils.TextUtil;
+   import Brain.Utils.Timers;
    import Facade.DBFacade;
    import Facade.Locale;
    import GameMasterDictionary.GMChest;
@@ -82,7 +85,12 @@ package UI.InfiniteIsland
                break;
             }
          }
-         super(dbFacade,titleText,content,allowClose,wantCurtain,closeCallback,useOriginalPopUp);
+         super(dbFacade,"INFINITE_REWARD_REPORT_POPUP",titleText,content,allowClose,wantCurtain,closeCallback,useOriginalPopUp);
+      }
+      
+      override protected function setupUI(swfAsset:SwfAsset, titleText:String, content:*, allowClose:Boolean, closeCallback:Function) : void
+      {
+         super.setupUI(swfAsset,titleText,content,allowClose,closeCallback);
          mRewardSlots = new Vector.<MovieClip>();
          mRewardSlots.push(mPopup.loot_01);
          mRewardSlots.push(mPopup.loot_02);
@@ -105,7 +113,7 @@ package UI.InfiniteIsland
       
       private function init() : void
       {
-         var _loc5_:* = null;
+         var _loc5_:InfiniteRewardData = null;
          var _loc1_:Boolean = false;
          var _loc11_:GMDoober = null;
          var _loc7_:GMChest = null;
@@ -186,17 +194,17 @@ package UI.InfiniteIsland
             {
                mPopup.coin.visible = false;
                mPopup.label_coin_count.visible = false;
-               mPopup.label_next_bonus_chest.text = Locale.getString("INFINITE_TILL_REWARD") + mNextChestFloor.toString();
+               TextUtil.setText(mPopup.label_next_bonus_chest,Locale.getString("INFINITE_TILL_REWARD") + mNextChestFloor.toString());
             }
             mPopup.loot_00_center.visible = false;
             mPopup.loot_00.loot.visible = false;
-            mPopup.label_coin_count_total.text = "x" + mTotalGold.toString();
-            mPopup.label_coin_count.text = "x" + mFloorGold.toString();
-            mPopup.label_coin_count_center.text = "x" + mFloorGold.toString();
+            TextUtil.setText(mPopup.label_coin_count_total,"x" + mTotalGold.toString());
+            TextUtil.setText(mPopup.label_coin_count,"x" + mFloorGold.toString());
+            TextUtil.setText(mPopup.label_coin_count_center,"x" + mFloorGold.toString());
          }
          else
          {
-            mPopup.label.text = Locale.getString("INFINITE_BEAT");
+            Locale.setText(mPopup.label,"INFINITE_BEAT");
             mPopup.label_loot_01.text = "";
             mPopup.label_loot_02.text = "";
             mPopup.label_loot_03.text = "";
@@ -211,20 +219,23 @@ package UI.InfiniteIsland
             {
                if(_loc5_.status == 1 && _loc5_.floorNumber == mCurrentFloorNum)
                {
-                  mRewardSlotLabels[_loc4_].text = Locale.getString("INFINITE_ALREADY_REWARD");
+                  Locale.setText(mRewardSlotLabels[_loc4_],"INFINITE_ALREADY_REWARD");
                }
                _loc4_++;
             }
             mPopup.label_next_bonus_coins.text = "";
             if(mNextChestFloor != 0)
             {
-               mPopup.label_next_bonus_chest.text = Locale.getString("INFINITE_TILL_REWARD") + mNextChestFloor.toString();
+               TextUtil.setText(mPopup.label_next_bonus_chest,Locale.getString("INFINITE_TILL_REWARD") + mNextChestFloor.toString());
             }
             _loc12_ = mAvStartScore + 1;
-            mPopup.label_next_bonus_coins.text = Locale.getString("INFINITE_TILL_GOLD") + _loc12_.toString();
-            mPopup.label_coin_count.text = "x" + mFloorGold.toString();
+            TextUtil.setText(mPopup.label_next_bonus_coins,Locale.getString("INFINITE_TILL_GOLD") + _loc12_.toString());
+            TextUtil.setText(mPopup.label_coin_count,"x" + mFloorGold.toString());
          }
-         startCountdown();
+         if(mTimeRemaining > 0)
+         {
+            startCountdown();
+         }
       }
       
       private function startCountdown() : void
@@ -234,9 +245,9 @@ package UI.InfiniteIsland
             endCountdown();
          }
          mTimeRemaining -= 1;
-         mPopup.countdown_bounce.countdown.countdown_text.text = "" + int(mTimeRemaining);
-         mCountDownTimer = new Timer(1000);
-         mCountDownTimer.addEventListener("timer",tickCountdown);
+         TextUtil.setText(mPopup.countdown_bounce.countdown.countdown_text,"" + int(mTimeRemaining));
+         mCountDownTimer = Timers.create(1000,0,"II_UIRewardReportPopup.mCountDownTimer");
+         EventListeners.add(mCountDownTimer,"timer",tickCountdown);
          mCountDownTimer.start();
       }
       
@@ -244,14 +255,14 @@ package UI.InfiniteIsland
       {
          if(mCountDownTimer != null)
          {
-            mCountDownTimer.removeEventListener("timer",tickCountdown);
+            EventListeners.remove(mCountDownTimer,"timer",tickCountdown);
             mCountDownTimer.stop();
          }
       }
       
       private function tickCountdown(event:TimerEvent) : void
       {
-         mPopup.countdown_bounce.countdown.countdown_text.text = "" + int(mTimeRemaining);
+         TextUtil.setText(mPopup.countdown_bounce.countdown.countdown_text,"" + int(mTimeRemaining));
          if(mTimeRemaining <= 0)
          {
             endCountdown();
@@ -275,6 +286,11 @@ package UI.InfiniteIsland
       override protected function getSwfPath() : String
       {
          return "Resources/Art2D/UI/db_UI_screens.swf";
+      }
+      
+      override protected function waitsOnPlayer() : Boolean
+      {
+         return false;
       }
       
       override protected function getClassName() : String

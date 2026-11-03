@@ -1,17 +1,19 @@
 package Brain.AssetRepository
 {
    import Brain.Clock.GameClock;
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
+   import Collections.Set;
    import flash.display.Loader;
    import flash.display.LoaderInfo;
    import flash.events.Event;
    import flash.events.EventDispatcher;
    import flash.events.SecurityErrorEvent;
+   import flash.filesystem.File;
    import flash.net.URLLoader;
    import flash.net.URLRequest;
    import flash.system.LoaderContext;
-   import org.as3commons.collections.Set;
    
    public class AssetLoader
    {
@@ -56,6 +58,11 @@ package Brain.AssetRepository
          mUseLoader = useLoader;
          mURLDataFormat = urlDataFormat;
          loadAsset(facade,mAssetLoaderInfo.getRawAssetPath(),mAssetLoaderInfo.useCache);
+      }
+      
+      public static function resolveFile(relative:String) : File
+      {
+         return TestResourceLocator.file(relative) || File.applicationDirectory.resolvePath(relative);
       }
       
       public static function startTrackingLoads(trackedLoadsCallback:Function) : void
@@ -172,12 +179,15 @@ package Brain.AssetRepository
             }
             Logger.info("Loader.load: " + _loc4_.url + " useCache: " + useCache.toString());
             mEventForLoader = mLoader.contentLoaderInfo;
-            mEventForLoader.addEventListener("complete",loadComplete);
-            mEventForLoader.addEventListener("ioError",handleIOError);
-            mEventForLoader.addEventListener("securityError",handleSecurityError);
+            EventListeners.add(mEventForLoader,"complete",loadComplete);
+            EventListeners.add(mEventForLoader,"ioError",handleIOError);
+            EventListeners.add(mEventForLoader,"securityError",handleSecurityError);
             _loc5_ = new LoaderContext(true);
             _loc5_.checkPolicyFile = true;
-            mLoader.load(_loc4_,_loc5_);
+            if(!TestResourceLocator.loadBytes(mLoader,assetPath,_loc5_))
+            {
+               mLoader.load(_loc4_,_loc5_);
+            }
             if(mCollectingTrackLoads)
             {
                mloadersets.push(mLoader);
@@ -187,9 +197,9 @@ package Brain.AssetRepository
          {
             mUrlLoader = new URLLoader();
             mEventForLoader = mUrlLoader;
-            mEventForLoader.addEventListener("complete",urlLoadComplete);
-            mEventForLoader.addEventListener("ioError",handleIOErrorUrl);
-            mEventForLoader.addEventListener("securityError",handleSecurityError);
+            EventListeners.add(mEventForLoader,"complete",urlLoadComplete);
+            EventListeners.add(mEventForLoader,"ioError",handleIOErrorUrl);
+            EventListeners.add(mEventForLoader,"securityError",handleSecurityError);
             mUrlLoader.dataFormat = mURLDataFormat;
             if(mCollectingTrackLoads)
             {
@@ -210,9 +220,9 @@ package Brain.AssetRepository
          var _loc2_:Asset = null;
          Logger.info("Loader.loadComplete: " + event.target.url);
          var _loc3_:Loader = LoaderInfo(event.target).loader;
-         _loc3_.contentLoaderInfo.removeEventListener("complete",loadComplete);
-         _loc3_.contentLoaderInfo.removeEventListener("ioError",handleIOError);
-         _loc3_.contentLoaderInfo.removeEventListener("securityError",handleSecurityError);
+         EventListeners.remove(_loc3_.contentLoaderInfo,"complete",loadComplete);
+         EventListeners.remove(_loc3_.contentLoaderInfo,"ioError",handleIOError);
+         EventListeners.remove(_loc3_.contentLoaderInfo,"securityError",handleSecurityError);
          mLoader = null;
          var _loc4_:AssetLoaderInfo = mAssetLoaderInfo;
          try
@@ -237,9 +247,9 @@ package Brain.AssetRepository
          var _loc2_:Asset = null;
          var _loc3_:URLLoader = URLLoader(event.target);
          Logger.info("Loader.urlLoadComplete: " + mAssetLoaderInfo.getRawAssetPath() + " dataFormat: " + _loc3_.dataFormat);
-         _loc3_.removeEventListener("complete",urlLoadComplete);
-         _loc3_.removeEventListener("ioError",handleIOError);
-         _loc3_.removeEventListener("securityError",handleSecurityError);
+         EventListeners.remove(_loc3_,"complete",urlLoadComplete);
+         EventListeners.remove(_loc3_,"ioError",handleIOError);
+         EventListeners.remove(_loc3_,"securityError",handleSecurityError);
          mUrlLoader = null;
          var _loc4_:AssetLoaderInfo = mAssetLoaderInfo;
          try
@@ -263,9 +273,9 @@ package Brain.AssetRepository
       {
          var AssetString:String;
          var loader:Loader = LoaderInfo(event.target).loader;
-         loader.contentLoaderInfo.removeEventListener("complete",loadComplete);
-         loader.contentLoaderInfo.removeEventListener("ioError",handleIOError);
-         loader.contentLoaderInfo.removeEventListener("securityError",handleSecurityError);
+         EventListeners.remove(loader.contentLoaderInfo,"complete",loadComplete);
+         EventListeners.remove(loader.contentLoaderInfo,"ioError",handleIOError);
+         EventListeners.remove(loader.contentLoaderInfo,"securityError",handleSecurityError);
          mLoader = null;
          updateTrackingLoad(mAssetLoaderInfo.getRawAssetPath());
          AssetString = mAssetLoaderInfo.getRawAssetPath();
@@ -282,9 +292,9 @@ package Brain.AssetRepository
       private function handleIOErrorUrl(event:Event) : void
       {
          var loader:URLLoader = URLLoader(event.target);
-         loader.removeEventListener("complete",loadComplete);
-         loader.removeEventListener("ioError",handleIOErrorUrl);
-         loader.removeEventListener("securityError",handleSecurityError);
+         EventListeners.remove(loader,"complete",loadComplete);
+         EventListeners.remove(loader,"ioError",handleIOErrorUrl);
+         EventListeners.remove(loader,"securityError",handleSecurityError);
          mUrlLoader = null;
          updateTrackingLoad(mAssetLoaderInfo.getRawAssetPath());
          if(mFacade.gameClock.frame > 1)
@@ -328,19 +338,31 @@ package Brain.AssetRepository
       {
          if(mEventForLoader != null)
          {
-            mEventForLoader.removeEventListener("complete",urlLoadComplete);
-            mEventForLoader.removeEventListener("ioError",handleIOErrorUrl);
-            mEventForLoader.removeEventListener("securityError",handleSecurityError);
-            mEventForLoader.removeEventListener("complete",loadComplete);
+            EventListeners.remove(mEventForLoader,"complete",urlLoadComplete);
+            EventListeners.remove(mEventForLoader,"ioError",handleIOErrorUrl);
+            EventListeners.remove(mEventForLoader,"securityError",handleSecurityError);
+            EventListeners.remove(mEventForLoader,"complete",loadComplete);
          }
          if(mUrlLoader != null)
          {
-            mUrlLoader.close();
+            try
+            {
+               mUrlLoader.close();
+            }
+            catch(urlCloseError:Error)
+            {
+            }
             mUrlLoader = null;
          }
          if(mLoader != null)
          {
-            mLoader.close();
+            try
+            {
+               mLoader.close();
+            }
+            catch(loaderCloseError:Error)
+            {
+            }
             mLoader = null;
          }
          mAssetLoaderInfo = null;

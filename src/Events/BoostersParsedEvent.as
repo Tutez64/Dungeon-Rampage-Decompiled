@@ -7,9 +7,9 @@ package Events
       
       public static const BOOSTERS_PARSED_UPDATE:String = "BoostersParsedEvent_BOOSTERS_PARSED_UPDATE";
       
-      public function BoostersParsedEvent(type:String, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function BoostersParsedEvent(boostersParsedEventType:String, bubbles:Boolean = false, cancelable:Boolean = false)
       {
-         super(type,bubbles,cancelable);
+         super(boostersParsedEventType,bubbles,cancelable);
       }
    }
 }

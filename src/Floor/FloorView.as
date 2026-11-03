@@ -16,10 +16,10 @@ package Floor
       
       protected var mDBFacade:DBFacade;
       
-      public function FloorView(facade:DBFacade, floorObject:FloorObject)
+      public function FloorView(facade:DBFacade, floorObject:FloorObject, category:String = "brain")
       {
          mDBFacade = facade;
-         super(facade);
+         super(facade,category);
          mParentFloorObject = floorObject;
       }
       

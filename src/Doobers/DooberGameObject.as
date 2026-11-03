@@ -12,6 +12,7 @@ package Doobers
    import GameMasterDictionary.GMDoober;
    import GeneratedCode.DistributedDooberGameObjectNetworkComponent;
    import GeneratedCode.IDistributedDooberGameObject;
+   import SteamInput.RumbleEffect;
    import flash.geom.Vector3D;
    
    public class DooberGameObject extends FloorObject implements IDistributedDooberGameObject
@@ -97,6 +98,10 @@ package Doobers
          var _loc3_:int = 0;
          hasOwnership = true;
          mDooberView.collectedEffect(isHeroOwner,heroId,animationComplete);
+         if(isHeroOwner)
+         {
+            mDBFacade.steamInputManager.playRumble(RumbleEffect.PICKING_UP_ITEM);
+         }
          if(this.distributedDungeonFloor != null && mDooberData != null)
          {
             if(mDooberData.Exp > 0)

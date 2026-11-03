@@ -2,7 +2,7 @@ package Brain.GameObject
 {
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
-   import org.as3commons.collections.Map;
+   import Collections.Map;
    
    public class GameObjectManager
    {

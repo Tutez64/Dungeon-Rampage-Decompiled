@@ -222,8 +222,6 @@ package Account
       {
          var _loc9_:int = 0;
          var _loc4_:int = 0;
-         _loc9_ = 0;
-         _loc4_ = 0;
          var _loc3_:String = "";
          var _loc5_:int = str1.length;
          var _loc6_:int = str2.length;

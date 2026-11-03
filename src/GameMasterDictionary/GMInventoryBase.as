@@ -1,67 +1,72 @@
 package GameMasterDictionary
 {
+   import flash.Boot;
+   
    public class GMInventoryBase extends GMItem
    {
       
-      public static const WEAPON_CATEGORY:String = "WEAPON";
+      public static var WEAPON_CATEGORY:String = "WEAPON";
       
-      public static const POWERUP_CATEGORY:String = "POWERUP";
+      public static var POWERUP_CATEGORY:String = "POWERUP";
       
-      public static const PET_CATEGORY:String = "PET";
+      public static var PET_CATEGORY:String = "PET";
       
-      public static const STUFF_CATEGORY:String = "STUFF";
-      
-      public var Coins:int;
-      
-      public var Cash:int;
-      
-      public var CashB:int;
-      
-      public var CashC:int;
-      
-      public var CashD:int;
-      
-      public var CashE:int;
-      
-      public var CashF:int;
-      
-      public var CashG:int;
-      
-      public var CashH:int;
-      
-      public var CashI:int;
-      
-      public var SellCoins:int;
-      
-      public var IconName:String;
+      public static var STUFF_CATEGORY:String = "STUFF";
       
       public var UISwfFilepath:String;
       
-      public var Description:String;
-      
-      public var ItemCategory:String;
+      public var SellCoins:int;
       
       public var ItemSubclass:String;
       
-      public function GMInventoryBase(jsonAsset:Object)
+      public var ItemCategory:String;
+      
+      public var IconName:String;
+      
+      public var Description:String;
+      
+      public var Coins:int;
+      
+      public var CashI:int;
+      
+      public var CashH:int;
+      
+      public var CashG:int;
+      
+      public var CashF:int;
+      
+      public var CashE:int;
+      
+      public var CashD:int;
+      
+      public var CashC:int;
+      
+      public var CashB:int;
+      
+      public var Cash:int;
+      
+      public function GMInventoryBase(jsonAsset:Object = undefined)
       {
-         super(jsonAsset);
-         Coins = jsonAsset.Coins;
-         Cash = jsonAsset.Cash;
-         CashB = jsonAsset.CashB;
-         CashC = jsonAsset.CashC;
-         CashD = jsonAsset.CashD;
-         CashE = jsonAsset.CashE;
-         CashF = jsonAsset.CashF;
-         CashG = jsonAsset.CashG;
-         CashH = jsonAsset.CashH;
-         CashI = jsonAsset.CashI;
-         SellCoins = jsonAsset.SellCoins;
-         ItemCategory = jsonAsset.ItemCategory;
-         ItemSubclass = jsonAsset.ItemSubclass;
-         IconName = jsonAsset.IconName;
-         UISwfFilepath = jsonAsset.UISwfFilepath;
-         Description = jsonAsset.Description;
+         if(!Boot.skip_constructor)
+         {
+            super(jsonAsset);
+            Coins = int(jsonAsset.Coins);
+            Cash = int(jsonAsset.Cash);
+            CashB = int(jsonAsset.CashB);
+            CashC = int(jsonAsset.CashC);
+            CashD = int(jsonAsset.CashD);
+            CashE = int(jsonAsset.CashE);
+            CashF = int(jsonAsset.CashF);
+            CashG = int(jsonAsset.CashG);
+            CashH = int(jsonAsset.CashH);
+            CashI = int(jsonAsset.CashI);
+            SellCoins = int(jsonAsset.SellCoins);
+            ItemCategory = jsonAsset.ItemCategory;
+            ItemSubclass = jsonAsset.ItemSubclass;
+            IconName = jsonAsset.IconName;
+            UISwfFilepath = jsonAsset.UISwfFilepath;
+            Description = jsonAsset.Description;
+         }
       }
    }
 }

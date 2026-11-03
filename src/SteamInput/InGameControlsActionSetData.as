@@ -25,6 +25,12 @@ package SteamInput
       
       public static const toggleMenuAction:String = "toggle_menu";
       
+      public static const openChatKeyboardAction:String = "open_chat_keyboard";
+      
+      public static const toggleChatLogAction:String = "toggle_chat_log";
+      
+      public static const openOptionsMenuAction:String = "open_options_menu";
+      
       public function InGameControlsActionSetData()
       {
          super();
@@ -49,6 +55,9 @@ package SteamInput
          _loc1_.push("use_consumable_two");
          _loc1_.push("revive_ally");
          _loc1_.push("toggle_menu");
+         _loc1_.push("open_chat_keyboard");
+         _loc1_.push("toggle_chat_log");
+         _loc1_.push("open_options_menu");
          return _loc1_;
       }
    }

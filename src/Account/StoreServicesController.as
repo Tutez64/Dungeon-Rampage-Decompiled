@@ -2,6 +2,7 @@ package Account
 {
    import Brain.Logger.Logger;
    import Brain.Utils.MemoryTracker;
+   import Collections.Map;
    import Facade.DBFacade;
    import Facade.Locale;
    import GameMasterDictionary.GMOffer;
@@ -18,7 +19,6 @@ package Account
    import UI.Popup.UIGiftPage;
    import UI.Popup.UIOfferPopup;
    import UI.Popup.UIStorageFullPopup;
-   import org.as3commons.collections.Map;
    
    public class StoreServicesController
    {
@@ -40,8 +40,6 @@ package Account
       public static const STORAGE_OFFERS:Vector.<uint> = new <uint>[51401,51402,51403];
       
       public static const GIFT_OFFERS:Vector.<uint> = new <uint>[51301,51399,51398];
-      
-      public static const HERO_OFFERS:Vector.<uint> = new <uint>[51012,51013,51014,51015];
       
       public function StoreServicesController()
       {
@@ -95,19 +93,19 @@ package Account
          {
             StoreServicesController.doesntOwnHeroPopup(dbFacade,gmOffer);
          }
-         else if(gmOffer.CurrencyType == "PREMIUM" && dbFacade.dbAccountInfo.premiumCurrency < gmOffer.Price)
+         else if(gmOffer.CurrencyType == GMOffer.PREMIUM_CURRENCY && dbFacade.dbAccountInfo.premiumCurrency < gmOffer.Price)
          {
             StoreServicesController.showCashPage(dbFacade,"tryBuyOffer",gmOffer,buySuccessCallback,null,forHeroId);
          }
-         else if(gmOffer.CurrencyType == "BASIC" && dbFacade.dbAccountInfo.basicCurrency < gmOffer.Price)
+         else if(gmOffer.CurrencyType == GMOffer.BASIC_CURRENCY && dbFacade.dbAccountInfo.basicCurrency < gmOffer.Price)
          {
             StoreServicesController.notEnoughCoinsPopup(dbFacade,gmOffer);
          }
-         else if(false && gmOffer.CurrencyType == "PREMIUM")
+         else if(false && gmOffer.CurrencyType == GMOffer.PREMIUM_CURRENCY)
          {
             StoreServicesController.confirmPurchasePopup(dbFacade,gmOffer,buySuccessCallback,forHeroId);
          }
-         else if(false && gmOffer.CurrencyType == "BASIC")
+         else if(false && gmOffer.CurrencyType == GMOffer.BASIC_CURRENCY)
          {
             StoreServicesController.confirmPurchasePopup(dbFacade,gmOffer,buySuccessCallback,forHeroId);
          }
@@ -144,7 +142,7 @@ package Account
          return 0;
       }
       
-      public static function getWeaponMastertype(dbFacade:DBFacade, gmOffer:GMOffer) : String
+      public static function getWeaponMasterType(dbFacade:DBFacade, gmOffer:GMOffer) : String
       {
          var _loc3_:GMWeaponItem = null;
          if(gmOffer.IsBundle)
@@ -234,11 +232,11 @@ package Account
       
       public static function stackableLimitWouldOverflow(dbFacade:DBFacade, gmOffer:GMOffer) : Boolean
       {
-         var _loc8_:* = null;
-         var _loc4_:* = 0;
-         var _loc9_:* = 0;
-         var _loc5_:* = 0;
-         var _loc3_:* = 0;
+         var _loc8_:GMOfferDetail = null;
+         var _loc4_:uint = 0;
+         var _loc9_:uint = 0;
+         var _loc5_:uint = 0;
+         var _loc3_:uint = 0;
          var _loc6_:GMStackable = null;
          var _loc7_:Map = new Map();
          for each(_loc8_ in gmOffer.Details)
@@ -248,7 +246,7 @@ package Account
             {
                if(_loc7_.hasKey(_loc4_))
                {
-                  _loc9_ = uint(_loc7_.itemFor(_loc4_));
+                  _loc9_ = _loc7_.itemFor(_loc4_);
                   _loc7_.replaceFor(_loc4_,_loc9_ + _loc8_.StackableCount);
                }
                else
@@ -263,7 +261,7 @@ package Account
             if(_loc4_)
             {
                _loc5_ = dbFacade.dbAccountInfo.inventoryInfo.getStackCount(_loc4_);
-               _loc3_ = uint(_loc7_.itemFor(_loc4_));
+               _loc3_ = _loc7_.itemFor(_loc4_);
                _loc6_ = dbFacade.gameMaster.stackableById.itemFor(_loc4_);
                if(_loc5_ + _loc3_ > _loc6_.StackLimit)
                {
@@ -319,7 +317,7 @@ package Account
       {
          var popup:DBUITwoButtonPopup;
          dbFacade.metrics.log("ShopPurchaseNotEnoughCash",getOfferMetrics(dbFacade,gmOffer));
-         popup = new DBUITwoButtonPopup(dbFacade,Locale.getString("SHOP_NOT_ENOUGH_CASH_TITLE"),Locale.getString("SHOP_NOT_ENOUGH_CASH_MESSAGE"),Locale.getString("SHOP_GET_CASH"),function():void
+         popup = new DBUITwoButtonPopup(dbFacade,"SHOP_NOT_ENOUGH_GEMS_POPUP",Locale.getString("SHOP_NOT_ENOUGH_CASH_TITLE"),Locale.getString("SHOP_NOT_ENOUGH_CASH_MESSAGE"),Locale.getString("SHOP_GET_CASH"),function():void
          {
             showCashPage(dbFacade,"notEnoughGemsPopup");
          },Locale.getString("CANCEL"),null);
@@ -330,7 +328,7 @@ package Account
       {
          var popup:DBUITwoButtonPopup;
          dbFacade.metrics.log("ShopPurchaseNotEnoughCoins",getOfferMetrics(dbFacade,gmOffer));
-         popup = new DBUITwoButtonPopup(dbFacade,Locale.getString("SHOP_NOT_ENOUGH_COINS_TITLE"),Locale.getString("SHOP_NOT_ENOUGH_COINS_MESSAGE"),Locale.getString("SHOP_GET_COINS"),function():void
+         popup = new DBUITwoButtonPopup(dbFacade,"SHOP_NOT_ENOUGH_COINS_POPUP",Locale.getString("SHOP_NOT_ENOUGH_COINS_TITLE"),Locale.getString("SHOP_NOT_ENOUGH_COINS_MESSAGE"),Locale.getString("SHOP_GET_COINS"),function():void
          {
             showCoinPage(dbFacade);
          },Locale.getString("CANCEL"),null);
@@ -341,7 +339,7 @@ package Account
       {
          var popup:DBUITwoButtonPopup;
          dbFacade.metrics.log("ShopPurchaseNotHighLevel",getOfferMetrics(dbFacade,gmOffer));
-         popup = new DBUITwoButtonPopup(dbFacade,Locale.getString("SHOP_NOT_HIGH_LEVEL_TITLE"),Locale.getString("SHOP_NOT_HIGH_LEVEL_MESSAGE"),Locale.getString("SHOP_BUY_ANYWAYS"),function():void
+         popup = new DBUITwoButtonPopup(dbFacade,"SHOP_LEVEL_TOO_LOW_POPUP",Locale.getString("SHOP_NOT_HIGH_LEVEL_TITLE"),Locale.getString("SHOP_NOT_HIGH_LEVEL_MESSAGE"),Locale.getString("SHOP_BUY_ANYWAYS"),function():void
          {
             buyOffer(dbFacade,gmOffer,null);
          },Locale.getString("CANCEL"),null);
@@ -352,7 +350,7 @@ package Account
       {
          var popup:DBUITwoButtonPopup;
          dbFacade.metrics.log("ShopPurchaseWeaponInventoryFull",getOfferMetrics(dbFacade,gmOffer));
-         popup = new UIStorageFullPopup(dbFacade,Locale.getString("SHOP_WEAPON_INVENTORY_FULL_TITLE"),Locale.getString("SHOP_WEAPON_INVENTORY_FULL_MESSAGE"),Locale.getString("SHOP_GET_STORAGE"),function():void
+         popup = new UIStorageFullPopup(dbFacade,"SHOP_STORAGE_FULL_POPUP",Locale.getString("SHOP_WEAPON_INVENTORY_FULL_TITLE"),Locale.getString("SHOP_WEAPON_INVENTORY_FULL_MESSAGE"),Locale.getString("SHOP_GET_STORAGE"),function():void
          {
             showStoragePage(dbFacade);
          },Locale.getString("CANCEL"),null);
@@ -362,14 +360,14 @@ package Account
       public static function stackableLimitPopup(dbFacade:DBFacade, gmOffer:GMOffer) : void
       {
          dbFacade.metrics.log("ShopPurchaseStackLimit",getOfferMetrics(dbFacade,gmOffer));
-         var _loc3_:DBUIOneButtonPopup = new DBUIOneButtonPopup(dbFacade,Locale.getString("SHOP_STACK_LIMIT_TITLE"),Locale.getString("SHOP_STACK_LIMIT_MESSAGE"),Locale.getString("CANCEL"),null);
+         var _loc3_:DBUIOneButtonPopup = new DBUIOneButtonPopup(dbFacade,"SHOP_STACK_LIMIT_POPUP",Locale.getString("SHOP_STACK_LIMIT_TITLE"),Locale.getString("SHOP_STACK_LIMIT_MESSAGE"),Locale.getString("CANCEL"),null);
          MemoryTracker.track(_loc3_,"DBUIOneButtonPopup - created in StoreServicesController.stackableLimitPopup()");
       }
       
       public static function weaponStorageLimitPopup(dbFacade:DBFacade, gmOffer:GMOffer) : void
       {
          dbFacade.metrics.log("ShopPurchaseWeaponStorageLimit",getOfferMetrics(dbFacade,gmOffer));
-         var _loc3_:DBUIOneButtonPopup = new DBUIOneButtonPopup(dbFacade,Locale.getString("SHOP_WEAPON_STORAGE_LIMIT_TITLE"),Locale.getString("SHOP_WEAPON_STORAGE_LIMIT_MESSAGE"),Locale.getString("CANCEL"),null);
+         var _loc3_:DBUIOneButtonPopup = new DBUIOneButtonPopup(dbFacade,"SHOP_WEAPON_STORAGE_LIMIT_POPUP",Locale.getString("SHOP_WEAPON_STORAGE_LIMIT_TITLE"),Locale.getString("SHOP_WEAPON_STORAGE_LIMIT_MESSAGE"),Locale.getString("CANCEL"),null);
          MemoryTracker.track(_loc3_,"DBUIOneButtonPopup - created in StoreServicesController.weaponStorageLimitPopup()");
       }
       
@@ -377,7 +375,7 @@ package Account
       {
          var popup:DBUITwoButtonPopup;
          dbFacade.metrics.log("ShopPurchaseDoesntOwnHero",getOfferMetrics(dbFacade,gmOffer));
-         popup = new DBUITwoButtonPopup(dbFacade,Locale.getString("SHOP_HERO_NOT_OWNED"),null,Locale.getString("SHOP_BUY_ANYWAYS"),function():void
+         popup = new DBUITwoButtonPopup(dbFacade,"SHOP_HERO_NOT_OWNED_POPUP",Locale.getString("SHOP_HERO_NOT_OWNED"),null,Locale.getString("SHOP_BUY_ANYWAYS"),function():void
          {
             buyOffer(dbFacade,gmOffer,null);
          },Locale.getString("CANCEL"),null);
@@ -388,7 +386,7 @@ package Account
       {
          var popup:UIPurchaseOfferPopup;
          dbFacade.metrics.log("ShopPurchaseConfirm",getOfferMetrics(dbFacade,gmOffer));
-         popup = new UIPurchaseOfferPopup(dbFacade,"purchase_popup",Locale.getString("SHOP_CONFIRM_BUY"),gmOffer,Locale.getString("SHOP_BUY"),function():void
+         popup = new UIPurchaseOfferPopup(dbFacade,"SHOP_CONFIRM_PURCHASE_POPUP","purchase_popup",Locale.getString("SHOP_CONFIRM_BUY"),gmOffer,Locale.getString("SHOP_BUY"),function():void
          {
             buyOffer(dbFacade,gmOffer,buySuccessCallback,forHeroId);
          },Locale.getString("CANCEL"),null);
@@ -399,7 +397,7 @@ package Account
       {
          var popup:UIPurchaseOfferPopup;
          dbFacade.metrics.log("ShopPurchaseConfirmAlreadyOwns",getOfferMetrics(dbFacade,gmOffer));
-         popup = new UIPurchaseOfferPopup(dbFacade,"purchase_popup",Locale.getString("SHOP_CONFIRM_DUPLICATE_BUY"),gmOffer,Locale.getString("SHOP_BUY_ANOTHER"),function():void
+         popup = new UIPurchaseOfferPopup(dbFacade,"SHOP_CONFIRM_DUPLICATE_PURCHASE_POPUP","purchase_popup",Locale.getString("SHOP_CONFIRM_DUPLICATE_BUY"),gmOffer,Locale.getString("SHOP_BUY_ANOTHER"),function():void
          {
             buyOffer(dbFacade,gmOffer,buySuccessCallback,forHeroId);
          },Locale.getString("CANCEL"),null);
@@ -408,14 +406,14 @@ package Account
       
       public static function waitForPurchaseServicePopup(dbFacade:DBFacade) : DBUIPopup
       {
-         var _loc2_:DBUIPopup = new DBUIPopup(dbFacade,Locale.getString("SHOP_PURCHASING"),null,false);
+         var _loc2_:DBUIPopup = new DBUIPopup(dbFacade,"",Locale.getString("SHOP_PURCHASING"),null,false);
          MemoryTracker.track(_loc2_,"DBUIPopup - created in StoreServicesController.waitForPurchaseServicePopup()");
          return _loc2_;
       }
       
       public static function waitForSellServicePopup(dbFacade:DBFacade) : DBUIPopup
       {
-         var _loc2_:DBUIPopup = new DBUIPopup(dbFacade,Locale.getString("SHOP_SELLING"),null,false);
+         var _loc2_:DBUIPopup = new DBUIPopup(dbFacade,"",Locale.getString("SHOP_SELLING"),null,false);
          MemoryTracker.track(_loc2_,"DBUIPopup - created in StoreServicesController.waitForSellServicePopup()");
          return _loc2_;
       }
@@ -431,26 +429,18 @@ package Account
          {
             var _loc2_:int = 0;
             popup.destroy();
-            if(dbFacade.steamAchievementsManager)
+            if(gmOffer.Tab == "WEAPON")
             {
-               if(gmOffer.CurrencyType == "BASIC")
-               {
-                  dbFacade.steamAchievementsManager.addToStatInt("SPEND_COINS_INT",gmOffer.Price);
-               }
-               if(gmOffer.Tab == "WEAPON")
-               {
-                  dbFacade.steamAchievementsManager.setAchievement("PURCHASE_WEAPON_FIRST_TIME");
-               }
+               dbFacade.steamAchievementsHelper.unlockAchievement("PURCHASE_WEAPON_FIRST_TIME");
             }
             StoreServices.getLimitedOfferUsage(dbFacade,param1,null,null);
             if(buySuccessCallback != null)
             {
                buySuccessCallback(param1);
                _loc2_ = int(dbFacade.dbAccountInfo.inventoryInfo.storageLimitWeapon);
-               if(previousBucketsWeapon < _loc2_ && dbFacade.steamAchievementsManager)
+               if(previousBucketsWeapon < _loc2_)
                {
-                  dbFacade.steamAchievementsManager.setAchievement("STORAGE_EXPAND_FIRST_TIME");
-                  dbFacade.steamAchievementsManager.setMaxStorageStat(previousBucketsWeapon,_loc2_);
+                  dbFacade.steamAchievementsHelper.checkStorageAchievements(_loc2_);
                }
             }
          },function(param1:Error):void
@@ -514,7 +504,7 @@ package Account
       public static function showErrorPopup(dbFacade:DBFacade, error:Error) : void
       {
          dbFacade.metrics.log("ShopError",{"error":error.errorID});
-         dbFacade.errorPopup(Locale.getString("SHOP_ERROR") + ": " + error.errorID,error.message);
+         dbFacade.errorPopup(Locale.getString("SHOP_ERROR") + ": " + error.errorID,error.message,"SHOP_SERVICE_ERROR_POPUP");
       }
       
       public static function showCashPage(dbFacade:DBFacade, openedFrom:String, attemptedOffer:GMOffer = null, successCallback:Function = null, closeCallback:Function = null, forHeroId:uint = 0) : void

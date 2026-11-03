@@ -18,13 +18,37 @@ package Events
       
       private var mPic:MovieClip;
       
-      public function FriendSummaryNewsFeedEvent(type:String, message:String, picMC:MovieClip, friendName:String, isFriendNameInFront:Boolean = false, bubbles:Boolean = false, cancelable:Boolean = false)
+      public var hasPortrait:Boolean = false;
+      
+      public var skinId:uint;
+      
+      public var steamAvatarUrl:String;
+      
+      public function FriendSummaryNewsFeedEvent(friendSummaryNewsFeedEventType:String, message:String, picMC:MovieClip, friendName:String, isFriendNameInFront:Boolean = false, bubbles:Boolean = false, cancelable:Boolean = false)
       {
          mFriendName = friendName;
          mIsFriendNameInFront = isFriendNameInFront;
          mMessage = message;
          mPic = picMC;
-         super(type,bubbles,cancelable);
+         super(friendSummaryNewsFeedEventType,bubbles,cancelable);
+      }
+      
+      public static function forPortrait(message:String, skinId:uint, friendName:String, steamUrl:String = null) : FriendSummaryNewsFeedEvent
+      {
+         var _loc5_:FriendSummaryNewsFeedEvent = new FriendSummaryNewsFeedEvent("FRIEND_SUMMARY_NEWS_FEED_MESSAGE_EVENT",message,null,friendName);
+         _loc5_.hasPortrait = true;
+         _loc5_.skinId = skinId;
+         _loc5_.steamAvatarUrl = steamUrl;
+         return _loc5_;
+      }
+      
+      override public function clone() : Event
+      {
+         var _loc1_:FriendSummaryNewsFeedEvent = new FriendSummaryNewsFeedEvent(type,mMessage,mPic,mFriendName,mIsFriendNameInFront,bubbles,cancelable);
+         _loc1_.hasPortrait = hasPortrait;
+         _loc1_.skinId = skinId;
+         _loc1_.steamAvatarUrl = steamAvatarUrl;
+         return _loc1_;
       }
       
       public function get friendName() : String

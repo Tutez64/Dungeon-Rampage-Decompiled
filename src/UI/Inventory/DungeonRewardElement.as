@@ -5,6 +5,7 @@ package UI.Inventory
    import Brain.AssetRepository.SwfAsset;
    import Brain.Render.MovieClipRenderer;
    import Brain.UI.UIButton;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import flash.display.MovieClip;
    
@@ -29,12 +30,14 @@ package UI.Inventory
          var bgSwfPath:String;
          var bgIconName:String;
          super(dbFacade,root);
+         dontKillMyChildren = true;
          mDBFacade = dbFacade;
          mChestInfo = chestInfo;
          mSelectedCallback = selectedCallback;
          mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          releaseCallback = callSelectedCallback;
-         ChestInfo.loadItemIconFromId(mChestInfo.gmId,mRoot,mDBFacade,60,100,mAssetLoadingComponent);
+         rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
+         ChestInfo.loadItemIconFromId(mChestInfo.gmId,mRoot,mDBFacade,60,DBGlobal.WEAPON_ICON_NATIVE_SIZE,mAssetLoadingComponent);
          mChestRenderer = new MovieClipRenderer(mDBFacade,mRoot);
          mChestRenderer.play(0,true);
          bgColoredExists = mChestInfo.hasColoredBackground;

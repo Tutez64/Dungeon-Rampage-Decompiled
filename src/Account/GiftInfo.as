@@ -1,8 +1,6 @@
 package Account
 {
    import Facade.DBFacade;
-   import flash.display.DisplayObject;
-   import flash.events.Event;
    
    public class GiftInfo
    {
@@ -12,8 +10,6 @@ package Account
       private var mOfferId:uint;
       
       private var mRequestId:String;
-      
-      private var mProfilePic:DisplayObject;
       
       private var mDBFacade:DBFacade;
       
@@ -40,20 +36,6 @@ package Account
          {
             mResponseCallback();
          }
-      }
-      
-      private function ignoreIOError(event:Event) : void
-      {
-      }
-      
-      public function get pic() : DisplayObject
-      {
-         return mProfilePic;
-      }
-      
-      public function set pic(profilePic:DisplayObject) : void
-      {
-         mProfilePic = profilePic;
       }
       
       public function get fromAccountId() : uint

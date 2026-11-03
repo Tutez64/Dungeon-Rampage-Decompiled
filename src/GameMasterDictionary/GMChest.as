@@ -1,28 +1,33 @@
 package GameMasterDictionary
 {
+   import flash.Boot;
+   
    public class GMChest
    {
       
-      public var Id:uint;
+      public var Rarity:String;
       
       public var Name:String;
       
-      public var Rarity:String;
-      
-      public var IconName:String;
-      
-      public var IconSwf:String;
+      public var InventoryRevealSwf:String;
       
       public var InventoryRevealName:String;
       
-      public var InventoryRevealSwf:String;
+      public var Id:uint;
+      
+      public var IconSwf:String;
+      
+      public var IconName:String;
       
       public var Description:String;
       
-      public function GMChest(jsonAsset:Object)
+      public function GMChest(jsonAsset:Object = undefined)
       {
-         super();
-         Id = jsonAsset.Id;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         Id = uint(jsonAsset.Id);
          Name = jsonAsset.Name;
          Rarity = jsonAsset.Rarity;
          IconName = jsonAsset.IconName;

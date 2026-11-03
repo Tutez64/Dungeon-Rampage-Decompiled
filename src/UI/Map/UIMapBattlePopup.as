@@ -6,6 +6,7 @@ package UI.Map
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
    import Brain.UI.UIProgressBar;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
    import DBGlobals.DBGlobal;
@@ -17,8 +18,6 @@ package UI.Map
    import GameMasterDictionary.GMMapNode;
    import GameMasterDictionary.GMSkin;
    import UI.Popup.DBUIPopup;
-   import com.greensock.TimelineMax;
-   import com.greensock.TweenMax;
    import flash.display.MovieClip;
    import flash.events.KeyboardEvent;
    import flash.filters.GlowFilter;
@@ -34,8 +33,6 @@ package UI.Map
       protected static const POPUP_CLASS_NAME_CONSUMABLES:String = "battle_popup_consumables";
       
       private static var sPersistedPrivateToggle:Boolean = false;
-      
-      private static const DELAY_AMOUNT_FOR_TRANSITIONING_BACK_TO_MAP_MENU_FROM_TAVERN:uint = 0;
       
       private static const BATTLE_POPUP_POSITION:Point = new Point(250,0);
       
@@ -71,7 +68,11 @@ package UI.Map
       
       private var isPopupActive:Boolean;
       
+      private var mArrowCursorKey:uint = 0;
+      
       private var mPopupNavigationLinkDelay:Task;
+      
+      private var mOwnsNavigationLayer:Boolean = false;
       
       public function UIMapBattlePopup(dbFacade:DBFacade, changeHeroReleaseCallback:Function, changeStatReleaseCallback:Function, changeShopReleaseCallback:Function, battleReleaseCallback:Function, titleText:String)
       {
@@ -79,7 +80,7 @@ package UI.Map
          mChangeHeroReleaseCallback = changeHeroReleaseCallback;
          mChangeStatReleaseCallback = changeStatReleaseCallback;
          mChangeShopReleaseCallback = changeShopReleaseCallback;
-         super(dbFacade,titleText,null,true,false);
+         super(dbFacade,"",titleText,null,true,false);
          mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"UIMapBattlePopup");
       }
       
@@ -104,7 +105,7 @@ package UI.Map
       {
          var activeHeroSkin:GMSkin;
          var gmHero:GMHero;
-         var currentXp:int;
+         var currentXp:uint;
          var level:uint;
          var levelIndex:uint;
          var lastLevelExp:uint;
@@ -114,48 +115,51 @@ package UI.Map
          mPopup.visible = false;
          if(mPopup.text_activeBooster)
          {
-            mPopup.text_activeBooster.text = Locale.getString("WORLD_MAP_STATS");
+            Locale.setText(mPopup.text_activeBooster,"WORLD_MAP_STATS");
          }
          if(mPopup.text_victorRewards)
          {
-            mPopup.text_victorRewards.text = Locale.getString("WORLD_MAP_VICTORY_REWARDS");
+            Locale.setText(mPopup.text_victorRewards,"WORLD_MAP_VICTORY_REWARDS");
          }
-         mPopup.private_dungeon_label.text = Locale.getString("PRIVATE_DUNGEON_LABEL");
-         mPopup.population_label.text = Locale.getString("PLAYER_ACTIVITY_POPULATION");
+         Locale.setText(mPopup.private_dungeon_label,"PRIVATE_DUNGEON_LABEL");
+         Locale.setText(mPopup.population_label,"PLAYER_ACTIVITY_POPULATION");
          mPrivateButton = new UIButton(mDBFacade,mPopup.radio_button);
          mPrivateButton.releaseCallback = togglePrivate;
          mPrivateButton.selected = IsPrivate;
          activeHeroSkin = mDBFacade.gameMaster.getSkinByType(mDBFacade.dbAccountInfo.activeAvatarInfo.skinId);
          gmHero = mDBFacade.gameMaster.heroByConstant.itemFor(activeHeroSkin.ForHero);
-         mPopup.txt_avatar.text = GameMasterLocale.getGameMasterSubString("SKIN_NAME",gmHero.Constant).toUpperCase();
+         TextUtil.setText(mPopup.txt_avatar,GameMasterLocale.getGameMasterSubString("SKIN_NAME",gmHero.Constant).toUpperCase());
          mActiveHeroPortrait = mPopup.avatarContainer.avatar;
-         currentXp = int(mDBFacade.dbAccountInfo.activeAvatarInfo.experience);
-         level = gmHero.getLevelFromExp(currentXp);
-         levelIndex = uint(gmHero.getLevelIndex(currentXp));
+         currentXp = mDBFacade.dbAccountInfo.activeAvatarInfo.experience;
+         level = gmHero.getLevelFromExp(currentXp,mDBFacade.dbAccountInfo.activeAvatarInfo.mAscensionLevel);
+         levelIndex = uint(gmHero.getLevelIndex(currentXp,mDBFacade.dbAccountInfo.activeAvatarInfo.mAscensionLevel));
          lastLevelExp = uint(levelIndex > 0 ? gmHero.getExpFromIndex(levelIndex - 1) : 0);
          max = gmHero.getExpFromIndex(levelIndex);
          if(currentXp < max)
          {
             xpBar = new UIProgressBar(mFacade,mPopup.UI_XP.xp_bar);
             mPopup.UI_XP.xp_bar_delta.visible = false;
-            mPopup.UI_XP.xp_points.text = currentXp + "/" + max;
+            TextUtil.setText(mPopup.UI_XP.xp_points,currentXp + "/" + max);
             xpBar.maximum = max;
             xpBar.minimum = lastLevelExp;
             xpBar.value = currentXp;
          }
          else
          {
-            mPopup.UI_XP.xp_points.text = currentXp.toString();
+            TextUtil.setText(mPopup.UI_XP.xp_points,currentXp.toString());
          }
-         mPopup.UI_XP.xp_level.text = level;
+         TextUtil.setText(mPopup.UI_XP.xp_level,String(level));
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(activeHeroSkin.PortraitName),function(param1:SwfAsset):void
          {
-            var _loc3_:Class = param1.getClass(activeHeroSkin.CardName);
-            if(_loc3_ == null)
+            var _loc5_:Class = param1.getClass(activeHeroSkin.BackgroundClassName);
+            var _loc3_:Class = param1.getClass(activeHeroSkin.PortraitClassName);
+            if(_loc5_ == null || _loc3_ == null)
             {
                return;
             }
-            var _loc4_:MovieClip = new _loc3_();
+            var _loc4_:MovieClip = new MovieClip();
+            _loc4_.addChild(new _loc5_());
+            _loc4_.addChild(new _loc3_());
             var _loc2_:MovieClipRenderController = new MovieClipRenderController(mDBFacade,_loc4_);
             _loc2_.play();
             if(mActiveHeroPortrait.numChildren > 0)
@@ -168,11 +172,11 @@ package UI.Map
          mChangeHeroButton.dontKillMyChildren = true;
          mChangeHeroButton.releaseCallback = function():void
          {
-            mDBFacade.menuNavigationController.popLayer("UI_MAP_BATTLE_POPUP");
+            removeNavigationLayer();
             mChangeHeroReleaseCallback();
          };
          mChangeHeroButton.rollOverCursor = "POINT";
-         mChangeHeroButton.root.swap.text = Locale.getString("WORLD_MAP_CHANGE_HERO_BUTTON");
+         Locale.setText(mChangeHeroButton.root.swap,"WORLD_MAP_CHANGE_HERO_BUTTON");
          mPopup.button_battle.battle_text.mouseChildren = false;
          mPopup.button_battle.battle_text.mouseEnabled = false;
          mBattleButton = new UIButton(mDBFacade,mPopup.button_battle);
@@ -189,7 +193,7 @@ package UI.Map
          {
             mBattleButton.releaseCallback = function():void
             {
-               mDBFacade.menuNavigationController.popLayer("UI_MAP_BATTLE_POPUP");
+               removeNavigationLayer();
                mBattleReleaseCallback();
             };
          }
@@ -200,30 +204,90 @@ package UI.Map
             mCloseButton.releaseCallback = function():void
             {
                animatePopupOut();
-               mDBFacade.menuNavigationController.popLayer("UI_MAP_BATTLE_POPUP");
+               removeNavigationLayer();
             };
             mCloseButton.rollOverCursor = "POINT";
          }
          if(mPopup.crewbonus)
          {
             mTeamBonusUI = new UIObject(mDBFacade,mPopup.crewbonus);
-            mTeamBonusUI.tooltip.title_label.text = Locale.getString("TEAM_BONUS_TOOLTIP_TITLE");
-            mTeamBonusUI.tooltip.description_label.text = Locale.getString("TEAM_BONUS_TOOLTIP_DESCRIPTION");
-            mTeamBonusUI.root.header_crew_bonus_txt1.text = Locale.getString("TEAM_BONUS_TITLE_CREW");
-            mTeamBonusUI.root.header_crew_bonus_txt2.text = Locale.getString("TEAM_BONUS_TITLE_BONUS");
-            mTeamBonusUI.root.header_crew_bonus_number.text = mDBFacade.dbAccountInfo.inventoryInfo.getTotalHeroesOwned() - 1;
-            mPopup.crewBonus_label.text = ((mDBFacade.dbAccountInfo.inventoryInfo.getTotalHeroesOwned() - 1) * 5).toString() + Locale.getString("TEAM_BONUS_BATTLE_POPUP_TEXT");
+            Locale.setText(mTeamBonusUI.tooltip.title_label,"TEAM_BONUS_TOOLTIP_TITLE");
+            Locale.setText(mTeamBonusUI.tooltip.description_label,"TEAM_BONUS_TOOLTIP_DESCRIPTION");
+            Locale.setText(mTeamBonusUI.root.header_crew_bonus_txt1,"TEAM_BONUS_TITLE_CREW",null,0.82);
+            Locale.setText(mTeamBonusUI.root.header_crew_bonus_txt2,"TEAM_BONUS_TITLE_BONUS",null,0.82);
+            TextUtil.setText(mTeamBonusUI.root.header_crew_bonus_number,String(mDBFacade.dbAccountInfo.inventoryInfo.getTotalHeroesOwned() - 1),0.73);
+            TextUtil.setText(mPopup.crewBonus_label,((mDBFacade.dbAccountInfo.inventoryInfo.getTotalHeroesOwned() - 1) * 5).toString() + Locale.getString("TEAM_BONUS_BATTLE_POPUP_TEXT"));
          }
          setDungeonDetails();
-         setupMenuNavigation();
       }
       
       override protected function handleKeyDown(event:KeyboardEvent) : void
       {
       }
       
+      private function pushArrowCursor() : void
+      {
+         if(mArrowCursorKey != 0)
+         {
+            return;
+         }
+         mArrowCursorKey = mDBFacade.mouseCursorManager.pushMouseCursor("ARROW");
+      }
+      
+      private function popArrowCursor() : void
+      {
+         if(mArrowCursorKey == 0)
+         {
+            return;
+         }
+         mDBFacade.mouseCursorManager.popMouseCursor(mArrowCursorKey);
+         mArrowCursorKey = 0;
+      }
+      
+      private function pushNavigationLayer() : void
+      {
+         var depthBeforePush:uint;
+         if(mOwnsNavigationLayer)
+         {
+            if(mDBFacade.menuNavigationController.getTopUILayer() == "UI_MAP_BATTLE_POPUP")
+            {
+               mDBFacade.menuNavigationController.setFocusedUiObject(mBattleButton);
+            }
+            return;
+         }
+         depthBeforePush = mDBFacade.menuNavigationController.layerDepth;
+         mDBFacade.menuNavigationController.pushNewLayer("UI_MAP_BATTLE_POPUP",function():void
+         {
+            removeNavigationLayer();
+            animatePopupOut();
+         },mBattleButton,mBattleButton);
+         mOwnsNavigationLayer = mDBFacade.menuNavigationController.layerDepth > depthBeforePush;
+      }
+      
+      private function removeNavigationLayer() : void
+      {
+         if(!mOwnsNavigationLayer)
+         {
+            return;
+         }
+         mOwnsNavigationLayer = false;
+         mDBFacade.menuNavigationController.removeLayer("UI_MAP_BATTLE_POPUP");
+      }
+      
+      private function cancelNavigationLayerPush() : void
+      {
+         if(mPopupNavigationLinkDelay)
+         {
+            mPopupNavigationLinkDelay.destroy();
+            mPopupNavigationLinkDelay = null;
+         }
+      }
+      
       override public function destroy() : void
       {
+         popArrowCursor();
+         cancelNavigationLayerPush();
+         removeNavigationLayer();
          super.destroy();
          if(mTeamBonusUI)
          {
@@ -249,11 +313,6 @@ package UI.Map
             mLogicalWorkComponent.destroy();
             mLogicalWorkComponent = null;
          }
-         if(mPopupNavigationLinkDelay)
-         {
-            mPopupNavigationLinkDelay.destroy();
-            mPopupNavigationLinkDelay = null;
-         }
       }
       
       public function get battleButton() : UIButton
@@ -265,7 +324,7 @@ package UI.Map
       {
          if(mPopup && mPopup.title_label)
          {
-            mPopup.title_label.text = value;
+            TextUtil.setText(mPopup.title_label,value);
          }
       }
       
@@ -273,7 +332,7 @@ package UI.Map
       {
          if(mPopup && mPopup.text_recommendedLevel)
          {
-            mPopup.text_recommendedLevel.text = value;
+            TextUtil.setText(mPopup.text_recommendedLevel,value);
          }
       }
       
@@ -301,11 +360,11 @@ package UI.Map
          }
          if(_loc4_ && mPopup.dungeonXp_label)
          {
-            mPopup.dungeonXp_label.text = mCurrentDungeon.CompletionXPBonus.toString() + Locale.getString("WORLD_MAP_BONUS_XP");
+            TextUtil.setText(mPopup.dungeonXp_label,mCurrentDungeon.CompletionXPBonus.toString() + Locale.getString("WORLD_MAP_BONUS_XP"));
          }
-         mPopup.button_battle.battle_text.battle_text.text = Locale.getString("WORLD_MAP_UNLOCK");
+         Locale.setText(mPopup.button_battle.battle_text.battle_text,"WORLD_MAP_UNLOCK");
          setTitle(GameMasterLocale.getGameMasterSubString("DUNGEON_NAME",mCurrentDungeon.Constant).toUpperCase());
-         if(_loc4_.TotalFloors > 0 && mCurrentDungeon.NodeType != "BOSS")
+         if(_loc4_.TotalFloors > 0 && mCurrentDungeon.NodeType != GMMapNode.BOSS_NODE_TYPE)
          {
             _loc2_ = _loc4_.TotalFloors > 1 ? Locale.getString("FLOORS").toUpperCase() : Locale.getString("FLOOR").toUpperCase();
             if(_loc4_.TotalFloors >= 50)
@@ -322,7 +381,7 @@ package UI.Map
             setDifficulty(GameMasterLocale.getGameMasterSubString("DUNGEON_DIFFICULTY_NAME",mCurrentDungeon.Constant));
          }
          var _loc1_:String = mDBFacade.playerActivityCount.getActivityString(mCurrentDungeon.Id);
-         mPopup.activity_label.text = _loc1_;
+         TextUtil.setText(mPopup.activity_label,_loc1_);
          var _loc3_:GlowFilter = mDBFacade.playerActivityCount.getPopulationGlow(_loc1_);
          if(_loc3_)
          {
@@ -356,27 +415,24 @@ package UI.Map
          destY = BATTLE_POPUP_POSITION.y;
          mPopup.x = 730;
          mPopup.y = destY;
-         TweenMax.killTweensOf(mPopup);
-         new TimelineMax({
-            "tweens":[TweenMax.to(mPopup,0.25,{
+         mDBFacade.mTween.killTweensOf(mPopup);
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mPopup,0.25,{
                "x":destX,
                "y":destY
             })],
             "align":"sequence"
          });
          isPopupActive = true;
-         if(mPopupNavigationLinkDelay)
-         {
-            mPopupNavigationLinkDelay.destroy();
-         }
+         pushArrowCursor();
+         cancelNavigationLayerPush();
          mPopupNavigationLinkDelay = mLogicalWorkComponent.doLater(0,function(param1:GameClock):void
          {
-            var gameclock:GameClock = param1;
-            mDBFacade.menuNavigationController.pushNewLayer("UI_MAP_BATTLE_POPUP",function():void
+            mPopupNavigationLinkDelay = null;
+            if(isPopupActive)
             {
-               mDBFacade.menuNavigationController.popLayer("UI_MAP_BATTLE_POPUP");
-               animatePopupOut();
-            },mBattleButton,mBattleButton);
+               pushNavigationLayer();
+            }
          });
          DBGlobal.highlightButton(mBattleButton);
       }
@@ -387,11 +443,13 @@ package UI.Map
          var destY:Number;
          var startX:Number;
          var hidePopup:Function;
+         cancelNavigationLayerPush();
          if(mPopup == null)
          {
             return;
          }
          isPopupActive = false;
+         popArrowCursor();
          if(mCurtainActive && !keepCurtain)
          {
             removeCurtain();
@@ -408,9 +466,9 @@ package UI.Map
                mPopup.visible = false;
             }
          };
-         TweenMax.killTweensOf(mPopup);
-         new TimelineMax({
-            "tweens":[TweenMax.to(mPopup,0.25,{
+         mDBFacade.mTween.killTweensOf(mPopup);
+         mDBFacade.mTween.createTimeline({
+            "tweens":[mDBFacade.mTween.tweenMaxTo(mPopup,0.25,{
                "x":destX,
                "y":destY,
                "onComplete":hidePopup

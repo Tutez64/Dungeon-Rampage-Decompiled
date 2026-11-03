@@ -1,54 +1,69 @@
 package com.junkbyte.console
 {
+   import flash.Boot;
+   
    public class KeyBind
    {
       
-      private var _code:Boolean;
+      public var _key:String;
       
-      private var _key:String;
+      public var _code:Boolean;
       
-      public function KeyBind(v:*, shift:Boolean = false, ctrl:Boolean = false, alt:Boolean = false, onUp:Boolean = false)
+      public function KeyBind(v:* = undefined, shift:Boolean = false, ctrl:Boolean = false, alt:Boolean = false, onUp:Boolean = false)
       {
-         super();
-         this._key = String(v).toUpperCase();
-         if(v is uint)
+         if(Boot.skip_constructor)
          {
-            this._code = true;
+            return;
          }
-         else if(!v || this._key.length != 1)
+         _key = Std.string(v).toUpperCase();
+         if(Std.isOfType(v,int))
          {
-            throw new Error("KeyBind: character (first char) must be a single character. You gave [" + v + "]");
+            _code = true;
          }
-         if(this._code)
+         else if(v == null || _key.length != 1)
          {
-            this._key = "keycode:" + this._key;
+            throw new Error("KeyBind: character (first char) must be a single character. You gave [" + Std.string(v) + "]");
+         }
+         if(_code)
+         {
+            _key = "keycode:" + _key;
          }
          if(shift)
          {
-            this._key += "+shift";
+            _key += "+shift";
          }
          if(ctrl)
          {
-            this._key += "+ctrl";
+            _key += "+ctrl";
          }
          if(alt)
          {
-            this._key += "+alt";
+            _key += "+alt";
          }
          if(onUp)
          {
-            this._key += "+up";
+            _key += "+up";
          }
+      }
+      
+      public function get_useKeyCode() : Boolean
+      {
+         return _code;
       }
       
       public function get useKeyCode() : Boolean
       {
-         return this._code;
+         return get_useKeyCode();
+      }
+      
+      public function get_key() : String
+      {
+         return _key;
       }
       
       public function get key() : String
       {
-         return this._key;
+         return get_key();
       }
    }
 }

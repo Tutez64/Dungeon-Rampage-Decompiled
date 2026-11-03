@@ -7,7 +7,16 @@ package Box2D.Dynamics
       
       public function b2DestructionListener()
       {
-         super();
+      }
+      
+      public function sayGoodbyeJoint(joint:b2Joint) : void
+      {
+         SayGoodbyeJoint(joint);
+      }
+      
+      public function sayGoodbyeFixture(fixture:b2Fixture) : void
+      {
+         SayGoodbyeFixture(fixture);
       }
       
       public function SayGoodbyeJoint(joint:b2Joint) : void

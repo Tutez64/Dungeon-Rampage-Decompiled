@@ -2,8 +2,8 @@ package Actor
 {
    import Facade.DBFacade;
    import GameMasterDictionary.GMActor;
+   import GameMasterDictionary.GMMap;
    import GameMasterDictionary.StatVector;
-   import org.as3commons.collections.Map;
    
    public class ActorData
    {
@@ -19,12 +19,22 @@ package Actor
          super();
          mFacade = facade;
          mActorGameObject = actorGameObject;
-         var _loc3_:Map = mFacade.gameMaster.getActorMap(mActorGameObject.type);
+         var _loc3_:GMMap = mFacade.gameMaster.getActorMap(mActorGameObject.type);
          mData = _loc3_.itemFor(mActorGameObject.type);
          if(mData == null)
          {
             throw new Error("type not found in GameMaster");
          }
+      }
+      
+      public static function offMovieClipClassName(assetClassName:String) : String
+      {
+         return assetClassName ? assetClassName + "_off" : "";
+      }
+      
+      public static function deathMovieClipClassName(assetClassName:String) : String
+      {
+         return assetClassName ? assetClassName + "_death" : "";
       }
       
       public function destroy() : void
@@ -61,7 +71,12 @@ package Actor
       
       public function getOffMovieClipClassName() : String
       {
-         return mData.AssetClassName ? mData.AssetClassName + "_off" : "";
+         return offMovieClipClassName(mData.AssetClassName);
+      }
+      
+      public function getDeathMovieClipClassName() : String
+      {
+         return deathMovieClipClassName(mData.AssetClassName);
       }
       
       public function get constant() : String
@@ -157,11 +172,6 @@ package Actor
       public function get deathVolume() : Number
       {
          return mData.DeathVolume;
-      }
-      
-      public function get scale3DModel() : Number
-      {
-         return mData.Scale3DModel;
       }
    }
 }

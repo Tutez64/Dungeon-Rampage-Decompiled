@@ -6,16 +6,16 @@ package Combat.Attack
    import Brain.Logger.Logger;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
+   import Collections.ArrayList;
+   import Collections.ILinkedListIterator;
+   import Collections.IListIterator;
+   import Collections.IMapIterator;
+   import Collections.LinkedList;
+   import Collections.Map;
    import DistributedObjects.DistributedDungeonFloor;
    import Facade.DBFacade;
    import GameMasterDictionary.GMAttack;
    import GeneratedCode.CombatResult;
-   import org.as3commons.collections.ArrayList;
-   import org.as3commons.collections.LinkedList;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.ILinkedListIterator;
-   import org.as3commons.collections.framework.IListIterator;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class ScriptTimeline
    {
@@ -53,6 +53,8 @@ package Combat.Attack
       protected var mIsPlaying:Boolean = false;
       
       protected var mIsLooping:Boolean = false;
+      
+      private var mFinishedNaturally:Boolean = false;
       
       protected var mTotalFrames:uint;
       
@@ -119,9 +121,9 @@ package Combat.Attack
          var _loc11_:LinkedList = null;
          var _loc7_:int = 0;
          var _loc5_:Object = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc10_:Array = null;
-         var _loc8_:* = 0;
+         var _loc8_:uint = 0;
          var _loc9_:int = 0;
          var _loc2_:Object = null;
          var _loc12_:Array = jsonObj.frames;
@@ -159,68 +161,68 @@ package Combat.Attack
       protected function parseAction(actionObj:Object) : AttackTimelineAction
       {
          mHasGoto = false;
-         var _loc3_:String = actionObj.type as String;
-         var _loc2_:AttackTimelineAction = null;
-         switch(_loc3_)
+         var _loc2_:String = actionObj.type as String;
+         var _loc3_:AttackTimelineAction = null;
+         switch(_loc2_)
          {
             case "attackSound":
-               _loc2_ = SoundAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = SoundAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "sound":
-               _loc2_ = SoundTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = SoundTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "animFrame":
-               _loc2_ = AnimationFrameAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = AnimationFrameAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "playAnim":
-               _loc2_ = PlayAnimationAttackTimelineAction.buildFromJson(this,mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = PlayAnimationAttackTimelineAction.buildFromJson(this,mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "move":
-               _loc2_ = MovementAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = MovementAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "runIdleMonitor":
-               _loc2_ = RunIdleMonitorTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = RunIdleMonitorTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "goto":
                mHasGoto = true;
-               _loc2_ = GotoTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj,gotoFrame);
+               _loc3_ = GotoTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj,gotoFrame);
                break;
             case "knockback":
-               _loc2_ = KnockBackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade);
+               _loc3_ = KnockBackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade);
                break;
             case "shake":
-               _loc2_ = CameraShakeTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = CameraShakeTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "effect":
-               _loc2_ = PlayEffectTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = PlayEffectTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "color":
-               _loc2_ = ColorShiftTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = ColorShiftTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "glow":
-               _loc2_ = GlowTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = GlowTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "fadebackground":
-               _loc2_ = FadeBackgroundTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = FadeBackgroundTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "visible":
-               _loc2_ = HideTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = HideTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "hideSpecialEffect":
-               _loc2_ = HideSpecialEffectTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = HideSpecialEffectTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "scale":
-               _loc2_ = ScaleAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = ScaleAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
             case "zoom":
             case "timeScale":
             case "circleCollider":
             case "rectangleCollider":
             case "inputType":
             case "sufferImmunity":
-               _loc2_ = SufferImmunityTimeLineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = SufferImmunityTimeLineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "knockbackImmunity":
-               _loc2_ = KnockbackImmunityTimeLineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = KnockbackImmunityTimeLineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "attemptRevive":
             case "proposeRevive":
@@ -229,15 +231,17 @@ package Combat.Attack
             case "invulnerable":
                break;
             case "teleport":
-               _loc2_ = TeleportTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc3_ = TeleportTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               break;
+            case "rumbleEffect":
                break;
             default:
-               if(_loc3_.charAt(0) != "#")
+               if(_loc2_.charAt(0) != "#")
                {
-                  Logger.debug("No handle for attack timeline action type: " + _loc3_);
+                  Logger.debug("No handle for attack timeline action actionType: " + _loc2_);
                }
          }
-         return _loc2_;
+         return _loc3_;
       }
       
       public function set currentAttackType(attackType:uint) : void
@@ -291,12 +295,13 @@ package Combat.Attack
          mPlayHeadTime = 0;
          mTargetActor = targetActor;
          mIsPlaying = true;
+         mFinishedNaturally = false;
          mLoop = loop;
          mPlaySpeed = playSpeed;
          if(mPlayTimelineTask != null)
          {
             mPlayTimelineTask.destroy();
-            mPlayTimelineTask == null;
+            mPlayTimelineTask = null;
          }
          mFinishedCallback = finishedCallback;
          mStopCallback = stopCallback;
@@ -338,7 +343,7 @@ package Combat.Attack
       
       public function stop() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          mIsPlaying = false;
          stopAllActions();
          if(mStopCallback != null)
@@ -470,7 +475,13 @@ package Combat.Attack
             mPlayHeadTime = 0;
             return;
          }
+         mFinishedNaturally = true;
          stopAndFinish();
+      }
+      
+      public function get finishedNaturally() : Boolean
+      {
+         return mFinishedNaturally;
       }
       
       public function destroy() : void

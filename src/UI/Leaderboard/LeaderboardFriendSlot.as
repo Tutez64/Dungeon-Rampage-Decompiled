@@ -5,16 +5,17 @@ package UI.Leaderboard
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.Clock.GameClock;
    import Brain.UI.UIButton;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.Locale;
-   import UI.Popup.DBUIOneButtonPopup;
-   import com.greensock.TweenMax;
+   import UI.Portrait.PlayerPortraits;
    import flash.display.MovieClip;
    import flash.geom.Point;
    import flash.text.TextField;
+   import flash.text.TextFormat;
    
    public class LeaderboardFriendSlot
    {
@@ -28,6 +29,8 @@ package UI.Leaderboard
       public static const OFFLINE_POPUP_OFFSET:Number = 60;
       
       public static const POPUP_TIME_TO_LIVE:Number = 1;
+      
+      private var mPortraits:PlayerPortraits = new PlayerPortraits();
       
       private var mDBFacade:DBFacade;
       
@@ -61,8 +64,6 @@ package UI.Leaderboard
       
       private var mRemoveFriendButton:UIButton;
       
-      private var mFBRemoveFriendPopup:DBUIOneButtonPopup;
-      
       private var mFriendInfo:FriendInfo;
       
       private var mLeaderboard:UILeaderboard;
@@ -85,8 +86,7 @@ package UI.Leaderboard
          mLeaderboard = leaderboard;
          mThisSlotIndex = slotIndex;
          mAssetLoadingComponent = new AssetLoadingComponent(dbFacade);
-         mLogicalWorkComponent = new LogicalWorkComponent(dbFacade,"LeaderboardFriendSlot");
-         mFriendSlotPosition = mFriendSlot.localToGlobal(new Point(0,0));
+         mLogicalWorkComponent = new LogicalWorkComponent(dbFacade);
          loadVariables();
          populateSlot(null);
       }
@@ -104,47 +104,79 @@ package UI.Leaderboard
          mMeOnlineClip = mFriendSlot.friend_pic.you_online;
          mJoinOnlineClip = mFriendSlot.friend_pic.join;
          mJoinOnlineFriendButton = new UIButton(mDBFacade,mFriendSlot.friend_pic.join.join);
-         mJoinOnlineFriendButton.label.text = Locale.getString("LEADERBOARD_JOIN_FRIEND_BUTTON");
+         Locale.setText(mJoinOnlineFriendButton.label,"LEADERBOARD_JOIN_FRIEND_BUTTON");
          mFriendLevel = mFriendSlot.friend_level;
          mFriendLevel.mouseEnabled = false;
          mFriendLevel.mouseChildren = false;
          mFriendInviteButton = new UIButton(mDBFacade,mFriendSlot.invite_friend);
-         mFriendInviteButton.label.text = Locale.getString("LEADERBOARD_INVITE_FRIEND");
+         Locale.setText(mFriendInviteButton.label,"LEADERBOARD_INVITE_FRIEND");
          mFriendInviteButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
          mFriendPicButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
+         mFriendPicButton.navigationSelectedInteraction = focusFriendDetails;
+      }
+      
+      private function focusFriendDetails() : void
+      {
+         if(!mFriendInfo)
+         {
+            mLeaderboard.callStopOnPopupTimeToLiveTask();
+            hidePopups();
+            return;
+         }
+         if(mFriendInfo.id == mDBFacade.accountId)
+         {
+            mLeaderboard.callStopOnPopupTimeToLiveTask();
+            minimizePopup();
+            return;
+         }
+         if(mLeaderboard.currentPopupIndex == mThisSlotIndex && (mOnlinePopup.visible || mOfflinePopup.visible))
+         {
+            mLeaderboard.callStopOnPopupTimeToLiveTask();
+            return;
+         }
+         showFriendDetails();
       }
       
       private function showFriendDetails() : void
       {
-         if(mFriendInfo && mFriendInfo.id == mDBFacade.accountId || mLeaderboard.currentPopupIndex == mThisSlotIndex && (mOnlinePopup.visible || mOfflinePopup.visible))
+         if(mFriendInfo && mFriendInfo.id == mDBFacade.accountId)
          {
             stopPopupTimeToLiveTask();
             minimizePopup();
+            return;
+         }
+         if(mLeaderboard.currentPopupIndex == mThisSlotIndex && (mOnlinePopup.visible || mOfflinePopup.visible))
+         {
+            mLeaderboard.callStopOnPopupTimeToLiveTask();
+            return;
+         }
+         hidePopups();
+         if(!mFriendInfo)
+         {
+            return;
+         }
+         mLeaderboard.callStopOnPopupTimeToLiveTask();
+         mLeaderboard.currentPopupIndex = mThisSlotIndex;
+         if(mFriendInfo.isOnline())
+         {
+            populateOnlinePopup();
          }
          else
          {
-            hidePopups();
-            if(!mFriendInfo)
-            {
-               return;
-            }
-            mLeaderboard.callStopOnPopupTimeToLiveTask();
-            mLeaderboard.currentPopupIndex = mThisSlotIndex;
-            if(mFriendInfo.isOnline())
-            {
-               populateOnlinePopup();
-            }
-            else
-            {
-               populateOfflinePopup();
-            }
+            populateOfflinePopup();
          }
       }
       
       public function populateSlot(data:FriendInfo) : void
       {
+         var joinFriendCallback:Function;
+         mPortraits.clear();
          mFriendInfo = data;
-         mFriendPicButton.root.filters = [];
+         if(!mFriendPicButton.isFocused())
+         {
+            mFriendPicButton.root.filters = [];
+         }
+         mLeaderboard.resetFriendSlotUpNavigation(mFriendPicButton);
          if(data)
          {
             mFriendInviteButton.visible = false;
@@ -158,13 +190,14 @@ package UI.Leaderboard
             mJoinOnlineFriendButton.releaseCallback = null;
             mFriendPicButton.releaseCallback = null;
             mFriendName.text = data.name;
+            applyFriendNameSize();
             mFriendName.textColor = PlayerSpecialStatus.getSpecialTextColor(data.name,mFriendName.textColor);
-            mFriendLevel.level.text = data.trophies;
+            TextUtil.setText(mFriendLevel.level,String(data.trophies));
             if(data.isOnline() && data.isInDungeon())
             {
                mJoinOnlineClip.visible = true;
                mJoinOnlineFriendButton.root.visible = true;
-               mJoinOnlineFriendButton.releaseCallback = function():void
+               joinFriendCallback = function():void
                {
                   var _loc1_:Boolean = false;
                   if(mDBFacade.dbAccountInfo.inventoryInfo.getEquipedItemsOnAvatar(mDBFacade.dbAccountInfo.activeAvatarInfo.id).length == 0)
@@ -182,6 +215,8 @@ package UI.Leaderboard
                      mDBFacade.mainStateMachine.enterLoadingScreenState(0,"",data.id,0,_loc1_);
                   }
                };
+               mJoinOnlineFriendButton.releaseCallback = joinFriendCallback;
+               mFriendPicButton.releaseCallback = joinFriendCallback;
             }
             else if(data.isOnline())
             {
@@ -202,7 +237,7 @@ package UI.Leaderboard
             {
                mFriendPicButton.root.friend_pic.removeChildAt(0);
             }
-            mFriendPicButton.root.friend_pic.addChildAt(data.pic,0);
+            mPortraits.showFriend(mFriendPicButton.root.friend_pic,mDBFacade,data);
             mFriendPicButton.root.default_pic.visible = false;
             mFriendPicButton.rollOverCallback = showFriendDetails;
             mFriendPicButton.rollOutCallback = function():void
@@ -232,50 +267,65 @@ package UI.Leaderboard
          }
       }
       
+      private function applyFriendNameSize() : void
+      {
+         var _loc2_:int = 0;
+         var _loc1_:TextFormat = mFriendName.defaultTextFormat;
+         if(!Locale.isLowRes)
+         {
+            _loc2_ = Math.ceil(9 / (0.846 * mDBFacade.viewScale));
+            _loc1_.size = Math.max(12,_loc2_);
+         }
+         mFriendName.setTextFormat(_loc1_);
+      }
+      
+      private function get onlinePopupTitle() : String
+      {
+         if(!mFriendInfo.isInDungeon())
+         {
+            return Locale.getString("LEADERBOARD_IN_TOWN_TEXT");
+         }
+         var _loc1_:String = mFriendInfo.dungeonName;
+         return _loc1_ ? _loc1_.toUpperCase() : Locale.getString("LEADERBOARD_IN_DUNGEON_TEXT");
+      }
+      
       private function populateOnlinePopup() : void
       {
-         TweenMax.killTweensOf(mOnlinePopup);
+         mDBFacade.mTween.killTweensOf(mOnlinePopup);
          mOnlinePopup.visible = true;
+         mFriendSlotPosition = mDBFacade.designLocalToGlobal(mFriendSlot,new Point(0,0));
          mOnlinePopup.y = mFriendSlotPosition.y;
          mOnlinePopup.x = mFriendSlotPosition.x;
-         mOnlinePopup.title_label.mouseEnabled = false;
-         mOnlinePopup.title_label.text = mFriendInfo.isInDungeon() ? Locale.getString("LEADERBOARD_IN_DUNGEON_TEXT") : Locale.getString("LEADERBOARD_IN_TOWN_TEXT");
-         TweenMax.to(mOnlinePopup,0.2,{"y":mOnlinePopup.y - 50});
+         mLeaderboard.setOnlinePopupTitle(onlinePopupTitle);
+         mDBFacade.mTween.tweenMaxTo(mOnlinePopup,0.2,{"y":mOnlinePopup.y - 50});
          mRemoveFriendButton = mLeaderboard.removeOnlineFriend;
          mRemoveFriendButton.releaseCallback = function():void
          {
             mLeaderboard.loadRemoveFriendPopup(mFriendInfo);
          };
+         mLeaderboard.setupTooltipNavigation(mFriendPicButton,mRemoveFriendButton,mLeaderboard.giftFriend);
       }
       
       private function populateOfflinePopup() : void
       {
-         TweenMax.killTweensOf(mOfflinePopup);
+         mDBFacade.mTween.killTweensOf(mOfflinePopup);
          mOfflinePopup.visible = true;
+         mFriendSlotPosition = mDBFacade.designLocalToGlobal(mFriendSlot,new Point(0,0));
          mOfflinePopup.y = mFriendSlotPosition.y;
          mOfflinePopup.x = mFriendSlotPosition.x;
-         TweenMax.to(mOfflinePopup,0.2,{"y":mOfflinePopup.y - 60});
-         if(mDBFacade.isFacebookPlayer && !mFriendInfo.isDRFriend)
-         {
-            mLeaderboard.enableMessageFriendButton();
-            mMessageFriendButton.releaseCallback = function():void
-            {
-               mDBFacade.facebookController.leaderboardFeedPostToASingleUser(mFriendInfo.facebookId);
-            };
-         }
-         else
-         {
-            mLeaderboard.disableMessageFriendButton();
-         }
+         mDBFacade.mTween.tweenMaxTo(mOfflinePopup,0.2,{"y":mOfflinePopup.y - 60});
+         mLeaderboard.disableMessageFriendButton();
          mRemoveFriendButton = mLeaderboard.removeOfflineFriend;
          mRemoveFriendButton.releaseCallback = function():void
          {
             mLeaderboard.loadRemoveFriendPopup(mFriendInfo);
          };
+         mLeaderboard.setupTooltipNavigation(mFriendPicButton,mRemoveFriendButton);
       }
       
       public function hidePopups() : void
       {
+         mLeaderboard.releaseTooltipFocus();
          checkToRefreshLeaderboard();
          if(mOnlinePopup)
          {
@@ -289,18 +339,19 @@ package UI.Leaderboard
       
       public function minimizePopup(gameClock:GameClock = null) : void
       {
+         mLeaderboard.releaseTooltipFocus();
          if(mOnlinePopup.visible)
          {
-            TweenMax.killTweensOf(mOnlinePopup);
-            TweenMax.to(mOnlinePopup,0.2,{
+            mDBFacade.mTween.killTweensOf(mOnlinePopup);
+            mDBFacade.mTween.tweenMaxTo(mOnlinePopup,0.2,{
                "y":mOnlinePopup.y + 50 + 10,
                "visible":false
             });
          }
          if(mOfflinePopup.visible)
          {
-            TweenMax.killTweensOf(mOfflinePopup);
-            TweenMax.to(mOfflinePopup,0.2,{
+            mDBFacade.mTween.killTweensOf(mOfflinePopup);
+            mDBFacade.mTween.tweenMaxTo(mOfflinePopup,0.2,{
                "y":mOfflinePopup.y + 60 + 10,
                "visible":false
             });
@@ -325,8 +376,14 @@ package UI.Leaderboard
          mPopupTimeToLiveTask = null;
       }
       
+      public function get friendPicButton() : UIButton
+      {
+         return mFriendPicButton;
+      }
+      
       public function destroy() : void
       {
+         mPortraits.destroy();
          stopPopupTimeToLiveTask();
          if(mFriendInviteButton)
          {

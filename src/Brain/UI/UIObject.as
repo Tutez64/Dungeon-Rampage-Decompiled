@@ -1,10 +1,12 @@
 package Brain.UI
 {
    import Brain.Clock.GameClock;
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
    import Brain.WorkLoop.DoLater;
    import flash.display.DisplayObject;
+   import flash.display.DisplayObjectContainer;
    import flash.display.MovieClip;
    import flash.events.MouseEvent;
    import flash.geom.Point;
@@ -31,6 +33,8 @@ package Brain.UI
       
       private static const NAVIGATION_SET_TO_UNSELECTED:String = "SET_TO_UNSELECTED";
       
+      public static var mouseFocusRequestHandler:Function;
+      
       protected var mEnabled:Boolean = true;
       
       protected var mFacade:Facade;
@@ -53,11 +57,17 @@ package Brain.UI
       
       protected var mIsParentedToStage:Boolean;
       
+      protected var mTooltipParent:DisplayObjectContainer;
+      
       private var mNavigationDictionary:Dictionary = new Dictionary(true);
       
       private var mNavigationAdditionalInteraction:Dictionary = new Dictionary(true);
       
       protected var mIsFocused:Boolean = false;
+      
+      protected var mIsHovered:Boolean = false;
+      
+      protected var mHighlightApplied:Boolean = false;
       
       public function UIObject(facade:Facade, root:MovieClip, tooltipDrawLayer:int = 0, dontKillChildren:Boolean = false)
       {
@@ -103,6 +113,10 @@ package Brain.UI
       public function set visible(value:Boolean) : void
       {
          mRoot.visible = value;
+         if(!value && mIsHovered)
+         {
+            onMouseRollOut(null);
+         }
       }
       
       public function get visible() : Boolean
@@ -119,32 +133,97 @@ package Brain.UI
       {
          mEnabled = value;
          hideTooltip();
+         if(!mEnabled && mIsHovered)
+         {
+            onMouseRollOut(null);
+         }
          removeListeners();
          if(mEnabled)
          {
             addListeners();
          }
+         updateHighlight();
       }
       
       protected function addListeners() : void
       {
-         mRoot.addEventListener("rollOver",onRollOver);
-         mRoot.addEventListener("rollOut",onRollOut);
+         EventListeners.add(mRoot,"rollOver",onMouseRollOver);
+         EventListeners.add(mRoot,"rollOut",onMouseRollOut);
+      }
+      
+      protected function get isHighlighted() : Boolean
+      {
+         return mEnabled && (mIsFocused || mIsHovered);
+      }
+      
+      protected function updateHighlight(event:MouseEvent = null) : void
+      {
+         if(mRoot == null)
+         {
+            return;
+         }
+         if(isHighlighted == mHighlightApplied)
+         {
+            return;
+         }
+         mHighlightApplied = isHighlighted;
+         if(mHighlightApplied)
+         {
+            onRollOver(event);
+         }
+         else
+         {
+            onRollOut(event);
+         }
+      }
+      
+      protected function onMouseRollOver(event:MouseEvent) : void
+      {
+         if(mIsHovered)
+         {
+            return;
+         }
+         mIsHovered = true;
+         updateHighlight(event);
+         if(mouseFocusRequestHandler != null && canBeFocused())
+         {
+            mouseFocusRequestHandler(this);
+         }
+      }
+      
+      protected function onMouseRollOut(event:MouseEvent) : void
+      {
+         if(!mIsHovered)
+         {
+            return;
+         }
+         mIsHovered = false;
+         updateHighlight(event);
       }
       
       public function setFocused(focused:Boolean) : void
       {
-         if(mIsFocused != focused)
+         if(mRoot == null)
          {
-            mIsFocused = focused;
-            if(mIsFocused)
-            {
-               onFocused();
-            }
-            else
-            {
-               onUnfocused();
-            }
+            return;
+         }
+         if(mIsFocused == focused)
+         {
+            return;
+         }
+         mIsFocused = focused;
+         if(isHighlighted == mHighlightApplied)
+         {
+            return;
+         }
+         mHighlightApplied = isHighlighted;
+         if(mHighlightApplied)
+         {
+            onFocused();
+         }
+         else
+         {
+            onUnfocused();
          }
       }
       
@@ -158,14 +237,14 @@ package Brain.UI
          onRollOut(null);
       }
       
-      public function onSelected() : void
+      public function onSelected(fromController:Boolean = false) : void
       {
       }
       
       protected function removeListeners() : void
       {
-         mRoot.removeEventListener("rollOver",onRollOver);
-         mRoot.removeEventListener("rollOut",onRollOut);
+         EventListeners.remove(mRoot,"rollOver",onMouseRollOver);
+         EventListeners.remove(mRoot,"rollOut",onMouseRollOut);
       }
       
       protected function onRollOver(event:MouseEvent) : void
@@ -220,6 +299,12 @@ package Brain.UI
       public function setTooltipToBeParentedToStage() : void
       {
          mIsParentedToStage = true;
+      }
+      
+      public function lockTooltipToParent(parent:DisplayObjectContainer) : void
+      {
+         hideTooltip();
+         mTooltipParent = parent;
       }
       
       public function get tooltip() : MovieClip
@@ -311,13 +396,22 @@ package Brain.UI
       protected function showTooltip(gameClock:GameClock = null) : void
       {
          var _loc2_:Point = null;
+         var _loc3_:Point = null;
          if(mTooltip)
          {
-            if(!mIsParentedToStage)
+            if(mTooltipParent)
             {
-               _loc2_ = root.localToGlobal(mTooltipPos);
+               _loc2_ = mTooltipParent.globalToLocal(mRoot.localToGlobal(mTooltipPos));
                mTooltip.x = _loc2_.x;
                mTooltip.y = _loc2_.y;
+               mTooltipParent.addChild(mTooltip);
+               return;
+            }
+            if(!mIsParentedToStage)
+            {
+               _loc3_ = mFacade.designLocalToGlobal(root,mTooltipPos);
+               mTooltip.x = _loc3_.x;
+               mTooltip.y = _loc3_.y;
             }
             else
             {
@@ -342,6 +436,8 @@ package Brain.UI
                mRoot.UIObject = null;
             }
             hideTooltip();
+            mIsHovered = false;
+            mHighlightApplied = false;
             removeListeners();
             if(!mDontKillMyChildren)
             {
@@ -351,6 +447,7 @@ package Brain.UI
                }
             }
             mNavigationDictionary = null;
+            mNavigationAdditionalInteraction = null;
             mRoot = null;
             mFacade = null;
          }
@@ -358,7 +455,7 @@ package Brain.UI
       
       public function canBeFocused() : Boolean
       {
-         return enabled && visible;
+         return mRoot != null && enabled && visible;
       }
       
       public function isFocused() : Boolean
@@ -385,22 +482,22 @@ package Brain.UI
       
       public function get leftNavigation() : UIObject
       {
-         return mNavigationDictionary["LEFT"];
+         return mNavigationDictionary != null ? mNavigationDictionary["LEFT"] : null;
       }
       
       public function get rightNavigation() : UIObject
       {
-         return mNavigationDictionary["RIGHT"];
+         return mNavigationDictionary != null ? mNavigationDictionary["RIGHT"] : null;
       }
       
       public function get upNavigation() : UIObject
       {
-         return mNavigationDictionary["UP"];
+         return mNavigationDictionary != null ? mNavigationDictionary["UP"] : null;
       }
       
       public function get downNavigation() : UIObject
       {
-         return mNavigationDictionary["DOWN"];
+         return mNavigationDictionary != null ? mNavigationDictionary["DOWN"] : null;
       }
       
       public function set leftNavigation(leftUiObject:UIObject) : void
@@ -462,21 +559,25 @@ package Brain.UI
       public function clearLeftNavigation() : void
       {
          mNavigationDictionary["LEFT"] = null;
+         mNavigationAdditionalInteraction["LEFT"] = null;
       }
       
       public function clearRightNavigation() : void
       {
          mNavigationDictionary["RIGHT"] = null;
+         mNavigationAdditionalInteraction["RIGHT"] = null;
       }
       
       public function clearUpNavigation() : void
       {
          mNavigationDictionary["UP"] = null;
+         mNavigationAdditionalInteraction["UP"] = null;
       }
       
       public function clearDownNavigation() : void
       {
          mNavigationDictionary["DOWN"] = null;
+         mNavigationAdditionalInteraction["DOWN"] = null;
       }
       
       public function clearNavigationAndInteractions() : void
@@ -495,32 +596,32 @@ package Brain.UI
       
       public function get leftNavigationAdditionalInteraction() : Function
       {
-         return mNavigationAdditionalInteraction["LEFT"];
+         return mNavigationAdditionalInteraction != null ? mNavigationAdditionalInteraction["LEFT"] : null;
       }
       
       public function get rightNavigationAdditionalInteraction() : Function
       {
-         return mNavigationAdditionalInteraction["RIGHT"];
+         return mNavigationAdditionalInteraction != null ? mNavigationAdditionalInteraction["RIGHT"] : null;
       }
       
       public function get upNavigationAdditionalInteraction() : Function
       {
-         return mNavigationAdditionalInteraction["UP"];
+         return mNavigationAdditionalInteraction != null ? mNavigationAdditionalInteraction["UP"] : null;
       }
       
       public function get downNavigationAdditionalInteraction() : Function
       {
-         return mNavigationAdditionalInteraction["DOWN"];
+         return mNavigationAdditionalInteraction != null ? mNavigationAdditionalInteraction["DOWN"] : null;
       }
       
       public function get navigationSelectedInteraction() : Function
       {
-         return mNavigationAdditionalInteraction["SELECTED"];
+         return mNavigationAdditionalInteraction != null ? mNavigationAdditionalInteraction["SELECTED"] : null;
       }
       
       public function get navigationSetToUnselectedInteraction() : Function
       {
-         return mNavigationAdditionalInteraction["SET_TO_UNSELECTED"];
+         return mNavigationAdditionalInteraction != null ? mNavigationAdditionalInteraction["SET_TO_UNSELECTED"] : null;
       }
       
       public function set leftNavigationAdditionalInteraction(leftUiObjectInteraction:Function) : void

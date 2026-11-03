@@ -1,42 +1,47 @@
 package com.junkbyte.console.vos
 {
+   import com.junkbyte.console.utils.FlashRegex;
+   import flash.Boot;
    import flash.utils.ByteArray;
    
    public class Log
    {
       
-      public var line:uint;
-      
-      public var text:String;
-      
-      public var ch:String;
-      
-      public var priority:int;
-      
-      public var repeat:Boolean;
-      
-      public var html:Boolean;
+      public var timeStr:String;
       
       public var time:uint;
       
-      public var timeStr:String;
+      public var text:String;
       
-      public var lineStr:String;
+      public var repeat:Boolean;
       
-      public var chStr:String;
-      
-      public var next:Log;
+      public var priority:int;
       
       public var prev:Log;
       
-      public function Log(txt:String, cc:String, pp:int, repeating:Boolean = false, ishtml:Boolean = false)
+      public var next:Log;
+      
+      public var lineStr:String;
+      
+      public var line:uint;
+      
+      public var html:Boolean;
+      
+      public var chStr:String;
+      
+      public var ch:String;
+      
+      public function Log(txt:String = undefined, cc:String = undefined, pp:int = 0, repeating:Boolean = false, ishtml:Boolean = false)
       {
-         super();
-         this.text = txt;
-         this.ch = cc;
-         this.priority = pp;
-         this.repeat = repeating;
-         this.html = ishtml;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         text = txt;
+         ch = cc;
+         priority = pp;
+         repeat = repeating;
+         html = ishtml;
       }
       
       public static function FromBytes(bytes:ByteArray) : Log
@@ -48,32 +53,35 @@ package com.junkbyte.console.vos
          return new Log(_loc2_,_loc3_,_loc4_,_loc5_,true);
       }
       
+      public function toString() : String
+      {
+         return "[" + ch + "] " + plainText();
+      }
+      
       public function toBytes(bytes:ByteArray) : void
       {
          var _loc2_:ByteArray = new ByteArray();
-         _loc2_.writeUTFBytes(this.text);
+         _loc2_.writeUTFBytes(text);
          bytes.writeUnsignedInt(_loc2_.length);
          bytes.writeBytes(_loc2_);
-         bytes.writeUTF(this.ch);
-         bytes.writeInt(this.priority);
-         bytes.writeBoolean(this.repeat);
+         bytes.writeUTF(ch);
+         bytes.writeInt(priority);
+         bytes.writeBoolean(repeat);
       }
       
       public function plainText() : String
       {
-         return this.text.replace(/<.*?>/g,"").replace(/&lt;/g,"<").replace(/&gt;/g,">");
-      }
-      
-      public function toString() : String
-      {
-         return "[" + this.ch + "] " + this.plainText();
+         var _loc1_:String = text;
+         _loc1_ = FlashRegex.replace(_loc1_,new EReg("<.*?>","g"),"");
+         _loc1_ = FlashRegex.replace(_loc1_,new EReg("&lt;","g"),"<");
+         return FlashRegex.replace(_loc1_,new EReg("&gt;","g"),">");
       }
       
       public function clone() : Log
       {
-         var _loc1_:Log = new Log(this.text,this.ch,this.priority,this.repeat,this.html);
-         _loc1_.line = this.line;
-         _loc1_.time = this.time;
+         var _loc1_:Log = new Log(text,ch,priority,repeat,html);
+         _loc1_.line = line;
+         _loc1_.time = time;
          return _loc1_;
       }
    }

@@ -9,11 +9,11 @@ package Events
       
       public var maxHp:uint;
       
-      public function HpEvent(type:String, id:uint, hp:uint, maxHp:uint, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function HpEvent(inType:String, id:uint, hp:uint, maxHp:uint, bubbles:Boolean = false, cancelable:Boolean = false)
       {
          this.hp = hp;
          this.maxHp = maxHp;
-         super(type,id,bubbles,cancelable);
+         super(inType,id,bubbles,cancelable);
       }
    }
 }

@@ -139,11 +139,12 @@ package Combat.Attack
             else if(mFramesElapsed > mDuration)
             {
                ResetMovement();
-               return;
             }
-            return;
          }
-         ResetMovement();
+         else
+         {
+            ResetMovement();
+         }
       }
       
       private function ResetMovement() : void

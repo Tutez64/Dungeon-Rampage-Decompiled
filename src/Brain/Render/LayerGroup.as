@@ -2,9 +2,9 @@ package Brain.Render
 {
    import Brain.Clock.GameClock;
    import Brain.Utils.MemoryTracker;
+   import Collections.SortedMap;
+   import Collections.SortedMapIterator;
    import flash.display.Sprite;
-   import org.as3commons.collections.SortedMap;
-   import org.as3commons.collections.framework.core.SortedMapIterator;
    
    public class LayerGroup extends Sprite
    {
@@ -113,7 +113,7 @@ package Brain.Render
    }
 }
 
-import org.as3commons.collections.framework.IComparator;
+import Collections.IComparator;
 
 class LayerComparator implements IComparator
 {

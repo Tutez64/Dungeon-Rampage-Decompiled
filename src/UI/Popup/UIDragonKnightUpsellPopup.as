@@ -3,6 +3,7 @@ package UI.Popup
    import Account.StoreServicesController;
    import Brain.AssetRepository.SwfAsset;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
    import Facade.DBFacade;
    import Facade.Locale;
    import flash.text.TextField;
@@ -22,7 +23,7 @@ package UI.Popup
       
       public function UIDragonKnightUpsellPopup(dbFacade:DBFacade)
       {
-         super(dbFacade,Locale.getString("DRAGON_KNIGHT_UPSELL_POPUP_TITLE"),null,true,true,setUpsellAsSeen,false);
+         super(dbFacade,"DRAGON_KNIGHT_UPSELL_POPUP",Locale.getString("DRAGON_KNIGHT_UPSELL_POPUP_TITLE"),null,true,true,setUpsellAsSeen,false);
          mDBFacade.metrics.log("dragonKnightExclusiveUpsellPopupShown");
       }
       
@@ -40,7 +41,7 @@ package UI.Popup
       {
          super.setupUI(swfAsset,titleText,content,allowClose,closeCallback);
          mBuyButton = new UIButton(mDBFacade,mPopup.button_purchase);
-         mBuyButton.label.text = Locale.getString("DRAGON_KNIGHT_UPSELL_POPUP_BUY_BUTTON");
+         Locale.setText(mBuyButton.label,"DRAGON_KNIGHT_UPSELL_POPUP_BUY_BUTTON");
          mBuyButton.releaseCallbackThis = function(param1:UIButton):void
          {
             var _this:UIButton = param1;
@@ -56,6 +57,19 @@ package UI.Popup
                }
             });
          };
+      }
+      
+      override protected function setupMenuNavigation() : void
+      {
+         if(mCloseButton)
+         {
+            mCloseButton.isAbove(mBuyButton);
+         }
+      }
+      
+      override protected function getDefaultNavigationObject() : UIObject
+      {
+         return mBuyButton;
       }
       
       private function setUpsellAsSeen() : void

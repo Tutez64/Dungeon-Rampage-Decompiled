@@ -16,6 +16,8 @@ package Brain.GameObject
    public class View
    {
       
+      private static var sAllViews:Vector.<View> = new Vector.<View>();
+      
       protected var mFacade:Facade;
       
       protected var mRoot:Sprite;
@@ -30,16 +32,25 @@ package Brain.GameObject
       
       private var mFading:Boolean;
       
-      public function View(facade:Facade)
+      protected var mTickPosX:Number = NaN;
+      
+      protected var mTickPosY:Number = NaN;
+      
+      protected var mPrevPosX:Number = NaN;
+      
+      protected var mPrevPosY:Number = NaN;
+      
+      public function View(facade:Facade, category:String = "brain")
       {
          super();
          mFacade = facade;
-         var _loc2_:String = "View";
-         mSceneGraphComponent = new SceneGraphComponent(mFacade,_loc2_);
-         mWorkComponent = new LogicalWorkComponent(mFacade,_loc2_);
+         var _loc3_:String = "View";
+         mSceneGraphComponent = new SceneGraphComponent(mFacade,_loc3_,category);
+         mWorkComponent = new LogicalWorkComponent(mFacade,_loc3_,category);
          mRoot = new Sprite();
          mFading = false;
-         MemoryTracker.track(this,_loc2_ + " - created in View()","brain");
+         sAllViews.push(this);
+         MemoryTracker.track(this,_loc3_ + " - created in View()",category);
       }
       
       private static function recursiveFindChildrenOfClass(foundArray:Array, node:DisplayObject, classNames:Array) : void
@@ -67,6 +78,22 @@ package Brain.GameObject
          var _loc3_:Array = [];
          recursiveFindChildrenOfClass(_loc3_,searchNode,classNames);
          return _loc3_;
+      }
+      
+      public static function beginTickAll() : void
+      {
+         for each(var _loc1_:View in sAllViews)
+         {
+            _loc1_.beginTick();
+         }
+      }
+      
+      public static function renderInterpolatedAll(alpha:Number) : void
+      {
+         for each(var _loc2_:View in sAllViews)
+         {
+            _loc2_.renderInterpolated(alpha);
+         }
       }
       
       public function init() : void
@@ -120,11 +147,42 @@ package Brain.GameObject
       
       public function get position() : Vector3D
       {
-         return new Vector3D(mRoot.x,mRoot.y);
+         if(isNaN(mTickPosX))
+         {
+            return new Vector3D(mRoot.x,mRoot.y);
+         }
+         return new Vector3D(mTickPosX,mTickPosY);
+      }
+      
+      public function get positionX() : Number
+      {
+         return isNaN(mTickPosX) ? mRoot.x : mTickPosX;
+      }
+      
+      public function get positionY() : Number
+      {
+         return isNaN(mTickPosX) ? mRoot.y : mTickPosY;
       }
       
       public function set position(pos:Vector3D) : void
       {
+         if(isNaN(mPrevPosX))
+         {
+            mPrevPosX = pos.x;
+            mPrevPosY = pos.y;
+         }
+         mTickPosX = pos.x;
+         mTickPosY = pos.y;
+         mRoot.x = pos.x;
+         mRoot.y = pos.y;
+      }
+      
+      public function snapPosition(pos:Vector3D) : void
+      {
+         mPrevPosX = pos.x;
+         mPrevPosY = pos.y;
+         mTickPosX = pos.x;
+         mTickPosY = pos.y;
          mRoot.x = pos.x;
          mRoot.y = pos.y;
       }
@@ -174,8 +232,51 @@ package Brain.GameObject
          return mRoot;
       }
       
+      public function isViewObjectTweenDriven() : Boolean
+      {
+         return false;
+      }
+      
+      public function beginTick() : void
+      {
+         mPrevPosX = mTickPosX;
+         mPrevPosY = mTickPosY;
+         if(!isNaN(mTickPosX) && (mPrevPosX != mTickPosX || mPrevPosY != mTickPosY))
+         {
+            mRoot.x = mTickPosX;
+            mRoot.y = mTickPosY;
+         }
+         mPrevPosX = mTickPosX;
+         mPrevPosY = mTickPosY;
+      }
+      
+      public function renderInterpolated(alpha:Number) : void
+      {
+         if(isNaN(mTickPosX))
+         {
+            return;
+         }
+         if(isViewObjectTweenDriven())
+         {
+            return;
+         }
+         if(mPrevPosX == mTickPosX && mPrevPosY == mTickPosY)
+         {
+            mRoot.x = mTickPosX;
+            mRoot.y = mTickPosY;
+            return;
+         }
+         mRoot.x = mPrevPosX + (mTickPosX - mPrevPosX) * alpha;
+         mRoot.y = mPrevPosY + (mTickPosY - mPrevPosY) * alpha;
+      }
+      
       public function destroy() : void
       {
+         var _loc1_:int = sAllViews.indexOf(this);
+         if(_loc1_ >= 0)
+         {
+            sAllViews.splice(_loc1_,1);
+         }
          if(mSceneGraphComponent)
          {
             mSceneGraphComponent.destroy();

@@ -1,17 +1,22 @@
 package Box2D.Dynamics
 {
-   import Box2D.Common.b2Settings;
+   import flash.Boot;
    
    public class b2ContactImpulse
    {
       
-      public var normalImpulses:Vector.<Number> = new Vector.<Number>(b2Settings.b2_maxManifoldPoints);
+      public var tangentImpulses:Array;
       
-      public var tangentImpulses:Vector.<Number> = new Vector.<Number>(b2Settings.b2_maxManifoldPoints);
+      public var normalImpulses:Array;
       
       public function b2ContactImpulse()
       {
-         super();
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         normalImpulses = [];
+         tangentImpulses = [];
       }
    }
 }

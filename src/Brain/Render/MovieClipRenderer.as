@@ -1,6 +1,7 @@
 package Brain.Render
 {
    import Brain.Clock.GameClock;
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
    import Brain.WorkLoop.LogicalWorkComponent;
@@ -47,13 +48,13 @@ package Brain.Render
          mFinishedCallback = finishedCallback;
          if(mMaxFrames > 1)
          {
-            mLogicalWorkComponent = new LogicalWorkComponent(facade,"MovieClipRenderer");
+            mLogicalWorkComponent = new LogicalWorkComponent(facade,"MovieClipRenderer","pool");
             if(mClip.stage)
             {
                onAdd();
             }
-            mClip.addEventListener("addedToStage",onAdd);
-            mClip.addEventListener("removedFromStage",onRemove);
+            EventListeners.add(mClip,"addedToStage",onAdd);
+            EventListeners.add(mClip,"removedFromStage",onRemove);
          }
       }
       
@@ -106,8 +107,8 @@ package Brain.Render
       {
          if(mClip)
          {
-            mClip.removeEventListener("addedToStage",onAdd);
-            mClip.removeEventListener("removedFromStage",onRemove);
+            EventListeners.remove(mClip,"addedToStage",onAdd);
+            EventListeners.remove(mClip,"removedFromStage",onRemove);
          }
          if(mOnFrameTask != null)
          {
@@ -139,6 +140,11 @@ package Brain.Render
             mOnFrameTask.destroy();
             mOnFrameTask = null;
          }
+      }
+      
+      public function get backendType() : String
+      {
+         return "flash";
       }
       
       public function get playRate() : Number
@@ -243,8 +249,8 @@ package Brain.Render
          var _loc4_:DisplayObject = null;
          var _loc7_:DisplayObjectContainer = null;
          var _loc2_:MovieClip = null;
-         var _loc3_:* = 0;
-         var _loc6_:* = 0;
+         var _loc3_:uint = 0;
+         var _loc6_:uint = 0;
          var _loc8_:int = 0;
          _loc5_ = parent as MovieClip;
          if(_loc5_ && _loc5_.totalFrames > 1)
@@ -253,12 +259,12 @@ package Brain.Render
             {
                if(_loc5_.MCR_playedIntro)
                {
-                  _loc3_ = uint(_loc5_.totalFrames - _loc5_.MCR_firstLoopFrame + 1);
-                  _loc6_ = uint(Math.round((mPlayHead - _loc5_.MCR_firstLoopFrame - 1) % _loc3_) + _loc5_.MCR_firstLoopFrame);
+                  _loc3_ = _loc5_.totalFrames - _loc5_.MCR_firstLoopFrame + 1;
+                  _loc6_ = Math.round((mPlayHead - _loc5_.MCR_firstLoopFrame - 1) % _loc3_) + _loc5_.MCR_firstLoopFrame;
                }
                else
                {
-                  _loc6_ = uint(Math.round(mPlayHead % _loc5_.totalFrames) + 1);
+                  _loc6_ = Math.round(mPlayHead % _loc5_.totalFrames) + 1;
                   if(mPlayHead >= _loc5_.totalFrames)
                   {
                      _loc5_.MCR_playedIntro = true;
@@ -267,7 +273,7 @@ package Brain.Render
             }
             else
             {
-               _loc6_ = uint(Math.round(mPlayHead % _loc5_.totalFrames) + 1);
+               _loc6_ = Math.round(mPlayHead % _loc5_.totalFrames) + 1;
             }
             _loc5_.gotoAndStop(_loc6_);
          }

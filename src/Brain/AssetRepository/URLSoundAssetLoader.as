@@ -1,6 +1,7 @@
 package Brain.AssetRepository
 {
    import Brain.Clock.GameClock;
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
    import Brain.Sound.SoundAsset;
@@ -36,9 +37,9 @@ package Brain.AssetRepository
          }
          mSound = new Sound();
          mSound.load(_loc4_);
-         mSound.addEventListener("complete",soundLoadComplete);
-         mSound.addEventListener("ioError",soundLoadIOError);
-         mSound.addEventListener("securityError",soundLoadSecurityError);
+         EventListeners.add(mSound,"complete",soundLoadComplete);
+         EventListeners.add(mSound,"ioError",soundLoadIOError);
+         EventListeners.add(mSound,"securityError",soundLoadSecurityError);
          if(mCollectingTrackLoads)
          {
             mTrackedLoads.add(mAssetLoaderInfo.getRawAssetPath());

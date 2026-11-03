@@ -9,11 +9,11 @@ package Events
       
       public var maxBusterPoints:uint;
       
-      public function BusterPointsEvent(type:String, id:uint, busterPoints:uint, maxBusterPoints:uint, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function BusterPointsEvent(busterPointsEventType:String, id:uint, busterPoints:uint, maxBusterPoints:uint, bubbles:Boolean = false, cancelable:Boolean = false)
       {
          this.busterPoints = busterPoints;
          this.maxBusterPoints = maxBusterPoints;
-         super(type,id,bubbles,cancelable);
+         super(busterPointsEventType,id,bubbles,cancelable);
       }
    }
 }

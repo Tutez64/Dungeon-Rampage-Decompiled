@@ -12,12 +12,14 @@ package UI.Shop
    import Brain.UI.UIButton;
    import Brain.UI.UIRadioButton;
    import Brain.Utils.MemoryTracker;
+   import Brain.Utils.TextUtil;
    import Brain.Utils.TimeSpan;
    import Brain.WorkLoop.LogicalWorkComponent;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.Locale;
-   import FacebookAPI.DBFacebookBragFeedPost;
    import GameMasterDictionary.GMHero;
    import GameMasterDictionary.GMNpc;
    import GameMasterDictionary.GMOffer;
@@ -30,8 +32,7 @@ package UI.Shop
    import UI.Popup.DBUIPopup;
    import flash.display.MovieClip;
    import flash.events.Event;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
+   import flash.text.TextField;
    
    public class UIShop
    {
@@ -75,6 +76,8 @@ package UI.Shop
       private static const LIMITED_OFFER_REFRESH_TIME:Number = 60000;
       
       private static const CATEGORIES:Vector.<String> = new <String>["SPECIAL","CHEST","KEY","HERO","STUFF","WEAPON","PET","SKIN"];
+      
+      private static const CATEGORY_NAVIGATION_ORDER:Vector.<String> = new <String>["SPECIAL","HERO","SKIN","WEAPON","CHEST","PET","STUFF","KEY"];
       
       private var mDBFacade:DBFacade;
       
@@ -130,12 +133,31 @@ package UI.Shop
       
       private var mWeaponTabEndDate:Date;
       
-      public function UIShop(dbFacade:DBFacade, swfAsset:SwfAsset, rootClip:MovieClip, townHeader:TownHeader)
+      private var mSpecialCategoryButton:UIRadioButton;
+      
+      private var mChestCategoryButton:UIRadioButton;
+      
+      private var mKeyCategoryButton:UIRadioButton;
+      
+      private var mHeroCategoryButton:UIRadioButton;
+      
+      private var mSkinCategoryButton:UIRadioButton;
+      
+      private var mStuffCategoryButton:UIRadioButton;
+      
+      private var mWeaponCategoryButton:UIRadioButton;
+      
+      private var mPetCategoryButton:UIRadioButton;
+      
+      private var mIsActiveCallback:Function;
+      
+      public function UIShop(dbFacade:DBFacade, swfAsset:SwfAsset, rootClip:MovieClip, townHeader:TownHeader, isActiveCallback:Function = null)
       {
          super();
          mDBFacade = dbFacade;
          mSwfAsset = swfAsset;
          mTownHeader = townHeader;
+         mIsActiveCallback = isActiveCallback;
          mSceneGraphComponent = new SceneGraphComponent(mDBFacade,"UIShop");
          mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"UIShop");
@@ -194,6 +216,7 @@ package UI.Shop
          {
             mEventComponent.destroy();
          }
+         mTownHeader = null;
       }
       
       public function get root() : MovieClip
@@ -209,6 +232,13 @@ package UI.Shop
          if(!mCurrentTab)
          {
             mCurrentTab = "SPECIAL";
+            mTownHeader.resetButtonLinks();
+            setupMenuNavigation();
+         }
+         else
+         {
+            mTownHeader.resetButtonLinks();
+            setupHeaderMenuNavigation();
          }
          if(startAtCategoryTab != "")
          {
@@ -222,7 +252,7 @@ package UI.Shop
          if(mDBFacade.gameClock.realTime >= mNextLimitedOfferRefreshTime && !mDBFacade.mInDailyReward)
          {
             mNextLimitedOfferRefreshTime = GameClock.getWebServerTime() + 60000;
-            popup = new DBUIPopup(mDBFacade,Locale.getString("SHOP_UPDATING"),null,false);
+            popup = new DBUIPopup(mDBFacade,"",Locale.getString("SHOP_UPDATING"),null,false);
             MemoryTracker.track(popup,"DBUIPopup - created in UIShop.refresh()");
             StoreServices.getLimitedOfferUsage(mDBFacade,null,function(param1:*):void
             {
@@ -237,19 +267,15 @@ package UI.Shop
          {
             showTab(mCurrentTab);
          }
-         if(mTownHeader != null)
-         {
-            mTownHeader.refreshKeyPanel();
-         }
       }
       
       private function processGMOffers() : void
       {
          var _loc6_:String = null;
-         var _loc2_:* = undefined;
+         var _loc2_:Vector.<GMOffer> = undefined;
          var _loc7_:GMOffer = null;
          var _loc4_:* = null;
-         var _loc5_:* = 0;
+         var _loc5_:uint = 0;
          mCategorizedGMOffers = new Map();
          for each(_loc6_ in CATEGORIES)
          {
@@ -399,19 +425,27 @@ package UI.Shop
          MemoryTracker.track(mPagination,"UIPagingPanel - created in UIShop.setupUI()");
          mRoot.UI_town_shop_timer.visible = false;
          group = "UIShopTabGroup";
-         mTabButtons.add("SPECIAL",new UIRadioButton(mDBFacade,mRoot.tab_special,group));
-         mTabButtons.add("CHEST",new UIRadioButton(mDBFacade,mRoot.tab_chests,group));
-         mTabButtons.add("KEY",new UIRadioButton(mDBFacade,mRoot.tab_keys,group));
-         mTabButtons.add("HERO",new UIRadioButton(mDBFacade,mRoot.tab_heroes,group));
-         mTabButtons.add("SKIN",new UIRadioButton(mDBFacade,mRoot.tab_skins,group));
-         mTabButtons.add("STUFF",new UIRadioButton(mDBFacade,mRoot.tab_stuff,group));
-         mTabButtons.add("WEAPON",new UIRadioButton(mDBFacade,mRoot.tab_melee,group));
-         mTabButtons.add("PET",new UIRadioButton(mDBFacade,mRoot.tab_pets,group));
+         mSpecialCategoryButton = new UIRadioButton(mDBFacade,mRoot.tab_special,group);
+         mChestCategoryButton = new UIRadioButton(mDBFacade,mRoot.tab_chests,group);
+         mKeyCategoryButton = new UIRadioButton(mDBFacade,mRoot.tab_keys,group);
+         mHeroCategoryButton = new UIRadioButton(mDBFacade,mRoot.tab_heroes,group);
+         mSkinCategoryButton = new UIRadioButton(mDBFacade,mRoot.tab_skins,group);
+         mStuffCategoryButton = new UIRadioButton(mDBFacade,mRoot.tab_stuff,group);
+         mWeaponCategoryButton = new UIRadioButton(mDBFacade,mRoot.tab_melee,group);
+         mPetCategoryButton = new UIRadioButton(mDBFacade,mRoot.tab_pets,group);
+         mTabButtons.add("SPECIAL",mSpecialCategoryButton);
+         mTabButtons.add("CHEST",mChestCategoryButton);
+         mTabButtons.add("KEY",mKeyCategoryButton);
+         mTabButtons.add("HERO",mHeroCategoryButton);
+         mTabButtons.add("SKIN",mSkinCategoryButton);
+         mTabButtons.add("STUFF",mStuffCategoryButton);
+         mTabButtons.add("WEAPON",mWeaponCategoryButton);
+         mTabButtons.add("PET",mPetCategoryButton);
          iter = mTabButtons.iterator() as IMapIterator;
          while(iter.hasNext())
          {
             tabButton = iter.next();
-            tabButton.root.new_label.text = Locale.getString("SHOP_NEW");
+            Locale.setText(tabButton.root.new_label,"SHOP_NEW");
             tabButton.root.new_label.visible = this.categoryHasAnyNewOffers(iter.key);
             tabButton.root.category = iter.key;
             tabButton.releaseCallbackThis = function(param1:UIButton):void
@@ -434,13 +468,16 @@ package UI.Shop
          mWeaponOfferTemplateClass = mSwfAsset.getClass("shop_offer_weapon_template");
          weaponTooltipClass = mSwfAsset.getClass("DR_weapon_tooltip");
          heroTooltipClass = mSwfAsset.getClass("avatar_tooltip");
-         mHeroWithEquipPicker = new HeroWithEquipPicker(mDBFacade,mRoot.hero_picker,weaponTooltipClass,heroTooltipClass,heroSelected);
+         mHeroWithEquipPicker = new HeroWithEquipPicker(mDBFacade,mRoot.hero_picker,weaponTooltipClass,heroTooltipClass,heroSelected,null,null,null,null,false,true,mIsActiveCallback);
          mEventComponent.addListener("DB_ACCOUNT_INFO_RESPONSE",accountInfoUpdated);
       }
       
       private function accountInfoUpdated(evt:Event) : void
       {
-         refresh();
+         if(mIsActiveCallback == null || mIsActiveCallback())
+         {
+            refresh();
+         }
       }
       
       public function animateEntry() : void
@@ -521,10 +558,11 @@ package UI.Shop
                emptyOffer.parent.addChild(mZeroOfferClip);
                mZeroOfferClip.x = emptyOffer.x;
                mZeroOfferClip.y = emptyOffer.y;
-               mZeroOfferClip.scaleX = mZeroOfferClip.scaleY = 1.8;
-               mZeroOfferClip.title.text = Locale.getString("ZERO_OFFER_TITLE");
-               mZeroOfferClip.description.text = Locale.getString("ZERO_OFFER_DESCRIPTION");
+               mZeroOfferClip.scaleX = mZeroOfferClip.scaleY = DBGlobal.UI_16_TO_9_PORT_OBJECT_SCALE;
+               Locale.setText(mZeroOfferClip.title,"ZERO_OFFER_TITLE");
+               Locale.setText(mZeroOfferClip.description,"ZERO_OFFER_DESCRIPTION");
             });
+            setupUIShopOfferNavigationLinks();
             return;
          }
          chargeTooltipClass = mSwfAsset.getClass("DR_charge_tooltip");
@@ -540,11 +578,11 @@ package UI.Shop
             }
             gmOffer = categoryOffers[i];
             onscreenIndex = i % numOffersPerPage;
-            if(gmOffer.CurrencyType == "PREMIUM" && gmOffer.Price)
+            if(gmOffer.CurrencyType == GMOffer.PREMIUM_CURRENCY && gmOffer.Price)
             {
                templateClass = mPremiumOfferTemplateClass;
             }
-            else if(gmOffer.CurrencyType == "DLC")
+            else if(gmOffer.CurrencyType == GMOffer.DLC_CURRENCY)
             {
                templateClass = mDLCOfferTemplateClass;
             }
@@ -583,10 +621,10 @@ package UI.Shop
                      {
                         return;
                      }
-                     DBFacebookBragFeedPost.buyHeroSuccess(mTownHeader,_loc1_,mDBFacade,mAssetLoadingComponent);
+                     UIBragFeedPost.buyHeroSuccess(mTownHeader,_loc1_,mDBFacade,mAssetLoadingComponent);
                   };
                };
-               uiShopOffer = new UIShopHeroOffer(mTownHeader,mDBFacade,templateClass,successCallback(gmOffer.Details[0].HeroId));
+               uiShopOffer = new UIShopHeroOffer(mDBFacade,templateClass,successCallback(gmOffer.Details[0].HeroId));
             }
             else if(gmOffer.Details[0].PetId)
             {
@@ -604,7 +642,7 @@ package UI.Shop
                      {
                         return;
                      }
-                     DBFacebookBragFeedPost.buyPetSuccess(_loc1_,mDBFacade,mAssetLoadingComponent);
+                     UIBragFeedPost.buyPetSuccess(_loc1_,mDBFacade,mAssetLoadingComponent);
                   };
                };
                uiShopOffer = new UIShopPetOffer(mDBFacade,templateClass,successCallback(gmOffer.Details[0].PetId));
@@ -625,7 +663,7 @@ package UI.Shop
                      {
                         return;
                      }
-                     DBFacebookBragFeedPost.buySkinSuccess(_loc1_,mDBFacade,mAssetLoadingComponent);
+                     UIBragFeedPost.buySkinSuccess(_loc1_,mDBFacade,mAssetLoadingComponent);
                   };
                };
                uiShopOffer = new UIShopSkinOffer(mDBFacade,templateClass,successCallback(gmOffer.Details[0].SkinId));
@@ -641,7 +679,7 @@ package UI.Shop
             mUIOffers[onscreenIndex] = uiShopOffer;
             uiShopOffer.showOffer(gmOffer,mSelectedHero);
             uiShopOffer.root.visible = true;
-            uiShopOffer.root.scaleX = uiShopOffer.root.scaleY = 1.8;
+            uiShopOffer.root.scaleX = uiShopOffer.root.scaleY = DBGlobal.UI_16_TO_9_PORT_OBJECT_SCALE;
             mEmptyOffers[onscreenIndex].visible = false;
             if(mCurrentTab == "WEAPON")
             {
@@ -659,17 +697,21 @@ package UI.Shop
             mRoot.UI_town_shop_timer.visible = false;
             cleanUpTodaysShopTimerUI();
          }
+         resetUIShopCategoriesNavigationLinks();
+         setupUIShopOfferNavigationLinks();
       }
       
       private function createTodaysShopTimerUI(gmOffer:GMOffer) : void
       {
-         mRoot.UI_town_shop_timer.offer_title.text = Locale.getString("TODAYS_WEAPONS");
-         mRoot.UI_town_shop_timer.label_date.text = getDate();
+         Locale.setText(mRoot.UI_town_shop_timer.offer_title,"TODAYS_WEAPONS");
+         TextUtil.setText(mRoot.UI_town_shop_timer.label_date,getDate(),1.55);
+         TextUtil.fitToField(mRoot.UI_town_shop_timer.label_date);
          if(gmOffer)
          {
             mRoot.UI_town_shop_timer.label_timer.visible = true;
             mRoot.UI_town_shop_timer.label_remaining.visible = true;
-            mRoot.UI_town_shop_timer.label_remaining.text = Locale.getString("TODAYS_WEAPONS_REMAINING");
+            Locale.setText(mRoot.UI_town_shop_timer.label_remaining,"TODAYS_WEAPONS_REMAINING",null,1.55);
+            TextUtil.fitToField(mRoot.UI_town_shop_timer.label_remaining);
             mWeaponTabEndDate = gmOffer.EndDate;
             mWeaponsLogicalWorkComponent.doEverySeconds(1,updateRemainingTimeText);
          }
@@ -695,7 +737,7 @@ package UI.Shop
          var _loc5_:Date = GameClock.getWebServerDate();
          if(_loc5_.time > mWeaponTabEndDate.time)
          {
-            mRoot.UI_town_shop_timer.label_timer.text = "00:00:00";
+            setCountdownText("00:00:00");
             regenerateOffers();
          }
          else
@@ -716,8 +758,17 @@ package UI.Shop
             {
                _loc3_ = "0" + _loc3_;
             }
-            mRoot.UI_town_shop_timer.label_timer.text = _loc2_ + ":" + _loc4_ + ":" + _loc3_;
+            setCountdownText(_loc2_ + ":" + _loc4_ + ":" + _loc3_);
          }
+      }
+      
+      private function setCountdownText(text:String) : void
+      {
+         var _loc2_:TextField = mRoot.UI_town_shop_timer.label_timer;
+         var _loc3_:TextField = mRoot.UI_town_shop_timer.label_remaining;
+         TextUtil.setText(_loc2_,text,1.18);
+         TextUtil.fitToField(_loc2_);
+         _loc2_.y = _loc3_.y + _loc3_.getLineMetrics(0).ascent - _loc2_.getLineMetrics(0).ascent;
       }
       
       private function chestRevealResponse(obj:Object) : void
@@ -792,7 +843,7 @@ package UI.Shop
                _loc2_ = "December";
          }
          var _loc1_:String = String(_loc5_.getDate());
-         return _loc4_ + " " + _loc2_ + " " + _loc1_;
+         return _loc4_ + " " + _loc2_.substr(0,3) + " " + _loc1_;
       }
       
       private function onWeaponRollOver(gmWeaponItem:GMWeaponItem, power:uint) : void
@@ -831,21 +882,51 @@ package UI.Shop
          displayCategoryPage();
       }
       
+      public function showPreviousCategory() : void
+      {
+         showAdjacentCategory(-1);
+      }
+      
+      public function showNextCategory() : void
+      {
+         showAdjacentCategory(1);
+      }
+      
+      private function showAdjacentCategory(direction:int) : void
+      {
+         var _loc2_:UIButton = null;
+         var _loc4_:int = CATEGORY_NAVIGATION_ORDER.indexOf(mCurrentTab);
+         if(_loc4_ < 0)
+         {
+            return;
+         }
+         var _loc3_:int = (_loc4_ + direction + CATEGORY_NAVIGATION_ORDER.length) % CATEGORY_NAVIGATION_ORDER.length;
+         showTab(CATEGORY_NAVIGATION_ORDER[_loc3_]);
+         if(mUIOffers.length > 0)
+         {
+            _loc2_ = mUIOffers[0].getPrimaryBuyButton();
+            if(_loc2_ != null && _loc2_.canBeFocused())
+            {
+               mDBFacade.menuNavigationController.setFocusedUiObject(_loc2_);
+            }
+         }
+      }
+      
       private function firstWeaponPageForActiveHero() : uint
       {
-         var _loc1_:* = 0;
-         var _loc5_:* = undefined;
-         var _loc3_:* = 0;
-         var _loc6_:* = 0;
+         var _loc1_:uint = 0;
+         var _loc5_:Vector.<GMOffer> = undefined;
+         var _loc3_:uint = 0;
+         var _loc6_:uint = 0;
          var _loc8_:GMOffer = null;
          var _loc2_:GMWeaponItem = null;
          var _loc7_:uint = 0;
          var _loc4_:AvatarInfo = mSelectedHero ? mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mSelectedHero.Id) : null;
          if(_loc4_)
          {
-            _loc1_ = _loc4_.level;
+            _loc1_ = _loc4_.levelForWeaponComparison;
             _loc5_ = mFilteredGMOffers.itemFor(mCurrentTab);
-            _loc3_ = uint(mCurrentTab == "WEAPON" ? 3 : 6);
+            _loc3_ = mCurrentTab == "WEAPON" ? 3 : 6;
             _loc6_ = 0;
             while(_loc6_ < _loc5_.length)
             {
@@ -905,7 +986,7 @@ package UI.Shop
       
       private function categoryHasAnyNewOffers(category:String) : Boolean
       {
-         var _loc2_:* = null;
+         var _loc2_:GMOffer = null;
          var _loc3_:Vector.<GMOffer> = mFilteredGMOffers.itemFor(category);
          if(_loc3_ == null)
          {
@@ -923,15 +1004,15 @@ package UI.Shop
       
       private function filterOffers() : void
       {
-         var _loc10_:* = null;
-         var _loc1_:* = undefined;
-         var _loc2_:* = null;
-         var _loc8_:* = 0;
-         var _loc9_:* = 0;
-         var _loc11_:* = 0;
-         var _loc7_:* = 0;
+         var _loc10_:String = null;
+         var _loc1_:Vector.<GMOffer> = undefined;
+         var _loc2_:GMOffer = null;
+         var _loc8_:uint = 0;
+         var _loc9_:uint = 0;
+         var _loc11_:uint = 0;
+         var _loc7_:uint = 0;
          var _loc4_:String = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc6_:GMHero = null;
          var _loc5_:AvatarInfo = mSelectedHero ? mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mSelectedHero.Id) : null;
          mFilteredGMOffers.clear();
@@ -957,8 +1038,8 @@ package UI.Shop
                                  continue;
                               }
                               _loc7_ = StoreServicesController.getOfferLevelReq(mDBFacade,_loc2_);
-                              _loc3_ = uint(_loc5_ ? _loc5_.level : 1);
-                              _loc4_ = StoreServicesController.getWeaponMastertype(mDBFacade,_loc2_);
+                              _loc3_ = uint(_loc5_ ? _loc5_.levelForWeaponComparison : 1);
+                              _loc4_ = StoreServicesController.getWeaponMasterType(mDBFacade,_loc2_);
                               if(_loc4_ && !mSelectedHero.AllowedWeapons.hasKey(_loc4_))
                               {
                                  continue;
@@ -1003,6 +1084,224 @@ package UI.Shop
          {
             mDBFacade.dbAccountInfo.changeActiveAvatarRPC(_loc1_);
          }
+      }
+      
+      private function setupMenuNavigation() : void
+      {
+         setupHeaderMenuNavigation();
+         setupShopCategoryNavigation();
+      }
+      
+      private function setupHeaderMenuNavigation() : void
+      {
+         mTownHeader.setupButtonLinks();
+         mSpecialCategoryButton.upNavigation = mTownHeader.addCoinButton;
+         mHeroCategoryButton.upNavigation = mTownHeader.addCoinButton;
+         mSkinCategoryButton.upNavigation = mTownHeader.addCoinButton;
+         mTownHeader.addCoinButton.isAbove(mWeaponCategoryButton);
+         mChestCategoryButton.upNavigation = mTownHeader.addGemButton;
+         mTownHeader.addGemButton.isAbove(mPetCategoryButton);
+         mStuffCategoryButton.upNavigation = mTownHeader.addGemButton;
+         mTownHeader.closeButton.isAbove(mKeyCategoryButton);
+      }
+      
+      private function setupShopCategoryNavigation() : void
+      {
+         mSpecialCategoryButton.isToTheLeftOf(mHeroCategoryButton);
+         mHeroCategoryButton.isToTheLeftOf(mSkinCategoryButton);
+         mSkinCategoryButton.isToTheLeftOf(mWeaponCategoryButton);
+         mWeaponCategoryButton.isToTheLeftOf(mChestCategoryButton);
+         mChestCategoryButton.isToTheLeftOf(mPetCategoryButton);
+         mPetCategoryButton.isToTheLeftOf(mStuffCategoryButton);
+         mStuffCategoryButton.isToTheLeftOf(mKeyCategoryButton);
+      }
+      
+      public function setupUIShopOfferNavigationLinks() : void
+      {
+         var _loc2_:int = 0;
+         var _loc1_:int = 0;
+         resetUIShopCategoriesNavigationLinks();
+         setShopFocusedObjectAfterRefreshing();
+         if(numOffersInCurrentCategory() <= 0)
+         {
+            getNextTabButton(mCurrentTab).downNavigation = mHeroWithEquipPicker.getFirstHeroSlotUIObject();
+            mHeroWithEquipPicker.resetHeroWithEquipPickerMenuNavigation();
+            mHeroWithEquipPicker.setupHeroWithEquipPickerMenuNavigation(getNextTabButton(mCurrentTab));
+            return;
+         }
+         mHeroWithEquipPicker.resetHeroWithEquipPickerMenuNavigation();
+         mHeroWithEquipPicker.setupHeroWithEquipPickerMenuNavigation(mUIOffers[0]);
+         mSpecialCategoryButton.downNavigation = mUIOffers[0];
+         mHeroCategoryButton.downNavigation = mUIOffers[0];
+         mSkinCategoryButton.downNavigation = mUIOffers[0];
+         mWeaponCategoryButton.downNavigation = mUIOffers[0];
+         mChestCategoryButton.downNavigation = mUIOffers[0];
+         mPetCategoryButton.downNavigation = mUIOffers[0];
+         mStuffCategoryButton.downNavigation = mUIOffers[0];
+         mKeyCategoryButton.downNavigation = mUIOffers[0];
+         _loc2_ = 0;
+         while(_loc2_ < mUIOffers.length)
+         {
+            if(mUIOffers[_loc2_].mBuyButton.visible)
+            {
+               mUIOffers[_loc2_].isAbove(mUIOffers[_loc2_].mBuyButton);
+               if(_loc2_ > 0)
+               {
+                  mUIOffers[_loc2_].mBuyButton.leftNavigation = mUIOffers[_loc2_ - 1].mBuyButton;
+               }
+               if(_loc2_ + 1 < mUIOffers.length)
+               {
+                  mUIOffers[_loc2_].mBuyButton.rightNavigation = mUIOffers[_loc2_ + 1].mBuyButton;
+               }
+               if(_loc2_ + 3 < mUIOffers.length)
+               {
+                  mUIOffers[_loc2_].mBuyButton.downNavigation = mUIOffers[_loc2_ + 3].mBuyButton;
+               }
+               else
+               {
+                  mUIOffers[_loc2_].mBuyButton.downNavigation = mHeroWithEquipPicker.getFirstHeroSlotUIObject();
+               }
+               if(_loc2_ + 1 == mUIOffers.length)
+               {
+                  mUIOffers[_loc2_].mBuyButton.downNavigation = mHeroWithEquipPicker.getFirstHeroSlotUIObject();
+                  mHeroWithEquipPicker.resetHeroWithEquipPickerMenuNavigation();
+                  mHeroWithEquipPicker.setupHeroWithEquipPickerMenuNavigation(mUIOffers[_loc2_]);
+               }
+            }
+            else if(mUIOffers[_loc2_].mBuyButtonTimerBasedSale.visible)
+            {
+               if(mCurrentTab == "WEAPON")
+               {
+                  mUIOffers[_loc2_].isAbove(mUIOffers[_loc2_].mBuyButtonTimerBasedSale);
+                  if(_loc2_ > 0)
+                  {
+                     mUIOffers[_loc2_].mBuyButtonTimerBasedSale.leftNavigation = mUIOffers[_loc2_ - 1].mBuyButtonTimerBasedSale;
+                  }
+                  if(_loc2_ + 1 < mUIOffers.length)
+                  {
+                     mUIOffers[_loc2_].mBuyButtonTimerBasedSale.rightNavigation = mUIOffers[_loc2_ + 1].mBuyButtonTimerBasedSale;
+                  }
+                  if(_loc2_ == mUIOffers.length - 1)
+                  {
+                     if(mCurrentPage == 0 && mPagination.numPages > 1)
+                     {
+                        mUIOffers[_loc2_].mBuyButtonTimerBasedSale.downNavigation = mPagination.getPageButton(mPagination.numPages - 1);
+                     }
+                     else if(mPagination.numPages > 1)
+                     {
+                        mUIOffers[_loc2_].mBuyButtonTimerBasedSale.downNavigation = mPagination.getPageButton(mCurrentPage - 1);
+                     }
+                  }
+               }
+               else
+               {
+                  mUIOffers[_loc2_].isAbove(mUIOffers[_loc2_].mBuyButtonTimerBasedSale);
+                  if(_loc2_ > 0)
+                  {
+                     mUIOffers[_loc2_].mBuyButtonTimerBasedSale.leftNavigation = mUIOffers[_loc2_ - 1].mBuyButtonTimerBasedSale;
+                  }
+                  if(_loc2_ + 1 < mUIOffers.length)
+                  {
+                     mUIOffers[_loc2_].mBuyButtonTimerBasedSale.rightNavigation = mUIOffers[_loc2_ + 1].mBuyButtonTimerBasedSale;
+                  }
+               }
+            }
+            if(_loc2_ < 3)
+            {
+               mUIOffers[_loc2_].upNavigation = getNextTabButton(mCurrentTab);
+            }
+            if(_loc2_ + 1 < mUIOffers.length)
+            {
+               mUIOffers[_loc2_].isToTheLeftOf(mUIOffers[_loc2_ + 1]);
+            }
+            if(_loc2_ + 3 < mUIOffers.length)
+            {
+               mUIOffers[_loc2_ + 3].upNavigation = mUIOffers[_loc2_];
+            }
+            _loc2_++;
+         }
+         if(mPagination.numPages > 1)
+         {
+            _loc1_ = 0;
+            while(_loc1_ < numPagesInCurrentCategory())
+            {
+               if(_loc1_ > 0)
+               {
+                  mPagination.getPageButton(_loc1_ - 1).isToTheLeftOf(mPagination.getPageButton(_loc1_));
+               }
+               mPagination.getPageButton(_loc1_).upNavigation = mUIOffers[mUIOffers.length - 1];
+               mPagination.getPageButton(_loc1_).downNavigation = mHeroWithEquipPicker.getFirstHeroSlotUIObject();
+               _loc1_++;
+            }
+            mHeroWithEquipPicker.resetHeroWithEquipPickerMenuNavigation();
+            mHeroWithEquipPicker.setupHeroWithEquipPickerMenuNavigation(mPagination.getPageButton(0));
+         }
+      }
+      
+      public function resetUIShopCategoriesNavigationLinks() : void
+      {
+         mSpecialCategoryButton.clearDownNavigation();
+         mHeroCategoryButton.clearDownNavigation();
+         mSkinCategoryButton.clearDownNavigation();
+         mWeaponCategoryButton.clearDownNavigation();
+         mChestCategoryButton.clearDownNavigation();
+         mPetCategoryButton.clearDownNavigation();
+         mStuffCategoryButton.clearDownNavigation();
+         mKeyCategoryButton.clearDownNavigation();
+      }
+      
+      private function setShopFocusedObjectAfterRefreshing() : void
+      {
+         mDBFacade.menuNavigationController.setFocusedUiObject(getNextTabButton(mCurrentTab));
+         if(mPagination.numPages > 1)
+         {
+            if(mPagination.currentPage + 1 < mPagination.numPages)
+            {
+               mDBFacade.menuNavigationController.setFocusedUiObject(mPagination.getPageButton(mPagination.currentPage + 1));
+            }
+            else
+            {
+               mDBFacade.menuNavigationController.setFocusedUiObject(mPagination.getPageButton(0));
+            }
+         }
+      }
+      
+      private function getNextTabButton(currentTab:String) : UIRadioButton
+      {
+         if(currentTab == "SPECIAL")
+         {
+            return mHeroCategoryButton;
+         }
+         if(currentTab == "HERO")
+         {
+            return mSkinCategoryButton;
+         }
+         if(currentTab == "SKIN")
+         {
+            return mWeaponCategoryButton;
+         }
+         if(currentTab == "WEAPON")
+         {
+            return mChestCategoryButton;
+         }
+         if(currentTab == "CHEST")
+         {
+            return mPetCategoryButton;
+         }
+         if(currentTab == "PET")
+         {
+            return mStuffCategoryButton;
+         }
+         if(currentTab == "STUFF")
+         {
+            return mKeyCategoryButton;
+         }
+         if(currentTab == "KEY")
+         {
+            return mSpecialCategoryButton;
+         }
+         Logger.warn("currentTab cannot be null");
+         return null;
       }
    }
 }

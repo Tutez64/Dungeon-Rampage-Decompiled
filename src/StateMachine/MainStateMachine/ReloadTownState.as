@@ -29,12 +29,11 @@ package StateMachine.MainStateMachine
       override public function enterState() : void
       {
          super.enterState();
-         mPopup = new DBUIPopup(mDBFacade,Locale.getString("RELOAD_TOWN_POPUP_TITLE"),null,false);
+         mPopup = new DBUIPopup(mDBFacade,"",Locale.getString("RELOAD_TOWN_POPUP_TITLE"),null,false);
          MemoryTracker.track(mPopup,"DBUIPopup - created in ReloadTownState.enterState()");
          mEventComponent = new EventComponent(mDBFacade);
          mEventComponent.addListener("DB_ACCOUNT_INFO_LOADED",accountLoaded);
          mDBFacade.dbAccountInfo.getUsersFullAccountInfo();
-         mDBFacade.dbAccountInfo.checkFriendsHash();
          MemoryUtil.pauseForGCWithLogging("ReloadTownState: ");
          mDBFacade.ClearCachedTileLibraryJson();
       }

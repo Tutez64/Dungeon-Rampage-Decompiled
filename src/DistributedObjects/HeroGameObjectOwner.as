@@ -7,16 +7,20 @@ package DistributedObjects
    import Box2D.Dynamics.b2Body;
    import Brain.Clock.GameClock;
    import Brain.Event.EventComponent;
+   import Brain.Event.EventListeners;
    import Brain.GameObject.GameObject;
    import Brain.Logger.Logger;
-   import Brain.Render.Layer;
    import Brain.Utils.MemoryTracker;
    import Brain.WorkLoop.Task;
    import Camera.FollowTargetCameraStrategy;
+   import Collections.IMapIterator;
+   import Collections.Map;
+   import Collections.Set;
    import Combat.Attack.PlayerOwnerAttackController;
    import Combat.Attack.TavernPlayerOwnerAttackController;
    import Combat.Weapon.WeaponController;
    import Combat.Weapon.WeaponGameObject;
+   import DBGlobals.DBGlobal;
    import Dungeon.NavCollider;
    import Dungeon.Tile;
    import Events.HpEvent;
@@ -25,17 +29,17 @@ package DistributedObjects
    import Floor.FloorObject;
    import Floor.FloorView;
    import GameMasterDictionary.GMAttack;
+   import GameMasterDictionary.GMMapNode;
    import GeneratedCode.AttackChoreography;
    import GeneratedCode.CombatResult;
    import GeneratedCode.HeroGameObjectOwnerNetworkComponent;
    import GeneratedCode.IHeroGameObjectOwner;
+   import SteamInput.UnboundActionEvent;
+   import UI.Cursor.UIMouseCursors;
    import flash.events.Event;
    import flash.events.KeyboardEvent;
    import flash.geom.Rectangle;
    import flash.geom.Vector3D;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.Set;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class HeroGameObjectOwner extends HeroGameObject implements IHeroGameObjectOwner
    {
@@ -53,8 +57,6 @@ package DistributedObjects
       public static var HERO_OWNER_READY:String = "HERO_OWNER_READY";
       
       public static var currentHeroOwnerId:uint = 0;
-      
-      private static const FOLLOW_NEXT_ALLY_KEYCODE:int = 32;
       
       protected var mBroadcastTask:Task;
       
@@ -165,7 +167,7 @@ package DistributedObjects
       {
          var _loc3_:WeaponController = null;
          var _loc1_:WeaponGameObject = null;
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          if(weaponControllers.length > 0)
          {
             _loc2_ = 0;
@@ -222,7 +224,7 @@ package DistributedObjects
          actorClickedToAttack = null;
          mPreRenderWorkComponent.doEveryFrame(this.doVisibility);
          mDBFacade.hud.initializeHud(this);
-         mDBFacade.stageRef.addEventListener("keyDown",this.debugKey,false,0,true);
+         EventListeners.add(mDBFacade.stageRef,"keyDown",this.debugKey,false,0,true);
          Logger.debug(" Sending HERO_OWNER_READY ");
          mEventComponent.dispatchEvent(new Event(HERO_OWNER_READY));
          if(this.actorData.movment > 250)
@@ -233,34 +235,15 @@ package DistributedObjects
       
       private function debugKey(event:KeyboardEvent) : void
       {
-         var _loc7_:Layer = null;
-         var _loc3_:Boolean = false;
-         var _loc2_:IMapIterator = null;
-         var _loc5_:HeroGameObject = null;
-         var _loc8_:String = mDBFacade.dbConfigManager.getConfigString("test_effect_swf","");
-         var _loc6_:String = mDBFacade.dbConfigManager.getConfigString("test_effect_name","");
-         var _loc4_:FloorObject = this;
-         switch(event.keyCode)
+         var _loc4_:String = mDBFacade.dbConfigManager.getConfigString("test_effect_swf","");
+         var _loc3_:String = mDBFacade.dbConfigManager.getConfigString("test_effect_name","");
+         var _loc2_:FloorObject = this;
+         switch(int(event.keyCode) - 69)
          {
-            case 98:
-               _loc7_ = mDBFacade.sceneGraphManager.getLayer(50);
-               _loc3_ = !_loc7_.visible;
-               _loc7_.visible = _loc3_;
-               if(actorNametag)
+            case 0:
+               if(_loc4_ && _loc3_ && distributedDungeonFloor)
                {
-                  actorNametag.visible = _loc3_;
-               }
-               _loc2_ = distributedDungeonFloor.remoteHeroes.iterator() as IMapIterator;
-               while(_loc2_.hasNext())
-               {
-                  _loc5_ = _loc2_.next();
-                  _loc5_.actorNametag.visible = _loc3_;
-               }
-               break;
-            case 69:
-               if(_loc8_ && _loc6_ && distributedDungeonFloor)
-               {
-                  distributedDungeonFloor.effectManager.playEffect(DBFacade.buildFullDownloadPath(_loc8_),_loc6_,new Vector3D(Math.random() * 100,Math.random() * 100,0),_loc4_);
+                  distributedDungeonFloor.effectManager.playEffect(DBFacade.buildFullDownloadPath(_loc4_),_loc3_,new Vector3D(Math.random() * 100,Math.random() * 100,0),_loc2_);
                }
          }
       }
@@ -273,8 +256,8 @@ package DistributedObjects
       private function doVisibility(gameClock:GameClock) : void
       {
          var _loc3_:Rectangle = null;
-         var _loc2_:* = undefined;
-         var _loc4_:* = null;
+         var _loc2_:Vector.<Tile> = undefined;
+         var _loc4_:Tile = null;
          if(mDistributedDungeonFloor && mDistributedDungeonFloor.tileGrid)
          {
             _loc3_ = mFacade.camera.visibleRectangle;
@@ -299,7 +282,7 @@ package DistributedObjects
       
       private function get canMoveXY() : Boolean
       {
-         return this.mMovementController.canMoveXY && !mFacade.inputManager.check(16);
+         return this.mMovementController.canMoveXY && !mDBFacade.keyBindings.isDown("holdInPlace");
       }
       
       public function set inputVelocity(val:Vector3D) : void
@@ -352,7 +335,7 @@ package DistributedObjects
             mPlayerOwnerAttackController.destroy();
          }
          super.setupWeapons();
-         var _loc1_:Boolean = mDistributedDungeonFloor.gmMapNode.NodeType == "TAVERN";
+         var _loc1_:Boolean = mDistributedDungeonFloor.gmMapNode.NodeType == GMMapNode.TAVERN_NODE_TYPE;
          if(_loc1_)
          {
             mPlayerOwnerAttackController = new TavernPlayerOwnerAttackController(this,mHeroView,mDBFacade);
@@ -363,6 +346,7 @@ package DistributedObjects
             mPlayerOwnerAttackController = new PlayerOwnerAttackController(this,mHeroView,mDBFacade);
             MemoryTracker.track(mPlayerOwnerAttackController,"PlayerOwnerAttackController - created in HeroGameObjectOwner.setupWeapons()");
          }
+         UIMouseCursors.setDefault(mDBFacade,"ARROW");
          initializeToFirstValidWeapon();
       }
       
@@ -496,7 +480,9 @@ package DistributedObjects
       
       override public function destroy() : void
       {
-         mDBFacade.stageRef.removeEventListener("keyDown",this.debugKey);
+         stopDeathCamInput();
+         UIMouseCursors.setDefault(mDBFacade,"ARROW");
+         EventListeners.remove(mDBFacade.stageRef,"keyDown",this.debugKey);
          if(mPlayerOwnerAttackController)
          {
             mPlayerOwnerAttackController.destroy();
@@ -543,17 +529,8 @@ package DistributedObjects
       
       public function attemptRevive(revivee:HeroGameObject) : void
       {
-         var _loc2_:* = 0;
          mCurrentAttemptedRevivee = revivee;
-         if(mDBFacade.dbConfigManager.getConfigBoolean("use_long_revive",true))
-         {
-            _loc2_ = 910900;
-         }
-         else
-         {
-            _loc2_ = 910901;
-         }
-         attack(_loc2_,revivee,1,mAttemptReviveScript,this.stateMachine.enterNavigationState,sendStopChoreography);
+         attack(910900,revivee,1,mAttemptReviveScript,this.stateMachine.enterNavigationState,sendStopChoreography);
       }
       
       public function proposeCombatResults(combatResults:Vector.<CombatResult>) : void
@@ -566,11 +543,18 @@ package DistributedObjects
       
       public function proposeRevive() : void
       {
+         var _loc1_:DistributedDungionArea = null;
          if(mCurrentAttemptedRevivee != null && mCurrentAttemptedRevivee.isInReviveState())
          {
             if(mHeroGameObjectOwnerNetworkComponent != null)
             {
                mHeroGameObjectOwnerNetworkComponent.send_ProposeRevive(mCurrentAttemptedRevivee.id);
+               _loc1_ = mDistributedDungeonFloor != null ? mDistributedDungeonFloor.parentArea as DistributedDungionArea : null;
+               if(_loc1_ != null)
+               {
+                  mDBFacade.steamAchievementsHelper.setHighestStatValueAchieved(_loc1_.countTeammateRevive(),"MOST_REVIVES_IN_DUNGEON");
+               }
+               mDBFacade.steamAchievementsHelper.addValueToStatInt(1,"TEAMMATES_REVIVED");
             }
          }
       }
@@ -587,17 +571,17 @@ package DistributedObjects
       {
          var _loc6_:Map = null;
          var _loc5_:Array = null;
-         var _loc7_:* = 0;
+         var _loc7_:uint = 0;
          var _loc3_:StackableInfo = null;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          if(yesno)
          {
             _loc6_ = mDBFacade.dbAccountInfo.inventoryInfo.stackables;
             _loc5_ = _loc6_.keysToArray();
-            _loc7_ = 60001;
+            _loc7_ = DBGlobal.RESSURECTION_POTION_STACK_ID;
             if(isParty)
             {
-               _loc7_ = 60018;
+               _loc7_ = DBGlobal.PARTYBOMB_POTION_STACK_ID;
             }
             for each(var _loc8_:uint in _loc5_)
             {
@@ -725,12 +709,21 @@ package DistributedObjects
       public function startDeathCamInput() : void
       {
          mSelectedTargets = new Map();
-         mDBFacade.stageRef.addEventListener("keyDown",checkDeathCamKeyEvent);
+         EventListeners.add(mDBFacade.stageRef,"keyDown",checkDeathCamKeyEvent);
+         EventListeners.add(mDBFacade.stageRef,"UnboundActionEvent.PRESSED",checkDeathCamUnboundEvent);
       }
       
       protected function checkDeathCamKeyEvent(kEvt:KeyboardEvent) : void
       {
-         if(kEvt.keyCode == 32)
+         if(mDBFacade.keyBindings.matches("reviveAlly",kEvt.keyCode))
+         {
+            followNextAlly();
+         }
+      }
+      
+      protected function checkDeathCamUnboundEvent(event:UnboundActionEvent) : void
+      {
+         if(event.actionName == "revive_ally")
          {
             followNextAlly();
          }
@@ -738,7 +731,8 @@ package DistributedObjects
       
       public function stopDeathCamInput() : void
       {
-         mDBFacade.stageRef.removeEventListener("keyDown",checkDeathCamKeyEvent);
+         EventListeners.remove(mDBFacade.stageRef,"keyDown",checkDeathCamKeyEvent);
+         EventListeners.remove(mDBFacade.stageRef,"UnboundActionEvent.PRESSED",checkDeathCamUnboundEvent);
          if(mSelectedTargets)
          {
             mSelectedTargets.clear();
@@ -785,7 +779,10 @@ package DistributedObjects
       
       public function resetCamera() : void
       {
-         mFollowCamera.changeTarget(mHeroView.root);
+         if(mFollowCamera)
+         {
+            mFollowCamera.changeTarget(mHeroView.root);
+         }
       }
    }
 }

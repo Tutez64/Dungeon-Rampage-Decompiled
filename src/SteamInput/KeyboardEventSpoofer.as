@@ -1,5 +1,6 @@
 package SteamInput
 {
+   import Input.KeyBindings.KeyBindings;
    import flash.display.Stage;
    import flash.events.KeyboardEvent;
    import flash.utils.Dictionary;
@@ -9,14 +10,15 @@ package SteamInput
       
       private var mStageRef:Stage;
       
-      private var mKeyboardEventsSpoofMap:KeyboardEventsSpoofMap = new KeyboardEventsSpoofMap();
+      private var mKeyboardEventsSpoofMap:KeyboardEventsSpoofMap;
       
       private var mPressedActions:Dictionary = new Dictionary();
       
-      public function KeyboardEventSpoofer(stageRef:Stage)
+      public function KeyboardEventSpoofer(stageRef:Stage, keyBindings:KeyBindings)
       {
          super();
          mStageRef = stageRef;
+         mKeyboardEventsSpoofMap = new KeyboardEventsSpoofMap(keyBindings);
       }
       
       public function update(steamInputManager:SteamInputManager) : void
@@ -36,10 +38,12 @@ package SteamInput
       
       private function handleReleasedAction(action:String) : void
       {
+         var _loc2_:int = 0;
          if(action in mPressedActions)
          {
-            fireReleasedEvent(action);
+            _loc2_ = int(mPressedActions[action]);
             delete mPressedActions[action];
+            fireKeyboardEvent("keyUp","UnboundActionEvent.RELEASED",action,_loc2_);
          }
       }
       
@@ -49,25 +53,20 @@ package SteamInput
          {
             return;
          }
-         mPressedActions[action] = true;
-         firePressedEvent(action);
+         var _loc2_:int = mKeyboardEventsSpoofMap.getKeyCode(action);
+         mPressedActions[action] = _loc2_;
+         fireKeyboardEvent("keyDown","UnboundActionEvent.PRESSED",action,_loc2_);
       }
       
-      private function fireReleasedEvent(action:String) : void
+      private function fireKeyboardEvent(inputType:String, unboundType:String, action:String, keyCode:int) : void
       {
-         fireKeyboardEvent("keyUp",action);
-      }
-      
-      private function firePressedEvent(action:String) : void
-      {
-         fireKeyboardEvent("keyDown",action);
-      }
-      
-      private function fireKeyboardEvent(inputType:String, action:String) : void
-      {
-         var _loc3_:int = mKeyboardEventsSpoofMap.getKeyCode(action);
-         var _loc4_:KeyboardEvent = new KeyboardEvent(inputType,true,false,0,_loc3_);
-         mStageRef.dispatchEvent(_loc4_);
+         if(keyCode == 0)
+         {
+            mStageRef.dispatchEvent(new UnboundActionEvent(unboundType,action));
+            return;
+         }
+         var _loc5_:KeyboardEvent = new KeyboardEvent(inputType,true,false,0,keyCode);
+         mStageRef.dispatchEvent(_loc5_);
       }
    }
 }

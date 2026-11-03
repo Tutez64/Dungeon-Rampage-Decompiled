@@ -1,47 +1,29 @@
 package GameMasterDictionary
 {
+   import DBGlobals.As3Compat;
    import DBGlobals.DBGlobal;
+   import flash.Boot;
    
    public class GMBuff extends GMItem
    {
       
-      public var Team:String;
-      
-      public var Duration:Number;
-      
-      public var LayerPriority:Number;
-      
-      public var SwapDisplay:Boolean;
-      
-      public var Type:String;
-      
-      public var Ability:uint;
-      
-      public var DeltaValues:StatVector;
-      
-      public var Exp:Number;
-      
-      public var EventExp:Number;
-      
-      public var Gold:Number;
+      public var VFXFilepath:String;
       
       public var VFX:String;
       
-      public var VFXFilepath:String;
+      public var Type:String;
       
       public var TintColor:Number;
       
       public var TintAmountF:Number;
       
-      public var Description:String;
+      public var Team:String;
+      
+      public var SwapDisplay:Boolean;
       
       public var SortLayer:String;
       
-      public var BuffFloaterColor:uint;
-      
-      public var Scale:Number;
-      
-      public var ScaleStartDelay:Number;
+      public var ShowInHUD:Boolean;
       
       public var ShakeLocalCamera:Boolean;
       
@@ -49,59 +31,82 @@ package GameMasterDictionary
       
       public var ScaleUpIncrementScale:Number;
       
-      public var ShowInHUD:Boolean;
+      public var ScaleStartDelay:Number;
+      
+      public var Scale:Number;
+      
+      public var LayerPriority:Number;
       
       public var IconSwf:String;
       
       public var IconName:String;
       
+      public var Gold:Number;
+      
+      public var Exp:Number;
+      
+      public var EventExp:Number;
+      
+      public var Duration:Number;
+      
       public var DescriptionPercentForEachStack:Number;
+      
+      public var Description:String;
+      
+      public var DeltaValues:StatVector;
+      
+      public var BuffFloaterColor:uint;
       
       public var AttackCooldownMultiplier:Number;
       
-      public function GMBuff(jsonAsset:Object)
+      public var Ability:uint;
+      
+      public function GMBuff(jsonAsset:Object = undefined)
       {
-         super(jsonAsset);
-         Team = jsonAsset.Team;
-         Duration = jsonAsset.Duration;
-         LayerPriority = jsonAsset.LayerPriority;
-         SwapDisplay = jsonAsset.SwapDisplay != null;
-         Type = jsonAsset.BuffType;
-         Ability = 0;
-         Ability |= DBGlobal.mapAbilityMask(jsonAsset.Ability1);
-         Ability |= DBGlobal.mapAbilityMask(jsonAsset.Ability2);
-         Ability |= DBGlobal.mapAbilityMask(jsonAsset.Ability3);
-         DeltaValues = new StatVector();
-         DeltaValues.SetFromJSON(jsonAsset);
-         Exp = jsonAsset.EXP;
-         EventExp = jsonAsset.EVENT_EXP;
-         Gold = jsonAsset.Gold ? jsonAsset.Gold : 1;
-         VFX = jsonAsset.VFX;
-         VFXFilepath = jsonAsset.VFXFilepath ? jsonAsset.VFXFilepath : "Resources/Art2D/FX/db_fx_library.swf";
-         SortLayer = jsonAsset.SortLayer;
-         TintColor = -1;
-         TintAmountF = 1;
-         var _loc2_:String = jsonAsset.TintColor;
-         if(_loc2_ != null)
+         if(!Boot.skip_constructor)
          {
-            TintColor = parseInt(_loc2_,16);
-            TintAmountF = jsonAsset.TintAmount;
-         }
-         Description = jsonAsset.Description;
-         BuffFloaterColor = jsonAsset.BuffFloaterColor;
-         Scale = jsonAsset.Scale;
-         ShakeLocalCamera = jsonAsset.ShakeLocalCamera;
-         ScaleStartDelay = jsonAsset.ScaleUpStartDelay;
-         ScaleUpIncrementTime = jsonAsset.ScaleUpIncrementTime;
-         ScaleUpIncrementScale = jsonAsset.ScaleUpIncrementScale;
-         ShowInHUD = jsonAsset.ShowInHUD;
-         IconSwf = jsonAsset.IconSwf;
-         IconName = jsonAsset.IconName;
-         DescriptionPercentForEachStack = jsonAsset.DescriptionPercentForEachStack ? jsonAsset.DescriptionPercentForEachStack : 0;
-         AttackCooldownMultiplier = 1;
-         if(jsonAsset.AttackCooldownMultiplier != null)
-         {
-            AttackCooldownMultiplier = jsonAsset.AttackCooldownMultiplier;
+            super(jsonAsset);
+            Team = jsonAsset.Team;
+            Duration = Number(jsonAsset.Duration);
+            LayerPriority = Number(jsonAsset.LayerPriority);
+            SwapDisplay = jsonAsset.SwapDisplay != null;
+            Type = jsonAsset.BuffType;
+            Ability = 0;
+            Ability |= DBGlobal.mapAbilityMask(jsonAsset.Ability1);
+            Ability |= DBGlobal.mapAbilityMask(jsonAsset.Ability2);
+            Ability |= DBGlobal.mapAbilityMask(jsonAsset.Ability3);
+            DeltaValues = new StatVector();
+            DeltaValues.SetFromJSON(jsonAsset);
+            Exp = Number(jsonAsset.EXP);
+            EventExp = Number(jsonAsset.EVENT_EXP);
+            Gold = As3Compat.truthy(jsonAsset.Gold) ? Number(jsonAsset.Gold) : 1;
+            VFX = jsonAsset.VFX;
+            VFXFilepath = As3Compat.truthy(jsonAsset.VFXFilepath) ? jsonAsset.VFXFilepath : "Resources/Art2D/FX/db_fx_library.swf";
+            SortLayer = jsonAsset.SortLayer;
+            TintColor = -1;
+            TintAmountF = 1;
+            var _loc2_:String = jsonAsset.TintColor;
+            if(_loc2_ != null)
+            {
+               TintColor = As3Compat.parseHex(_loc2_);
+               TintAmountF = jsonAsset.TintAmount;
+            }
+            Description = jsonAsset.Description;
+            BuffFloaterColor = uint(jsonAsset.BuffFloaterColor);
+            Scale = Number(jsonAsset.Scale);
+            ShakeLocalCamera = Boolean(jsonAsset.ShakeLocalCamera);
+            ScaleStartDelay = Number(jsonAsset.ScaleUpStartDelay);
+            ScaleUpIncrementTime = Number(jsonAsset.ScaleUpIncrementTime);
+            ScaleUpIncrementScale = Number(jsonAsset.ScaleUpIncrementScale);
+            ShowInHUD = Boolean(jsonAsset.ShowInHUD);
+            IconSwf = jsonAsset.IconSwf;
+            IconName = jsonAsset.IconName;
+            DescriptionPercentForEachStack = As3Compat.truthy(jsonAsset.DescriptionPercentForEachStack) ? Number(jsonAsset.DescriptionPercentForEachStack) : 0;
+            AttackCooldownMultiplier = 1;
+            if(jsonAsset.AttackCooldownMultiplier != null)
+            {
+               AttackCooldownMultiplier = jsonAsset.AttackCooldownMultiplier;
+            }
          }
       }
       
@@ -110,7 +115,7 @@ package GameMasterDictionary
          var _loc2_:Number = DescriptionPercentForEachStack * stacks;
          if(_loc2_ > 0)
          {
-            return _loc2_.toString() + "%";
+            return "" + _loc2_ + "%";
          }
          return "";
       }

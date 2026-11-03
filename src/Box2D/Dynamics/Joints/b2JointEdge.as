@@ -5,17 +5,16 @@ package Box2D.Dynamics.Joints
    public class b2JointEdge
    {
       
-      public var other:b2Body;
-      
-      public var joint:b2Joint;
-      
       public var prev:b2JointEdge;
+      
+      public var other:b2Body;
       
       public var next:b2JointEdge;
       
+      public var joint:b2Joint;
+      
       public function b2JointEdge()
       {
-         super();
       }
    }
 }

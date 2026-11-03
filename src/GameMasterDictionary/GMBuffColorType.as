@@ -1,5 +1,7 @@
 package GameMasterDictionary
 {
+   import flash.Boot;
+   
    public class GMBuffColorType
    {
       
@@ -7,11 +9,14 @@ package GameMasterDictionary
       
       public var ColorHex:uint;
       
-      public function GMBuffColorType(jsonAsset:Object)
+      public function GMBuffColorType(jsonAsset:Object = undefined)
       {
-         super();
-         Id = jsonAsset.Id;
-         ColorHex = jsonAsset.TextColor;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         Id = uint(jsonAsset.Id);
+         ColorHex = uint(jsonAsset.TextColor);
       }
    }
 }

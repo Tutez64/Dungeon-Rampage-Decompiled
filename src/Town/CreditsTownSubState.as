@@ -1,9 +1,11 @@
 package Town
 {
+   import Brain.AssetRepository.AssetLoader;
+   import Brain.Event.EventListeners;
+   import Brain.Render.Tweens.Linear;
+   import Brain.Render.Tweens.TweenHandle;
    import Facade.DBFacade;
    import Facade.Locale;
-   import com.greensock.TweenMax;
-   import com.greensock.easing.Linear;
    import flash.display.Bitmap;
    import flash.display.BitmapData;
    import flash.events.MouseEvent;
@@ -26,11 +28,11 @@ package Town
       
       public static const NAME:String = "CreditsTownSubState";
       
-      private static const Headers:Vector.<String> = Vector.<String>(["Dungeon Rampage\'s Revivalist","Gamebreaking Studios","Original Developers","Special Thanks","Additional Thanks","Kickstarters Backers!"]);
+      private static const Headers:Vector.<String> = Vector.<String>(["Dungeon Rampage\'s Revivalist","Gamebreaking Studios","Original Developers","Additional Help","Special Thanks","Additional Thanks","Kickstarters Backers!"]);
       
       private var mHeaderLines:Vector.<int> = Vector.<int>([]);
       
-      private var mTween:TweenMax;
+      private var mTween:TweenHandle;
       
       private var mFile:File;
       
@@ -69,7 +71,7 @@ package Town
       override public function enterState() : void
       {
          super.enterState();
-         mFile = File.applicationDirectory.resolvePath("Resources/credits.txt");
+         mFile = AssetLoader.resolveFile("Resources/credits.txt");
          mFileStream = new FileStream();
          mFileStream.open(mFile,"read");
          mFileContents = mFileStream.readUTFBytes(mFileStream.bytesAvailable);
@@ -85,13 +87,14 @@ package Town
          mRootMovieClip.label.visible = false;
          mCreditsBitMap.y = 603 + 100;
          mCreditsBitMap.x = mRootMovieClip.label.x;
-         mTween = TweenMax.to(mCreditsBitMap,250,{
+         mTween = mDBFacade.mTween.tweenMaxTo(mCreditsBitMap,250,{
             "y":603 - mRootMovieClip.label.height,
-            "ease":Linear
+            "ease":Linear.easeNone,
+            "onComplete":onTweenCompleted
          });
-         mRoot.addEventListener("mouseUp",resumeAutoScroll);
-         mRoot.addEventListener("mouseWheel",onScrollWheel);
-         mRoot.addEventListener("mouseDown",stopAutoScroll);
+         EventListeners.add(mRoot,"mouseUp",resumeAutoScroll);
+         EventListeners.add(mRoot,"mouseWheel",onScrollWheel);
+         EventListeners.add(mRoot,"mouseDown",stopAutoScroll);
          super.resetHeaderLinks();
          super.setupHeaderLinks();
          mDBFacade.menuNavigationController.pushNewLayer("CREDITS_MENU",mTownStateMachine.townHeader.determineCallback,mTownStateMachine.townHeader.closeButton,mTownStateMachine.townHeader.closeButton);
@@ -161,31 +164,36 @@ package Town
       {
          if(event.delta > 0)
          {
-            mTween.reverse();
+            mDBFacade.mTween.reverseTween(mTween);
          }
          else if(event.delta < 0)
          {
-            mTween.play();
+            mDBFacade.mTween.playTween(mTween);
          }
       }
       
       private function resumeAutoScroll(event:MouseEvent) : void
       {
-         mTween.resume();
+         mDBFacade.mTween.resumeTween(mTween);
       }
       
       private function stopAutoScroll(event:MouseEvent) : void
       {
-         mTween.pause();
+         mDBFacade.mTween.pauseTween(mTween);
+      }
+      
+      private function onTweenCompleted() : void
+      {
+         mDBFacade.steamAchievementsHelper.unlockAchievement("WATCH_CREDITS");
       }
       
       override public function exitState() : void
       {
          mDBFacade.menuNavigationController.popLayer("CREDITS_MENU");
          super.exitState();
-         mRoot.removeEventListener("mouseDown",stopAutoScroll);
-         mRoot.removeEventListener("mouseUp",resumeAutoScroll);
-         mRoot.removeEventListener("mouseWheel",onScrollWheel);
+         EventListeners.remove(mRoot,"mouseDown",stopAutoScroll);
+         EventListeners.remove(mRoot,"mouseUp",resumeAutoScroll);
+         EventListeners.remove(mRoot,"mouseWheel",onScrollWheel);
          mBitMapData.dispose();
          mRootMovieClip.removeChild(mCreditsBitMap);
          mBitMapData = null;
@@ -197,7 +205,7 @@ package Town
          mFileContents = null;
          if(mTween)
          {
-            mTween.kill();
+            mDBFacade.mTween.killTween(mTween);
          }
       }
       

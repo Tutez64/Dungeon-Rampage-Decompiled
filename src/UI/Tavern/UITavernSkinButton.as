@@ -41,7 +41,7 @@ package UI.Tavern
          this.releaseCallback = clicked;
          mHeroRequired = mRoot.hero_required;
          mHeroRequired.visible = false;
-         mHeroRequired.required_text.text = Locale.getString("TAVERN_SKIN_BUTTON_HERO_REQUIRED");
+         Locale.setText(mHeroRequired.required_text,"TAVERN_SKIN_BUTTON_HERO_REQUIRED");
          mShowSkinInTavernCallback = showSkinInTavernCallback;
          mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          mAvatarIconSlot = mRoot.slot;
@@ -50,7 +50,7 @@ package UI.Tavern
          mChosenClip = mRoot.chosen;
          mChosenClip.visible = false;
          mClassicLabel = mRoot.classic_text;
-         mClassicLabel.text = Locale.getString("TAVERN_SKIN_SLOT_HERO_LABEL");
+         Locale.setText(mClassicLabel,"TAVERN_SKIN_SLOT_HERO_LABEL");
       }
       
       public function set chosen(val:Boolean) : void

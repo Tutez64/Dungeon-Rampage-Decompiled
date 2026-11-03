@@ -2,6 +2,8 @@ package UI.Popup
 {
    import Brain.AssetRepository.SwfAsset;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import Brain.jsonRPC.JSONRPCService;
    import DBGlobals.DBGlobal;
    import Events.FriendSummaryNewsFeedEvent;
@@ -51,13 +53,15 @@ package UI.Popup
       
       private var mSuccessCallback:Function;
       
+      private var mClosedCallback:Function;
+      
       private var mMatchPlayers:Array;
       
       private var mPersonName:String;
       
       protected var mSelectedButtonValuesArray:Array;
       
-      public function UIReportPopup(dbFacade:DBFacade, personName:String, personId:uint, matchPlayers:Array, reportedCallback:Function, successCallback:Function)
+      public function UIReportPopup(dbFacade:DBFacade, personName:String, personId:uint, matchPlayers:Array, reportedCallback:Function, successCallback:Function, closedCallback:Function = null)
       {
          mSelectedButtonValuesArray = [];
          var titleText:String = Locale.getString("REPORT") + " " + personName + "?";
@@ -76,7 +80,8 @@ package UI.Popup
          mMatchPlayers = matchPlayers;
          mPersonName = personName;
          mSuccessCallback = successCallback;
-         super(dbFacade,titleText,contentText,true,true,null,false);
+         mClosedCallback = closedCallback;
+         super(dbFacade,"DUNGEON_SUMMARY_REPORT_PLAYER",titleText,contentText);
       }
       
       public function reportPlayer(personId:uint, personName:String) : void
@@ -134,7 +139,13 @@ package UI.Popup
          mRightCallback = null;
          mSuccessCallback = null;
          mDungeonReport = null;
+         var _loc1_:Function = mClosedCallback;
+         mClosedCallback = null;
          super.destroy();
+         if(_loc1_ != null)
+         {
+            _loc1_();
+         }
       }
       
       override protected function setupUI(swfAsset:SwfAsset, titleText:String, content:*, allowClose:Boolean, closeCallback:Function) : void
@@ -144,20 +155,23 @@ package UI.Popup
          tf = new TextFormat();
          tf.color = FriendSummaryNewsFeedEvent.FRIEND_NAME_HIGHLIGHT_COLOR;
          super.colorizeMessage(tf,Locale.getString("VICTORY_SCREEN_REPORT_POPUP_MESSAGE_01").length,Locale.getString("VICTORY_SCREEN_REPORT_POPUP_MESSAGE_01").length + mPersonName.length);
-         mPopup.check_button_a_label.text = check_button_label_a;
+         TextUtil.setText(mPopup.check_button_a_label,check_button_label_a);
          check_button_a = new UIButton(mDBFacade,mPopup.check_button_a);
+         check_button_a.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
          check_button_a.releaseCallback = function():void
          {
             checkButtonCallback(check_button_a,check_button_a_value);
          };
-         mPopup.check_button_b_label.text = check_button_label_b;
+         TextUtil.setText(mPopup.check_button_b_label,check_button_label_b);
          check_button_b = new UIButton(mDBFacade,mPopup.check_button_b);
+         check_button_b.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
          check_button_b.releaseCallback = function():void
          {
             checkButtonCallback(check_button_b,check_button_b_value);
          };
-         mPopup.check_button_c_label.text = check_button_label_c;
+         TextUtil.setText(mPopup.check_button_c_label,check_button_label_c);
          check_button_c = new UIButton(mDBFacade,mPopup.check_button_c);
+         check_button_c.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
          check_button_c.releaseCallback = function():void
          {
             checkButtonCallback(check_button_c,check_button_c_value);
@@ -167,7 +181,7 @@ package UI.Popup
             mPopup.left_button.visible = true;
             mLeftButton = new UIButton(mDBFacade,mPopup.left_button);
             mLeftButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
-            mLeftButton.label.text = mLeftButtonLabelText;
+            TextUtil.setText(mLeftButton.label,mLeftButtonLabelText);
             mLeftButton.releaseCallback = function():void
             {
                close(mLeftCallback);
@@ -182,7 +196,7 @@ package UI.Popup
             mPopup.right_button.visible = true;
             mRightButton = new UIButton(mDBFacade,mPopup.right_button);
             mRightButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
-            mRightButton.label.text = mRightButtonLabelText;
+            TextUtil.setText(mRightButton.label,mRightButtonLabelText);
             mRightButton.releaseCallback = function():void
             {
                close(mRightCallback);
@@ -193,6 +207,32 @@ package UI.Popup
          {
             mPopup.right_button.visible = false;
          }
+      }
+      
+      override protected function setupMenuNavigation() : void
+      {
+         check_button_a.isAbove(check_button_b);
+         check_button_b.isAbove(check_button_c);
+         if(mCloseButton)
+         {
+            mCloseButton.isAbove(check_button_a);
+            mCloseButton.isToTheLeftOf(check_button_a);
+         }
+         var _loc1_:UIButton = mLeftButton ? mLeftButton : mRightButton;
+         if(_loc1_)
+         {
+            check_button_c.isAbove(_loc1_);
+         }
+         if(mLeftButton && mRightButton)
+         {
+            mLeftButton.isToTheLeftOf(mRightButton);
+            mRightButton.upNavigation = check_button_c;
+         }
+      }
+      
+      override protected function getInitialFocusedNavigationObject() : UIObject
+      {
+         return check_button_a;
       }
       
       private function checkButtonCallback(button:UIButton, buttonValueString:String) : void

@@ -6,8 +6,12 @@ package Dungeon
    import Facade.DBFacade;
    import Floor.FloorObject;
    import GameMasterDictionary.GMProp;
+   import Starling.StarlingView;
+   import Starling.StarlingViewFactory;
    import flash.display.MovieClip;
    import flash.geom.Vector3D;
+   import starling.extensions.animate.Animation;
+   import starling.textures.Texture;
    
    public class Prop extends FloorObject
    {
@@ -17,6 +21,8 @@ package Dungeon
       private var mAssetClassName:String;
       
       private var mConstant:String;
+      
+      private var mDisposed:Boolean = false;
       
       public function Prop(dbFacade:DBFacade, remoteId:uint = 0)
       {
@@ -88,15 +94,55 @@ package Dungeon
       override public function set distributedDungeonFloor(value:DistributedDungeonFloor) : void
       {
          super.distributedDungeonFloor = value;
-         this.distributedDungeonFloor.dungeonFloorFactory.tileFactory.propFactory.createProp(this.constant,assetLoaded);
+         this.distributedDungeonFloor.dungeonFloorFactory.tileFactory.propFactory.createProp(this.constant,assetLoaded,textureLoaded,animationLoaded);
       }
       
       override protected function updateTile() : void
       {
       }
       
+      protected function textureLoaded(propTexture:Texture) : void
+      {
+         if(!checkValidCallback() || mDistributedDungeonFloor == null)
+         {
+            return;
+         }
+         var _loc2_:StarlingViewFactory = mDistributedDungeonFloor.dungeonFloorFactory.tileFactory.starlingViewFactory;
+         var _loc4_:Number = this.view.root.rotation * 3.141592653589793 / 180;
+         var _loc3_:String = this.layer == 5 ? "normal" : null;
+         var _loc5_:StarlingView = _loc2_.onTextureAssetLoaded(propTexture,this.constant,mPosition.x,mPosition.y,this.view.root.scaleX,this.view.root.scaleY,_loc4_,mTile.isOnStage,this.layer,_loc3_);
+         if(_loc5_ != null)
+         {
+            mPropView.starlingView = _loc5_;
+            mTile.expandBoundsRect(_loc5_.getBounds(_loc5_.parent));
+         }
+         this.createNavCollisions(this.constant);
+      }
+      
+      protected function animationLoaded(propAnimation:Animation) : void
+      {
+         if(!checkValidCallback() || mDistributedDungeonFloor == null)
+         {
+            return;
+         }
+         var _loc2_:StarlingViewFactory = mDistributedDungeonFloor.dungeonFloorFactory.tileFactory.starlingViewFactory;
+         var _loc4_:Number = this.view.root.rotation * 3.141592653589793 / 180;
+         var _loc3_:String = this.layer == 5 ? "normal" : null;
+         var _loc5_:StarlingView = _loc2_.onAnimationLoaded(propAnimation,this.constant,mPosition.x,mPosition.y,this.view.root.scaleX,this.view.root.scaleY,_loc4_,mTile.isOnStage,this.layer,_loc3_);
+         if(_loc5_ != null)
+         {
+            mPropView.starlingView = _loc5_;
+            mTile.expandBoundsRect(_loc5_.getBounds(_loc5_.parent));
+         }
+         this.createNavCollisions(this.constant);
+      }
+      
       protected function assetLoaded(propMovieClip:MovieClip) : void
       {
+         if(!checkValidCallback())
+         {
+            return;
+         }
          mPropView.body = propMovieClip;
          mPropView.root.name = "PropView_" + this.constant + "_" + this.id;
          if(propMovieClip.totalFrames == 1 && !mDBFacade.featureFlags.getFlagValue("want-zoom"))
@@ -115,6 +161,15 @@ package Dungeon
          this.createNavCollisions(this.constant);
       }
       
+      private function checkValidCallback() : Boolean
+      {
+         if(mDisposed || mPropView == null)
+         {
+            return false;
+         }
+         return true;
+      }
+      
       override protected function buildView() : void
       {
          mPropView = new PropView(mDBFacade,this);
@@ -124,6 +179,7 @@ package Dungeon
       
       override public function destroy() : void
       {
+         mDisposed = true;
          mPropView = null;
          super.destroy();
       }

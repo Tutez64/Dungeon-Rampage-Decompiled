@@ -1,77 +1,83 @@
 package GameMasterDictionary
 {
+   import DBGlobals.As3Compat;
+   import flash.Boot;
+   
    public class GMWeaponAesthetic
    {
       
-      public var Release:String;
-      
       public var WeaponItemConstant:String;
       
-      public var Constant:String;
+      public var TrailRAdd:Number;
+      
+      public var TrailR:Number;
+      
+      public var TrailGAdd:Number;
+      
+      public var TrailG:Number;
+      
+      public var TrailBAdd:Number;
+      
+      public var TrailB:Number;
+      
+      public var SwordTrailOverride:String;
+      
+      public var Release:String;
       
       public var Name:String;
+      
+      public var ModelName:String;
       
       public var MinLevel:uint;
       
       public var MaxLevel:uint;
       
-      public var ModelName:String;
-      
-      public var IconName:String;
-      
-      public var IconSwf:String;
-      
-      public var SwordTrailOverride:String;
+      public var ItemRAdd:Number;
       
       public var ItemR:Number;
       
-      public var ItemG:Number;
-      
-      public var ItemB:Number;
-      
-      public var ItemRAdd:Number;
-      
       public var ItemGAdd:Number;
+      
+      public var ItemG:Number;
       
       public var ItemBAdd:Number;
       
-      public var HasColor:Boolean;
-      
-      public var GlowDist:Number;
-      
-      public var GlowStr:Number;
-      
-      public var GlowColor:uint;
-      
-      public var HasGlow:Boolean;
-      
-      public var TrailR:Number;
-      
-      public var TrailG:Number;
-      
-      public var TrailB:Number;
-      
-      public var TrailRAdd:Number;
-      
-      public var TrailGAdd:Number;
-      
-      public var TrailBAdd:Number;
-      
-      public var HasTrailColor:Boolean;
-      
-      public var Description:String;
+      public var ItemB:Number;
       
       public var IsLegendary:Boolean;
       
-      public function GMWeaponAesthetic(jsonAsset:Object)
+      public var IconSwf:String;
+      
+      public var IconName:String;
+      
+      public var HasTrailColor:Boolean;
+      
+      public var HasGlow:Boolean;
+      
+      public var HasColor:Boolean;
+      
+      public var GlowStr:Number;
+      
+      public var GlowDist:Number;
+      
+      public var GlowColor:uint;
+      
+      public var Description:String;
+      
+      public var Constant:String;
+      
+      public function GMWeaponAesthetic(jsonAsset:Object = undefined)
       {
-         super();
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
          Release = jsonAsset.Release;
          WeaponItemConstant = jsonAsset.WeaponItemConstant;
          Constant = jsonAsset.Constant;
          Name = jsonAsset.Name;
-         MinLevel = jsonAsset.MinLvl as uint;
-         MaxLevel = jsonAsset.MaxLvl as uint;
+         MinLevel = uint(jsonAsset.MinLvl);
+         MaxLevel = uint(jsonAsset.MaxLvl);
          ModelName = jsonAsset.ModelName;
          IconName = jsonAsset.IconName;
          IconSwf = jsonAsset.UISwfFilepath;
@@ -91,7 +97,7 @@ package GameMasterDictionary
          {
             GlowDist = jsonAsset.GlowDist;
             GlowStr = jsonAsset.GlowStr;
-            GlowColor = uint(jsonAsset.GlowColor);
+            GlowColor = As3Compat.toUInt(jsonAsset.GlowColor);
          }
          HasTrailColor = jsonAsset.TrailR != null && jsonAsset.TrailG != null && jsonAsset.TrailB != null && jsonAsset.TrailRAdd != null && jsonAsset.TrailGAdd != null && jsonAsset.TrailBAdd != null;
          if(HasTrailColor)
@@ -104,7 +110,7 @@ package GameMasterDictionary
             TrailBAdd = jsonAsset.TrailBAdd;
          }
          Description = jsonAsset.Description;
-         IsLegendary = jsonAsset.IsLegendary;
+         IsLegendary = Boolean(jsonAsset.IsLegendary);
       }
    }
 }

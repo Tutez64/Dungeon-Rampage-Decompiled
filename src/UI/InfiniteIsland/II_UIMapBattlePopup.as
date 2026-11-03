@@ -7,7 +7,9 @@ package UI.InfiniteIsland
    import Brain.UI.UIObject;
    import Brain.UI.UIScrollPane;
    import Brain.UI.UISlider;
+   import Brain.Utils.TextUtil;
    import Brain.jsonRPC.JSONRPCService;
+   import Collections.Map;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
@@ -18,7 +20,6 @@ package UI.InfiniteIsland
    import GeneratedCode.InfiniteMapNodeDetail;
    import UI.Map.UIMapBattlePopup;
    import flash.display.MovieClip;
-   import org.as3commons.collections.Map;
    
    public class II_UIMapBattlePopup extends UIMapBattlePopup
    {
@@ -85,8 +86,8 @@ package UI.InfiniteIsland
          var friendsKeyArray:Array;
          var key:uint;
          super.setupUI(swfAsset,titleText,content,allowClose,closeCallback);
-         mPopup.label_killSwitch.text = Locale.getString("KILL_SWITCH");
-         mPopup.label_weeklyTopScores.text = Locale.getString("II_WEEKLY_FRIENDS_SCORES");
+         Locale.setText(mPopup.label_killSwitch,"KILL_SWITCH");
+         Locale.setText(mPopup.label_weeklyTopScores,"II_WEEKLY_FRIENDS_SCORES");
          mFloorModifierLabels = new Vector.<UIObject>();
          i = 0;
          while(i < 4)
@@ -150,7 +151,7 @@ package UI.InfiniteIsland
          _loc3_ = 0;
          while(_loc3_ < _loc2_.modifiers.length)
          {
-            mFloorModifierLabels[_loc3_].root.label_floor_modifier.text = Locale.getString("BATTLE_POP_UP_II_FLOOR:") + _loc5_.DModFloorStart[_loc3_].toString();
+            TextUtil.setText(mFloorModifierLabels[_loc3_].root.label_floor_modifier,Locale.getString("BATTLE_POP_UP_II_FLOOR:") + _loc5_.DModFloorStart[_loc3_].toString());
             _loc3_++;
          }
          _loc3_ = 0;
@@ -259,7 +260,7 @@ package UI.InfiniteIsland
       
       private function onReceivedTopScores(result:*) : void
       {
-         if(result == false)
+         if(!result)
          {
             return;
          }
@@ -268,10 +269,10 @@ package UI.InfiniteIsland
       
       private function switchChampionsBoardType() : void
       {
+         var _loc3_:int = 0;
          var _loc1_:II_ChampionsboardListPerNode = null;
          var _loc2_:II_ChampionsboardTopScore = null;
          mSlider.valueWithCallback = 0;
-         var _loc3_:int = 0;
          if(mIsChampionsBoardFriends)
          {
             _loc3_ = 0;
@@ -321,8 +322,8 @@ package UI.InfiniteIsland
                }
             }
          }
-         mPopup.label_weeklyTopScores.text = Locale.getString("II_WEEKLY_FRIENDS_SCORES");
-         mTopScoresBtn.label.text = Locale.getString("II_FRIENDS_SCORES");
+         Locale.setText(mPopup.label_weeklyTopScores,"II_WEEKLY_FRIENDS_SCORES");
+         Locale.setText(mTopScoresBtn.label,"II_FRIENDS_SCORES");
       }
       
       private function sortFriends(f1:FriendInfo, f2:FriendInfo) : int
@@ -335,7 +336,7 @@ package UI.InfiniteIsland
          return function(param1:SwfAsset):void
          {
             var _loc2_:MovieClip = null;
-            mFloorModifierLabels[index].root.label_floor_modifier.text += "\n" + GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_NAME",gmDungeonModifer.Constant);
+            TextUtil.setText(mFloorModifierLabels[index].root.label_floor_modifier,mFloorModifierLabels[index].root.label_floor_modifier.text + "\n" + GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_NAME",gmDungeonModifer.Constant));
             var _loc3_:Class = param1.getClass(gmDungeonModifer.IconName);
             if(_loc3_)
             {
@@ -347,14 +348,14 @@ package UI.InfiniteIsland
                }
                mFloorModifierLabels[index].root.floor_modifier_icon.addChild(_loc2_);
             }
-            mFloorModifierLabels[index].tooltip.title_label.text = GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_NAME",gmDungeonModifer.Constant);
-            mFloorModifierLabels[index].tooltip.description_label.text = GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_DESCRIPTION",gmDungeonModifer.Constant);
+            TextUtil.setText(mFloorModifierLabels[index].tooltip.title_label,GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_NAME",gmDungeonModifer.Constant));
+            TextUtil.setText(mFloorModifierLabels[index].tooltip.description_label,GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_DESCRIPTION",gmDungeonModifer.Constant));
          };
       }
       
       override public function destroy() : void
       {
-         var _loc1_:* = null;
+         var _loc1_:II_UIChampionsboardSlot = null;
          mScrollPane.destroy();
          mSlider.destroy();
          mSliderUpButton.destroy();

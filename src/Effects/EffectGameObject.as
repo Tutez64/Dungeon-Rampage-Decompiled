@@ -16,12 +16,18 @@ package Effects
       
       public var className:String;
       
+      public var iconInsert:EffectIconInsert;
+      
+      public var fallbackCategory:String;
+      
       protected var mAssetLoadedCallback:Function;
       
-      public function EffectGameObject(facade:DBFacade, swfPath:String, className:String, playRate:Number, remoteId:uint = 0, assetLoadedCallback:Function = null)
+      public function EffectGameObject(facade:DBFacade, swfPath:String, className:String, playRate:Number, remoteId:uint = 0, assetLoadedCallback:Function = null, iconInsert:EffectIconInsert = null, fallbackCategory:String = null)
       {
          this.swfPath = swfPath;
          this.className = className;
+         this.iconInsert = iconInsert;
+         this.fallbackCategory = fallbackCategory;
          mAssetLoadedCallback = assetLoadedCallback;
          super(facade,remoteId);
          this.layer = 20;
@@ -34,9 +40,18 @@ package Effects
          mAssetLoadedCallback = callback;
       }
       
+      public function setIconInsert(iconInsert:EffectIconInsert) : void
+      {
+         this.iconInsert = iconInsert;
+         if(mEffectView != null)
+         {
+            mEffectView.setIconInsert(iconInsert);
+         }
+      }
+      
       public function postCheckout(isNewObject:Boolean) : void
       {
-         if(!isNewObject && mAssetLoadedCallback != null)
+         if(!isNewObject && mAssetLoadedCallback != null && view.movieClipRenderer != null)
          {
             view.movieClipRenderer.clip.gotoAndStop(0);
             mAssetLoadedCallback(view.movieClipRenderer.clip);
@@ -45,6 +60,8 @@ package Effects
       
       public function postCheckin() : void
       {
+         mAssetLoadedCallback = null;
+         setIconInsert(null);
          mEffectView.stop();
       }
       
@@ -56,7 +73,7 @@ package Effects
       override public function set position(pos:Vector3D) : void
       {
          super.position = pos;
-         mEffectView.position = pos;
+         mEffectView.snapPosition(pos);
       }
       
       override protected function buildView() : void
@@ -78,6 +95,7 @@ package Effects
       
       override public function destroy() : void
       {
+         mAssetLoadedCallback = null;
          mEffectView = null;
          super.destroy();
       }

@@ -2,9 +2,12 @@ package UI.Gifting
 {
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
+   import Brain.Event.EventListeners;
    import Brain.SceneGraph.SceneGraphComponent;
    import Brain.SceneGraph.SceneGraphManager;
    import Brain.UI.UIButton;
+   import Brain.Utils.TextUtil;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.Locale;
    import flash.display.MovieClip;
@@ -59,18 +62,18 @@ package UI.Gifting
          mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          mSceneGraphComponent = new SceneGraphComponent(mDBFacade,"UIGift");
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_town.swf"),giftPopupLoaded);
-         mDBFacade.stageRef.addEventListener("keyDown",handleKeyDown);
+         EventListeners.add(mDBFacade.stageRef,"keyDown",handleKeyDown);
       }
       
       private function giftPopupLoaded(swfAsset:SwfAsset) : void
       {
          var popupClass:Class = swfAsset.getClass("gift_popup");
          mGiftPopup = new popupClass();
-         mGiftPopup.title_label.text = Locale.getString("GIFT_POPUP_TITLE");
-         mGiftPopup.scaleY = mGiftPopup.scaleX = 1.8;
+         Locale.setText(mGiftPopup.title_label,"GIFT_POPUP_TITLE");
+         mGiftPopup.scaleY = mGiftPopup.scaleX = DBGlobal.UI_16_TO_9_PORT_OBJECT_SCALE;
          mGiftPopup.x = 300;
          mSendGiftButton = new UIButton(mDBFacade,mGiftPopup.left_button);
-         mSendGiftButton.label.text = Locale.getString("GIFT_POPUP_SEND_GIFT");
+         Locale.setText(mSendGiftButton.label,"GIFT_POPUP_SEND_GIFT");
          mSendGiftButton.releaseCallback = function():void
          {
             if(mStoreCallback != null)
@@ -79,7 +82,7 @@ package UI.Gifting
             }
          };
          mAcceptAllGiftsButton = new UIButton(mDBFacade,mGiftPopup.right_button);
-         mAcceptAllGiftsButton.label.text = Locale.getString("GIFT_POPUP_ACCEPT_ALL");
+         Locale.setText(mAcceptAllGiftsButton.label,"GIFT_POPUP_ACCEPT_ALL");
          if(mDBFacade.dbAccountInfo.gifts.size > 0)
          {
             mAcceptAllGiftsButton.releaseCallback = function():void
@@ -119,7 +122,42 @@ package UI.Gifting
          showCurtain();
          scrollIndex = 0;
          mInfoMessageTF = mGiftPopup.message_label;
-         mInfoMessageTF.text = Locale.getString("GIFT_POPUP_INFO_MESSAGE");
+         Locale.setText(mInfoMessageTF,"GIFT_POPUP_INFO_MESSAGE",null,1.55);
+         TextUtil.fitToField(mInfoMessageTF);
+         setupMenuNavigation();
+      }
+      
+      private function setupMenuNavigation() : void
+      {
+         var _loc3_:uint = 0;
+         var _loc2_:UIGiftMessage = null;
+         mDBFacade.menuNavigationController.pushNewLayer("RECEIVED_GIFTS_POPUP",destroy,mCloseButton);
+         _loc3_ = 0;
+         while(_loc3_ < mGiftsVector.length)
+         {
+            _loc2_ = mGiftsVector[_loc3_];
+            _loc2_.acceptAndSendButton.isToTheLeftOf(_loc2_.declineButton);
+            if(_loc3_ + 1 < mGiftsVector.length)
+            {
+               _loc2_.acceptAndSendButton.isAbove(mGiftsVector[_loc3_ + 1].acceptAndSendButton);
+               _loc2_.declineButton.isAbove(mGiftsVector[_loc3_ + 1].declineButton);
+            }
+            _loc3_++;
+         }
+         var _loc4_:UIGiftMessage = mGiftsVector[0];
+         var _loc1_:UIGiftMessage = mGiftsVector[mGiftsVector.length - 1];
+         mScrollUpButton.isAbove(_loc4_.acceptAndSendButton);
+         _loc4_.declineButton.upNavigation = mScrollUpButton;
+         _loc1_.acceptAndSendButton.isAbove(mScrollDownButton);
+         _loc1_.declineButton.downNavigation = mScrollDownButton;
+         mScrollUpButton.isToTheLeftOf(mCloseButton);
+         mCloseButton.downNavigation = mScrollUpButton;
+         mAcceptAllGiftsButton.isToTheLeftOf(mScrollDownButton);
+         mScrollDownButton.isToTheLeftOf(mSendGiftButton);
+         mAcceptAllGiftsButton.upNavigation = _loc1_.declineButton;
+         mSendGiftButton.upNavigation = _loc1_.acceptAndSendButton;
+         mScrollUpButton.upNavigation = mCloseButton;
+         mScrollDownButton.downNavigation = mAcceptAllGiftsButton;
       }
       
       private function showCurtain() : void
@@ -142,8 +180,8 @@ package UI.Gifting
       
       private function populateGiftMessages() : void
       {
-         var _loc2_:* = 0;
-         var _loc3_:* = 0;
+         var _loc2_:uint = 0;
+         var _loc3_:uint = 0;
          var _loc1_:Array = mDBFacade.dbAccountInfo.gifts.keysToArray();
          if(_loc1_.length < mGiftsVector.length)
          {
@@ -152,12 +190,12 @@ package UI.Gifting
          _loc2_ = 0;
          while(_loc2_ < mGiftsVector.length)
          {
-            _loc3_ = uint(_loc2_ + mScrollIndex);
+            _loc3_ = _loc2_ + mScrollIndex;
             if(_loc3_ >= _loc1_.length)
             {
                break;
             }
-            mGiftsVector[_loc2_].root.visible = true;
+            mGiftsVector[_loc2_].visible = true;
             mGiftsVector[_loc2_].populateGiftMessage(mDBFacade.dbAccountInfo.gifts.itemFor(_loc1_[_loc3_]));
             _loc2_++;
          }
@@ -200,11 +238,11 @@ package UI.Gifting
       
       private function hideGiftMessages() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          _loc1_ = 0;
          while(_loc1_ < mGiftsVector.length)
          {
-            mGiftsVector[_loc1_].root.visible = false;
+            mGiftsVector[_loc1_].visible = false;
             _loc1_++;
          }
       }
@@ -228,7 +266,12 @@ package UI.Gifting
       
       public function destroy() : void
       {
-         mDBFacade.stageRef.removeEventListener("keyDown",handleKeyDown);
+         if(mDBFacade == null)
+         {
+            return;
+         }
+         EventListeners.remove(mDBFacade.stageRef,"keyDown",handleKeyDown);
+         mDBFacade.menuNavigationController.popLayer("RECEIVED_GIFTS_POPUP");
          mDBFacade = null;
          if(mGiftPopup)
          {

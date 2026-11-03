@@ -1,36 +1,44 @@
 package Box2D.Dynamics.Joints
 {
    import Box2D.Common.Math.b2Vec2;
-   import Box2D.Common.b2internal;
    import Box2D.Dynamics.b2Body;
-   
-   use namespace b2internal;
+   import flash.Boot;
    
    public class b2FrictionJointDef extends b2JointDef
    {
       
-      public var localAnchorA:b2Vec2 = new b2Vec2();
-      
-      public var localAnchorB:b2Vec2 = new b2Vec2();
+      public var maxTorque:Number;
       
       public var maxForce:Number;
       
-      public var maxTorque:Number;
+      public var localAnchorB:b2Vec2;
+      
+      public var localAnchorA:b2Vec2;
       
       public function b2FrictionJointDef()
       {
-         super();
-         type = b2Joint.e_frictionJoint;
-         this.maxForce = 0;
-         this.maxTorque = 0;
+         if(!Boot.skip_constructor)
+         {
+            super();
+            localAnchorA = new b2Vec2();
+            localAnchorB = new b2Vec2();
+            type = 9;
+            maxForce = 0;
+            maxTorque = 0;
+         }
+      }
+      
+      public function initialize(bA:b2Body, bB:b2Body, anchor:b2Vec2) : void
+      {
+         Initialize(bA,bB,anchor);
       }
       
       public function Initialize(bA:b2Body, bB:b2Body, anchor:b2Vec2) : void
       {
          bodyA = bA;
          bodyB = bB;
-         this.localAnchorA.SetV(bodyA.GetLocalPoint(anchor));
-         this.localAnchorB.SetV(bodyB.GetLocalPoint(anchor));
+         localAnchorA.setV(bodyA.getLocalPoint(anchor));
+         localAnchorB.setV(bodyB.getLocalPoint(anchor));
       }
    }
 }

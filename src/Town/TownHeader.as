@@ -13,16 +13,15 @@ package Town
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
    import Brain.Utils.MemoryTracker;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
    import DBGlobals.DBGlobal;
    import Events.BoostersParsedEvent;
-   import Events.TrophiesUpdatedAccountEvent;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
    import UI.CountdownTextTimer;
    import UI.Popup.UIExitPopup;
-   import UI.Shop.UIShop;
    import UI.UITownTweens;
    import flash.display.MovieClip;
    import flash.filters.DropShadowFilter;
@@ -55,8 +54,6 @@ package Town
       
       private var mCoinUI:UIObject;
       
-      private var mTrophiesUI:UIObject;
-      
       private var mTeamBonusUI:UIObject;
       
       private var mCoinBoosterUI:UIObject;
@@ -69,8 +66,6 @@ package Town
       
       private var mSaleEfx:MovieClip;
       
-      private var mSaleLabel:TextField;
-      
       private var mAddCoinButton:UIButton;
       
       private var mAddCashButton:UIButton;
@@ -81,25 +76,13 @@ package Town
       
       private var mCoinLabel:TextField;
       
-      private var mTrophyLabel:TextField;
-      
       private var mShowCloseButton:Boolean = true;
       
       private var mJumpToMapState:Boolean = false;
       
       private var mInHomeState:Boolean = false;
       
-      private var mKeyPanelButton:UIButton;
-      
-      private var mKeyPanel:KeyPanel;
-      
-      private var mShopUI:UIShop;
-      
       private var mTownSwf:SwfAsset;
-      
-      private var mInTownFromKeyPanel:Boolean;
-      
-      private var mPreviousTitleBeforeKeyPanel:String;
       
       private var mBoosterXP:BoosterInfo;
       
@@ -112,14 +95,13 @@ package Town
       public function TownHeader(dbFacade:DBFacade, defaultCloseCallback:Function, mapStateCallback:Function = null)
       {
          super();
+         MemoryTracker.track(this,"TownHeader - created in TownHeader()","default");
          mDBFacade = dbFacade;
          mDefaultCloseCallback = defaultCloseCallback;
          mMapStateCallback = mapStateCallback;
          mTitle = Locale.getString("TOWN_HEADER");
-         mInTownFromKeyPanel = false;
          mEventComponent = new EventComponent(mDBFacade);
          mEventComponent.addListener("CurrencyUpdatedAccountEvent",this.currencyUpdated);
-         mEventComponent.addListener("TrophiesUpdatedAccountEvent",this.trophiesUpdated);
          mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"TownHeader");
          mSceneGraphComponent = new SceneGraphComponent(mDBFacade,"TownHeader");
          mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
@@ -136,20 +118,24 @@ package Town
          {
             mCountDownTextGold.destroy();
          }
-         mTeamBonusUI.destroy();
-         if(mKeyPanel != null)
+         if(mTeamBonusUI)
          {
-            mKeyPanel.destroy();
+            mTeamBonusUI.destroy();
          }
-         mKeyPanel = null;
+         if(mCoinBoosterUI)
+         {
+            mCoinBoosterUI.destroy();
+         }
+         if(mXPBoosterUI)
+         {
+            mXPBoosterUI.destroy();
+         }
          mCashUI.destroy();
          mCoinUI.destroy();
-         mTeamBonusUI.destroy();
          mAddCoinButton.destroy();
          mAddCashButton.destroy();
          mCloseButton.destroy();
          mGemIcon = null;
-         mSaleLabel = null;
          mSaleEfx = null;
          mAddCashSaleButton.destroy();
          mEventComponent.destroy();
@@ -181,32 +167,25 @@ package Town
          var acctInfo:DBAccountInfo;
          mRoot.x = mDBFacade.viewWidth * 0.5;
          mRoot.y = 0;
-         mRoot.currency.cash;
          mCashUI = new UIObject(mDBFacade,mRoot.currency.cash);
-         mCashUI.tooltip.title_label.text = Locale.getString("CASH_TOOLTIP_TITLE");
-         mCashUI.tooltip.description_label.text = Locale.getString("CASH_TOOLTIP_DESCRIPTION");
          mCoinUI = new UIObject(mDBFacade,mRoot.currency.coin);
-         mCoinUI.tooltip.title_label.text = Locale.getString("COIN_TOOLTIP_TITLE");
-         mCoinUI.tooltip.description_label.text = Locale.getString("COIN_TOOLTIP_DESCRIPTION");
          mTeamBonusUI = new UIObject(mDBFacade,mRoot.currency.crewbonus);
-         mTeamBonusUI.tooltip.title_label.text = Locale.getString("TEAM_BONUS_TOOLTIP_TITLE");
-         mTeamBonusUI.tooltip.description_label.text = Locale.getString("TEAM_BONUS_TOOLTIP_DESCRIPTION");
-         mTeamBonusUI.root.header_crew_bonus_txt1.text = Locale.getString("TEAM_BONUS_TITLE_CREW");
-         mTeamBonusUI.root.header_crew_bonus_txt2.text = Locale.getString("TEAM_BONUS_TITLE_BONUS");
-         mTeamBonusUI.root.header_crew_bonus_number.text = mDBFacade.dbAccountInfo.inventoryInfo.getTotalHeroesOwned() - 1;
+         Locale.setText(mTeamBonusUI.tooltip.title_label,"TEAM_BONUS_TOOLTIP_TITLE");
+         Locale.setText(mTeamBonusUI.tooltip.description_label,"TEAM_BONUS_TOOLTIP_DESCRIPTION");
+         Locale.setText(mTeamBonusUI.root.header_crew_bonus_txt1,"TEAM_BONUS_TITLE_CREW",null,0.82);
+         Locale.setText(mTeamBonusUI.root.header_crew_bonus_txt2,"TEAM_BONUS_TITLE_BONUS",null,0.82);
+         TextUtil.setText(mTeamBonusUI.root.header_crew_bonus_number,String(mDBFacade.dbAccountInfo.inventoryInfo.getTotalHeroesOwned() - 1),0.73);
          mTeamBonusUI.root.header_crew_bonus_anim.stop();
          mCoinBoosterUI = new UIObject(mDBFacade,mRoot.currency.boosterCoin);
          mXPBoosterUI = new UIObject(mDBFacade,mRoot.currency.boosterXP);
          mAddCashButton = new UIButton(mDBFacade,mCashUI.root.add_cash);
-         mAddCashButton.label.text = Locale.getString("HOW");
+         Locale.setText(mAddCashButton.label,"HOW");
          mGemIcon = mCashUI.root.gem_icon;
          mSaleEfx = mCashUI.root.lable_sale_efx;
          mSaleEfx.visible = false;
          mAddCashSaleButton = new UIButton(mDBFacade,mCashUI.root.add_cash_sale);
          mAddCashSaleButton.visible = false;
-         mAddCashSaleButton.label.text = Locale.getString("HOW");
-         mSaleLabel = mCashUI.root.label_sale;
-         mSaleLabel.visible = false;
+         Locale.setText(mAddCashSaleButton.label,"HOW");
          mAddCashSaleButton.rolloverFilter = mAddCashButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
          mAddCashSaleButton.releaseCallback = mAddCashButton.releaseCallback = function():void
          {
@@ -220,7 +199,7 @@ package Town
          {
             StoreServicesController.showCoinPage(mDBFacade);
          };
-         mAddCoinButton.label.text = Locale.getString("HOW");
+         Locale.setText(mAddCoinButton.label,"HOW");
          mCoinLabel = mCoinUI.root.coin as TextField;
          mCoinLabel.mouseEnabled = false;
          mCashLabel = mCashUI.root.cash as TextField;
@@ -232,71 +211,13 @@ package Town
          showCloseButton(mShowCloseButton);
          acctInfo = mDBFacade.dbAccountInfo;
          setCurrency(acctInfo.basicCurrency,acctInfo.premiumCurrency);
-         setTrophies(acctInfo.trophies);
          setBoosters();
          mEventComponent.addListener("BoostersParsedEvent_BOOSTERS_PARSED_UPDATE",this.handleBoostersParsedEvent);
       }
       
       public function updateTeamBonusUI() : void
       {
-         mTeamBonusUI.root.header_crew_bonus_number.text = mDBFacade.dbAccountInfo.inventoryInfo.getTotalHeroesOwned() - 1;
-      }
-      
-      private function createKeyPanel() : void
-      {
-         if(mKeyPanel != null)
-         {
-            closeKeyPanel();
-         }
-         else
-         {
-            mSceneGraphComponent.fadeOut(0.5,0.75);
-            mKeyPanel = new KeyPanel(mDBFacade,mAssetLoadingComponent,buyKeysPressed,closeKeyPanel,mDBFacade.mainStateMachine.currentStateName);
-            MemoryTracker.track(mKeyPanel,"KeyPanel - created in TownHeader.createKeyPanel()");
-         }
-      }
-      
-      public function refreshKeyPanel() : void
-      {
-         if(mKeyPanel)
-         {
-            mKeyPanel.refresh();
-         }
-      }
-      
-      private function buyKeysPressed() : void
-      {
-         closeKeyPanel();
-         if(mShopUI != null)
-         {
-            return;
-         }
-         var _loc1_:Class = mTownSwf.getClass("DR_UI_town_shop");
-         mShopUI = new UIShop(mDBFacade,mTownSwf,new _loc1_() as MovieClip,this);
-         mShopUI.refresh("KEY");
-         mShopUI.animateEntry();
-         mSceneGraphComponent.addChild(mShopUI.root,50);
-         showCloseButton(true);
-         mInTownFromKeyPanel = true;
-         mPreviousTitleBeforeKeyPanel = mTitle;
-         title = Locale.getString("SHOP");
-      }
-      
-      private function closeShopPanel() : void
-      {
-         mSceneGraphComponent.removeChild(mShopUI.root);
-         mShopUI.destroy();
-         mShopUI = null;
-         mInTownFromKeyPanel = false;
-         title = mPreviousTitleBeforeKeyPanel;
-      }
-      
-      private function closeKeyPanel() : void
-      {
-         mSceneGraphComponent.fadeIn(0.5);
-         mKeyPanelButton.enabled = true;
-         mKeyPanel.destroy();
-         mKeyPanel = null;
+         TextUtil.setText(mTeamBonusUI.root.header_crew_bonus_number,String(mDBFacade.dbAccountInfo.inventoryInfo.getTotalHeroesOwned() - 1),0.73);
       }
       
       public function animateHeader() : void
@@ -352,11 +273,6 @@ package Town
             showExitPopup();
             return;
          }
-         if(mInTownFromKeyPanel)
-         {
-            closeShopPanel();
-            return;
-         }
          if(mJumpToMapState && mMapStateCallback != null)
          {
             mMapStateCallback();
@@ -372,21 +288,14 @@ package Town
       {
          if(mRoot != null)
          {
-            mCoinLabel.text = basicCurrency.toString();
-            mCashLabel.text = premiumCurrency.toString();
+            TextUtil.setText(mCoinLabel,basicCurrency.toString());
+            TextUtil.setText(mCashLabel,premiumCurrency.toString());
          }
       }
       
       private function currencyUpdated(event:CurrencyUpdatedAccountEvent) : void
       {
          this.setCurrency(event.basicCurrency,event.premiumCurrency);
-      }
-      
-      private function setTrophies(trophies:uint) : void
-      {
-         if(mRoot != null)
-         {
-         }
       }
       
       private function handleBoostersParsedEvent(event:BoostersParsedEvent) : void
@@ -416,25 +325,20 @@ package Town
          }
          if(mBoosterXP)
          {
-            mRoot.currency.boosterXP.label.text = mBoosterXP.BuffInfo.Exp + "X";
-            mXPBoosterUI.tooltip.title_label.text = mBoosterXP.StackInfo.Name;
+            TextUtil.setText(mRoot.currency.boosterXP.label,mBoosterXP.BuffInfo.Exp + "X");
+            TextUtil.setText(mXPBoosterUI.tooltip.title_label,mBoosterXP.StackInfo.Name);
             mXPBoosterUI.visible = true;
             mCountDownTextXP = new CountdownTextTimer(mXPBoosterUI.tooltip.time_label,mBoosterXP.getEndDate(),GameClock.getWebServerDate,setBoosters,Locale.getString("BOOSTER_REMAINING"),"",Locale.getString("EXPIRED"));
             mCountDownTextXP.start();
          }
          if(mBoosterGold)
          {
-            mRoot.currency.boosterCoin.label.text = mBoosterGold.BuffInfo.Gold + "X";
-            mCoinBoosterUI.tooltip.title_label.text = GameMasterLocale.getGameMasterSubString("STACKABLE_NAME",mBoosterGold.StackInfo.Constant);
+            TextUtil.setText(mRoot.currency.boosterCoin.label,mBoosterGold.BuffInfo.Gold + "X");
+            TextUtil.setText(mCoinBoosterUI.tooltip.title_label,GameMasterLocale.getGameMasterSubString("STACKABLE_NAME",mBoosterGold.StackInfo.Constant));
             mCoinBoosterUI.visible = true;
             mCountDownTextGold = new CountdownTextTimer(mCoinBoosterUI.tooltip.time_label,mBoosterGold.getEndDate(),GameClock.getWebServerDate,setBoosters,Locale.getString("BOOSTER_REMAINING"),"",Locale.getString("EXPIRED"));
             mCountDownTextGold.start();
          }
-      }
-      
-      private function trophiesUpdated(event:TrophiesUpdatedAccountEvent) : void
-      {
-         this.setTrophies(event.trophyCount);
       }
       
       public function set title(value:String) : void
@@ -442,7 +346,7 @@ package Town
          mTitle = value;
          if(mRoot != null)
          {
-            mRoot.page_title.text = mTitle;
+            TextUtil.setText(mRoot.page_title,mTitle);
             mRoot.page_title.mouseEnabled = false;
          }
       }
@@ -464,16 +368,13 @@ package Town
       
       public function setupButtonLinks() : void
       {
-         mAddCoinButton.downNavigation = null;
-         mAddCashButton.downNavigation = null;
+         mAddCoinButton.clearNavigationAndInteractions();
+         mAddCashButton.clearNavigationAndInteractions();
+         mCloseButton.clearNavigationAndInteractions();
          mAddCoinButton.isToTheLeftOf(mAddCashButton);
          if(mShowCloseButton)
          {
             mAddCashButton.isToTheLeftOf(mCloseButton);
-         }
-         else
-         {
-            mAddCashButton.rightNavigation = null;
          }
       }
       

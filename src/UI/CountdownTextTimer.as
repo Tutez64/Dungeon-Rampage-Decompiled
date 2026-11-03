@@ -1,6 +1,9 @@
 package UI
 {
    import Brain.Clock.GameClock;
+   import Brain.Event.EventListeners;
+   import Brain.Utils.TextUtil;
+   import Brain.Utils.Timers;
    import flash.events.TimerEvent;
    import flash.text.TextField;
    import flash.utils.Timer;
@@ -60,8 +63,8 @@ package UI
       
       public function start() : void
       {
-         mTimer = new Timer(1000);
-         mTimer.addEventListener("timer",onTick);
+         mTimer = Timers.create(1000,0,"CountdownTextTimer.mTimer");
+         EventListeners.add(mTimer,"timer",onTick);
          mTimer.start();
          onTick(null);
       }
@@ -70,7 +73,7 @@ package UI
       {
          if(mTimer != null)
          {
-            mTimer.removeEventListener("timer",onTick);
+            EventListeners.remove(mTimer,"timer",onTick);
             mTimer.stop();
             mTimer = null;
          }
@@ -95,7 +98,7 @@ package UI
          var _loc3_:int = 0;
          if(getTimeLeft() <= 0)
          {
-            mCountdownText.text = mExpireText;
+            TextUtil.setText(mCountdownText,mExpireText);
             if(mOnFinishFunc != null)
             {
                mOnFinishFunc();
@@ -109,7 +112,7 @@ package UI
             _loc4_ = _loc5_ / 60000;
             _loc5_ -= _loc4_ * 60000;
             _loc3_ = _loc5_ / 1000;
-            mCountdownText.text = mPrefixText + _loc2_.toString() + ":" + zeroPad(_loc4_,2) + ":" + zeroPad(_loc3_,2) + mPostfixText;
+            TextUtil.setText(mCountdownText,mPrefixText + _loc2_.toString() + ":" + zeroPad(_loc4_,2) + ":" + zeroPad(_loc3_,2) + mPostfixText);
          }
       }
       

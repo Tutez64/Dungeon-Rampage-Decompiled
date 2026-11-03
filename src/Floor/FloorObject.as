@@ -5,6 +5,7 @@ package Floor
    import Brain.GameObject.GameObject;
    import Brain.Logger.Logger;
    import Brain.Utils.MemoryTracker;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.DistributedDungeonFloor;
    import Dungeon.NavCollider;
    import Dungeon.Tile;
@@ -74,7 +75,7 @@ package Floor
       {
          if(mDistributedDungeonFloor)
          {
-            this.tile = mDistributedDungeonFloor.tileGrid.getTileAtPosition(this.position);
+            this.tile = mDistributedDungeonFloor.tileGrid.getTileAtPosition(mPosition);
          }
       }
       
@@ -164,6 +165,26 @@ package Floor
          return null;
       }
       
+      public function get hasPosition() : Boolean
+      {
+         return mPosition != null;
+      }
+      
+      public function get positionX() : Number
+      {
+         return mPosition.x;
+      }
+      
+      public function get positionY() : Number
+      {
+         return mPosition.y;
+      }
+      
+      public function get positionZ() : Number
+      {
+         return mPosition.z;
+      }
+      
       public function set position(pos:Vector3D) : void
       {
          mPosition = pos;
@@ -206,12 +227,12 @@ package Floor
       
       protected function processJsonNavCollisions(navCollisions:Array, addFunc:Function) : void
       {
-         var _loc7_:* = null;
+         var _loc7_:Object = null;
          var _loc3_:Vector3D = null;
          var _loc9_:Vector3D = null;
          var _loc8_:Vector3D = null;
          var _loc5_:NavCollider = null;
-         var _loc4_:* = undefined;
+         var _loc4_:Vector.<Vector3D> = undefined;
          var _loc6_:Matrix3D = new Matrix3D();
          var _loc10_:Matrix3D = new Matrix3D();
          _loc10_.identity();
@@ -243,7 +264,7 @@ package Floor
       protected function buildFilter() : b2FilterData
       {
          var _loc1_:b2FilterData = new b2FilterData();
-         _loc1_.categoryBits = 1;
+         _loc1_.categoryBits = DBGlobal.B2D_ENVIRONMENT_MASK;
          return _loc1_;
       }
       

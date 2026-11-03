@@ -2,12 +2,12 @@ package Facade
 {
    import Account.AccountBonus;
    import Account.DBAccountInfo;
-   import Account.FacebookAccountInfo;
-   import Account.StoreServices;
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.ImageAsset;
    import Brain.AssetRepository.JsonAsset;
+   import Brain.AssetRepository.TestResourceLocator;
    import Brain.Clock.GameClock;
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
    import Brain.Render.MovieClipPool;
@@ -16,6 +16,7 @@ package Facade
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
    import Brain.jsonRPC.JSONRPCService;
+   import Collections.Map;
    import Combat.Attack.TimelineFactory;
    import Config.ConfigFileLoadedEvent;
    import Config.DBConfigManager;
@@ -25,48 +26,53 @@ package Facade
    import Effects.CustomSkinVisualsOverrideHandler;
    import Effects.EffectPool;
    import Events.ManagersLoadedEvent;
-   import FacebookAPI.DBFacebookAPIController;
    import GameMasterDictionary.GameMaster;
    import GeneratedCode.InfiniteMapNodeDetail;
+   import Input.KeyBindings.KeyBindings;
    import Input.MenuNavigationController;
+   import Json.JsonCodec;
    import MagicWords.MagicWordManager;
+   import Metrics.FPSReadout;
    import Metrics.MetricsLogger;
-   import Metrics.PixelTracker;
    import NetworkCode.Transport.GameEndpoints;
    import NetworkCode.Transport.TransportSettings;
+   import Settings.Model.DisplayTimingSettings;
+   import Settings.Model.SettingsModel;
+   import Settings.Model.SettingsStore;
    import Sound.DBSoundManager;
    import StateMachine.MainStateMachine.LoadingFinishedEvent;
+   import StateMachine.MainStateMachine.LoadingScreenState;
+   import StateMachine.MainStateMachine.LoadingState;
    import StateMachine.MainStateMachine.MainStateMachine;
+   import SteamAchievements.SteamAchievementsHelper;
    import SteamAchievements.SteamAchievementsManager;
    import SteamInput.SteamInputManager;
-   import Town.AdManager;
+   import UI.Cursor.UIMouseCursors;
+   import UI.Hud.StarlingConverted.HudArt;
+   import UI.Hud.StarlingConverted.IGameHud;
+   import UI.Hud.StarlingConverted.StarlingHud;
    import UI.Hud.UIHud;
    import UI.Map.PlayerActivityCount;
    import UI.Popup.DBUIOneButtonPopup;
+   import UI.UIHideToggle;
+   import UI.UILevelUpPostController;
    import UI.UIReconnectingIndicator;
    import avmplus.getQualifiedClassName;
    import com.amanitadesign.steam.FRESteamWorks;
-   import com.maccherone.json.JSON;
    import flash.display.DisplayObject;
-   import flash.display.Loader;
-   import flash.display.LoaderInfo;
    import flash.display.MovieClip;
    import flash.display.Shape;
    import flash.display.Stage;
    import flash.events.Event;
    import flash.events.FocusEvent;
-   import flash.events.IOErrorEvent;
    import flash.events.KeyboardEvent;
-   import flash.events.SecurityErrorEvent;
    import flash.external.ExternalInterface;
    import flash.net.URLRequest;
    import flash.net.navigateToURL;
    import flash.profiler.showRedrawRegions;
    import flash.system.Capabilities;
-   import flash.system.LoaderContext;
    import flash.system.Security;
    import flash.text.TextField;
-   import org.as3commons.collections.Map;
    
    public class DBFacade extends Facade
    {
@@ -75,45 +81,41 @@ package Facade
       
       public static const VALIDATION_REFRESH_TIME:Number = 3600;
       
-      private static const ORDER_COMPLETE_EXTERNAL_INTERFACE:String = "orderComplete";
-      
       private static var mDownloadRoot:String = "";
       
-      public static const NETWORK_FACEBOOK:uint = 1;
+      private var LoadingClass:Class = db_UI_game_loading_screen_swf;
       
-      public static const NETWORK_KONGREGATE:uint = 2;
-      
-      public static const NETWORK_DRCOM:uint = 3;
-      
-      private var LoadingClass:Class = loading_screen_swf;
-      
-      private var mInitialLoadingClip:MovieClip;
+      protected var mInitialLoadingClip:MovieClip;
       
       private var mLoadingBar:UIProgressBar;
       
       private var mLoadingBarIntStatus:Number = 0;
       
+      private var mAltEnterDown:Boolean;
+      
+      private var mPlainEnterDown:Boolean;
+      
       protected var mMainStateMachine:MainStateMachine;
       
       protected var mDBAccountInfo:DBAccountInfo;
       
-      protected var mFacebookAccountInfo:FacebookAccountInfo;
-      
       protected var mDBConfigManager:DBConfigManager;
       
-      protected var mHud:UIHud;
+      protected var mHud:IGameHud;
       
       protected var mEffectPool:EffectPool;
       
       protected var mMovieClipPool:MovieClipPool;
+      
+      protected var mMetricsLogger:MetricsLogger;
+      
+      protected var mFPSReadout:FPSReadout;
       
       private var mReconnectingIndicator:UIReconnectingIndicator;
       
       private var mReconnectFrozeInput:Boolean = false;
       
       private var mMainStateAtDrop:String;
-      
-      protected var mMetricsLogger:MetricsLogger;
       
       protected var mTileLibraryMap:Map;
       
@@ -131,7 +133,7 @@ package Facade
       
       protected var mGameMasterJson:Object;
       
-      protected var mDBFaceBookAPIController:DBFacebookAPIController;
+      protected var mUILevelUpPostController:UILevelUpPostController;
       
       protected var mAccountBonus:AccountBonus;
       
@@ -139,13 +141,17 @@ package Facade
       
       protected var mCustomSkinVisualsOverrideHandler:CustomSkinVisualsOverrideHandler;
       
+      protected var mSettingsModel:SettingsModel;
+      
+      private var mDisplayTimingSettings:DisplayTimingSettings;
+      
+      protected var mKeyBindings:KeyBindings;
+      
+      protected var mUIHideToggle:UIHideToggle;
+      
       public var gameMaster:GameMaster;
       
-      protected var mAssetLoader:AssetLoadingComponent;
-      
       protected var mMagicWordManager:MagicWordManager;
-      
-      public var steamAchievementsManager:SteamAchievementsManager;
       
       private var mWebServicesUrl:String;
       
@@ -169,14 +175,6 @@ package Facade
       
       private var mAccountId:uint;
       
-      private var mFacebookId:String;
-      
-      private var mFacebookPlayerId:String;
-      
-      private var mFacebookThirdPartyId:String;
-      
-      private var mFacebookApplication:String;
-      
       private var mValidationToken:String;
       
       private var mDemographics:Object;
@@ -197,17 +195,11 @@ package Facade
       
       private var mErrorTask:Task;
       
-      private var mKongregate:*;
-      
-      private var mKongregatePlayerId:String;
-      
       private var mSecurityGM:int = 0;
       
       private var mSecurityTL:int = 0;
       
       private var mSecuritySL:int = 0;
-      
-      protected var mAdManager:AdManager;
       
       public var mSteamworks:FRESteamWorks = new FRESteamWorks();
       
@@ -221,6 +213,12 @@ package Facade
       
       public var mSteamAuthTicketHandle:uint;
       
+      public var mSteamLoginFailure:String;
+      
+      private var mSteamAchievementsHelper:SteamAchievementsHelper;
+      
+      private var mSteamAchievementsManager:SteamAchievementsManager;
+      
       public var mUseSteamLogin:Boolean;
       
       public var mSeenFlaggedPopup:Boolean;
@@ -233,6 +231,8 @@ package Facade
       
       public var mSteamIsFlaggedDueToFamilySharingOwnerName:String;
       
+      public var mSteamAvatarUrl:String;
+      
       private var mSteamInputManager:SteamInputManager;
       
       public var mAdditionalConfigFilesToLoad:Array = [];
@@ -240,8 +240,6 @@ package Facade
       private var mShowCollisions:Boolean = false;
       
       public var NODE_RULES:uint = 0;
-      
-      private var tKongregateLoader:Loader;
       
       private var stagetwo_init_call_count:uint = 0;
       
@@ -260,34 +258,6 @@ package Facade
          Security.allowDomain("http://ak.ssl.dungeonbusters.com");
          Security.allowInsecureDomain("https://ak.ssl.dungeonbusters.com");
          Security.allowDomain("www.youtube.com");
-         Security.loadPolicyFile("http://profile.ak.fbcdn.net/crossdomain.xml");
-         Security.loadPolicyFile("https://fbstatic-a.akamaihd.net/crossdomain.xml");
-         Security.loadPolicyFile("https://fbcdn-profile-a.akamaihd.net/crossdomain.xml");
-         Security.loadPolicyFile("https://profile-a.xx.fbcdn.net/crossdomain.xml");
-         Security.loadPolicyFile("https://profile-b.xx.fbcdn.net/crossdomain.xml");
-         Security.allowDomain("http://profile.ak.fbcdn.net");
-         Security.allowInsecureDomain("https://profile.ak.fbcdn.net");
-         Security.allowDomain("http://profile-a.xx.fbcdn.net");
-         Security.allowInsecureDomain("https://profile-a.xx.fbcdn.net");
-         Security.allowDomain("http://profile-a.xx.fbcdn.net/hprofile-snc6/");
-         Security.allowInsecureDomain("https://profile-a.xx.fbcdn.net/hprofile-snc6/");
-         Security.allowDomain("http://fbcdn-profile-a.akamaihd.net");
-         Security.allowInsecureDomain("https://fbcdn-profile-a.akamaihd.net");
-         Security.allowDomain("http://fbcdn-profile-a.akamaihd.net/hprofile-ak-snc4/");
-         Security.allowInsecureDomain("https://fbcdn-profile-a.akamaihd.net/hprofile-ak-snc4/");
-         Security.allowDomain("http://fbcdn-profile-a.akamaihd.net/hprofile-ash4/");
-         Security.allowInsecureDomain("https://fbcdn-profile-a.akamaihd.net/hprofile-ash4/");
-         Security.allowDomain("http://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/");
-         Security.allowInsecureDomain("https://fbcdn-profile-a.akamaihd.net/hprofile-ak-ash4/");
-         Security.allowDomain("http://fbstatic-a.akamaihd.net");
-         Security.allowInsecureDomain("https://fbstatic-a.akamaihd.net");
-         Security.allowDomain("http://s-static.ak.facebook.com");
-         Security.allowInsecureDomain("https://s-static.ak.facebook.com");
-         Security.loadPolicyFile("https://ads.sele.co/crossdomain.xml");
-         Security.allowDomain("http://ads.sele.co");
-         Security.allowInsecureDomain("https://ads.sele.co");
-         Security.loadPolicyFile("https://dungionbusters.webfetti.com/crossdomain.xml");
-         Security.allowDomain("https://dungionbusters.webfetti.com");
          killWebSecurity();
       }
       
@@ -307,7 +277,7 @@ package Facade
             Logger.error("Trying to create a path from an empty string");
             return "";
          }
-         return mDownloadRoot + rawAssetPath;
+         return TestResourceLocator.url(mDownloadRoot + rawAssetPath);
       }
       
       public function killWebSecurity() : void
@@ -326,6 +296,26 @@ package Facade
          mSceneGraphManager.getLayer(40).visible = mShowCollisions;
       }
       
+      public function get steamAchievementsHelper() : SteamAchievementsHelper
+      {
+         return mSteamAchievementsHelper;
+      }
+      
+      public function set steamAchievementsHelper(inSteamAchievementsHelper:SteamAchievementsHelper) : void
+      {
+         mSteamAchievementsHelper = inSteamAchievementsHelper;
+      }
+      
+      public function get steamAchievementsManager() : SteamAchievementsManager
+      {
+         return mSteamAchievementsManager;
+      }
+      
+      public function set steamAchievementsManager(inSteamAchievementsManager:SteamAchievementsManager) : void
+      {
+         mSteamAchievementsManager = inSteamAchievementsManager;
+      }
+      
       override public function logCheater(howICheat:String) : void
       {
          var requestFunc:Function = JSONRPCService.getFunction("LogCheater",rpcRoot + "store");
@@ -339,7 +329,8 @@ package Facade
       private function loadBackground() : void
       {
          var countBackgroundImagesLoaded:int = 0;
-         mAssetLoader.getImageAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/background/left.jpg"),function(param1:ImageAsset):void
+         var startWindowed:Boolean = featureFlags.getFlagValue("start-windowed");
+         mAssetLoadingComponent.getImageAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/background/left.jpg"),function(param1:ImageAsset):void
          {
             var _loc2_:DisplayObject = param1.image;
             var _loc3_:Number = viewHeight / _loc2_.height;
@@ -348,13 +339,16 @@ package Facade
             _loc2_.x = -_loc2_.width;
             _loc2_.y = 0;
             addRootDisplayObject(_loc2_,1001);
-            countBackgroundImagesLoaded = countBackgroundImagesLoaded + 1;
-            if(countBackgroundImagesLoaded > 1)
+            if(!startWindowed)
             {
-               mStageRef.displayState = "fullScreenInteractive";
+               countBackgroundImagesLoaded = countBackgroundImagesLoaded + 1;
+               if(countBackgroundImagesLoaded > 1)
+               {
+                  mStageRef.displayState = "fullScreenInteractive";
+               }
             }
          });
-         mAssetLoader.getImageAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/background/right.jpg"),function(param1:ImageAsset):void
+         mAssetLoadingComponent.getImageAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/background/right.jpg"),function(param1:ImageAsset):void
          {
             var _loc2_:DisplayObject = param1.image;
             var _loc3_:Number = viewHeight / _loc2_.height;
@@ -363,10 +357,13 @@ package Facade
             _loc2_.x = viewWidth;
             _loc2_.y = 0;
             addRootDisplayObject(_loc2_,1001);
-            countBackgroundImagesLoaded = countBackgroundImagesLoaded + 1;
-            if(countBackgroundImagesLoaded > 1)
+            if(!startWindowed)
             {
-               mStageRef.displayState = "fullScreenInteractive";
+               countBackgroundImagesLoaded = countBackgroundImagesLoaded + 1;
+               if(countBackgroundImagesLoaded > 1)
+               {
+                  mStageRef.displayState = "fullScreenInteractive";
+               }
             }
          });
       }
@@ -384,7 +381,7 @@ package Facade
          {
             return;
          }
-         mHud = new UIHud(this);
+         mHud = featureFlags.getFlagValue("starling-hud") && HudArt.begun ? new StarlingHud(this) : new UIHud(this);
       }
       
       public function refreshHUD() : void
@@ -410,12 +407,16 @@ package Facade
       override public function buildEngines() : void
       {
          Logger.info("building engines 0");
+         SettingsStore.applyStartupFlags(featureFlags);
          loadBackground();
          Logger.info("building engines 1");
          loadLocale();
          Logger.info("building engines 2");
          computeServerTimeOffset();
          super.buildEngines();
+         UIMouseCursors.register(this);
+         mKeyBindings = new KeyBindings(inputManager);
+         mUIHideToggle = new UIHideToggle(this);
          mSteamInputManager = new SteamInputManager(this,mSteamworks,mStageRef,featureFlags.getFlagValue("experimental-use-steam-input"));
          Logger.info("building engines 3");
          mSoundManager = new DBSoundManager(this);
@@ -433,12 +434,7 @@ package Facade
          }
          Logger.info("building engines 5");
          mDemographics = mDBConfigManager.GetValueOrDefault("Demographics",{});
-         mFacebookId = mDBConfigManager.getConfigString("FacebookAppId","");
-         mFacebookPlayerId = mDBConfigManager.getConfigString("FacebookPlayerId","");
-         mKongregatePlayerId = mDBConfigManager.getConfigString("KongregatePlayerId","");
          Logger.info("building engines 5.1");
-         mFacebookThirdPartyId = mDBConfigManager.getConfigString("FacebookThirdPartyId","0");
-         mFacebookApplication = mDBConfigManager.getConfigString("FacebookApplication","");
          Logger.info("building engines 6");
          this.validationToken = mDBConfigManager.getConfigString("API_ValidationToken","");
          Logger.info("building engines 7");
@@ -447,68 +443,15 @@ package Facade
             Logger.error("ValidationToken is empty.  Cannot continue without a valid ValidationToken.");
          }
          Logger.info("building engines 8");
-         Logger.info("DBFacade: accountId: " + mAccountId.toString() + " facebookId: " + mFacebookId.toString() + " Facebook Player Id:" + mFacebookPlayerId.toString() + " Facebook Application:" + mFacebookApplication.toString());
-         mDBFaceBookAPIController = new DBFacebookAPIController(this);
-         mFacebookAccountInfo = new FacebookAccountInfo(this);
+         Logger.info("DBFacade: accountId: " + mAccountId.toString());
+         mUILevelUpPostController = new UILevelUpPostController(this);
          mAccountBonus = new AccountBonus(this);
          createTokenRegenTask();
-         if(isKongregatePlayer)
-         {
-            kongregateInit();
-         }
          logSystemMetrics();
          NODE_RULES = uint(getSplitTestBoolean("NODE_UNLOCK_GLOBAL",false));
          environmentPrefix = dbConfigManager.getConfigString("EnvironmentPrefix","u");
          mMenuNavigationController = new MenuNavigationController(this);
          mCustomSkinVisualsOverrideHandler = new CustomSkinVisualsOverrideHandler(this);
-      }
-      
-      private function kongregateInit() : void
-      {
-         var request:URLRequest;
-         var context:LoaderContext;
-         var paramObj:Object = LoaderInfo(stageRef.root.loaderInfo).parameters;
-         var apiPath:String = paramObj.kongregate_api_path || "http://www.kongregate.com/flash/API_AS3_Local.swf";
-         Security.allowDomain(apiPath);
-         Logger.info("Loading Kongregate swf " + apiPath);
-         request = new URLRequest(apiPath);
-         context = new LoaderContext();
-         context.checkPolicyFile = true;
-         tKongregateLoader = new Loader();
-         tKongregateLoader.contentLoaderInfo.addEventListener("complete",kongregateLoaded);
-         tKongregateLoader.contentLoaderInfo.addEventListener("ioError",function(param1:IOErrorEvent):void
-         {
-            Logger.error("IOErrorEvent: " + param1.toString() + " Data:" + request.data.toString() + " URL:" + apiPath.toString());
-         });
-         tKongregateLoader.contentLoaderInfo.addEventListener("securityError",function(param1:SecurityErrorEvent):void
-         {
-            Logger.error("SecurityErrorEvent: " + param1.toString() + " Data:" + request.data.toString() + " URL:" + apiPath.toString());
-         });
-         tKongregateLoader.load(request,context);
-         addRootDisplayObject(tKongregateLoader);
-      }
-      
-      public function kongregateLoaded(event:Event) : void
-      {
-         Logger.info("Kongregate swf loaded");
-         mKongregate = event.target.content;
-         Logger.info("Connecting to Kongregate");
-         if(mKongregate.services == null)
-         {
-            Logger.info("Kongregate services is null!");
-         }
-         else
-         {
-            mKongregate.services.connect();
-         }
-         removeRootDisplayObject(tKongregateLoader);
-         tKongregateLoader = null;
-         mKongregate.stats.submit("initialized",1);
-      }
-      
-      public function get kongregateAPI() : *
-      {
-         return mKongregate;
       }
       
       private function localeAvailable() : void
@@ -527,6 +470,10 @@ package Facade
       {
          mSteamInputManager.runFrame();
          super.mainLoop(event);
+         if(mFPSReadout)
+         {
+            mFPSReadout.update(mTickCounter,mWallClockTimeElapsed,mFrameAccumulator,mRenderTickCounter,mTickAccumulator);
+         }
       }
       
       override protected function flushInputs() : void
@@ -585,14 +532,21 @@ package Facade
       override public function init(stageRef:Stage) : void
       {
          super.init(stageRef);
+         mDisplayTimingSettings = new DisplayTimingSettings(stageRef);
          MemoryTracker.stage = stageRef;
-         this.setupExternalInterfaces();
          this.stageRef.showDefaultContextMenu = false;
-         this.stageRef.addEventListener("keyDown",toggleFullscreen);
+         EventListeners.add(this.stageRef,"keyDown",toggleFullscreen);
+         EventListeners.add(this.stageRef,"keyDown",altEnterFullscreen,true);
+         EventListeners.add(this.stageRef,"keyDown",altEnterFullscreen);
+         EventListeners.add(this.stageRef,"keyUp",releaseAltEnter,true);
+         EventListeners.add(this.stageRef,"keyUp",releaseAltEnter);
+         EventListeners.add(this.stageRef,"deactivate",forgetPlainEnter);
          createLetterbox();
          mInitialLoadingClip = new LoadingClass();
+         mInitialLoadingClip.addFrameScript(mInitialLoadingClip.totalFrames - 1,mInitialLoadingClip.stop);
          mLoadingBar = new UIProgressBar(this,mInitialLoadingClip.loadingBar.loadingBar);
          this.loadingBarTick();
+         mFPSReadout = new FPSReadout(this);
          addRootDisplayObject(mInitialLoadingClip);
          mEventComponent.addListener("enterFrame",this.stagetwo_init);
       }
@@ -607,6 +561,45 @@ package Facade
          {
             event.preventDefault();
          }
+      }
+      
+      private function altEnterFullscreen(event:KeyboardEvent) : void
+      {
+         if(event.keyCode != 13)
+         {
+            return;
+         }
+         if(!mAltEnterDown)
+         {
+            if(!event.altKey || mPlainEnterDown)
+            {
+               mPlainEnterDown = true;
+               return;
+            }
+            mAltEnterDown = true;
+            stageRef.displayState = this.stageRef.displayState == "normal" ? "fullScreenInteractive" : "normal";
+         }
+         event.stopImmediatePropagation();
+      }
+      
+      private function releaseAltEnter(event:KeyboardEvent) : void
+      {
+         if(event.keyCode != 13)
+         {
+            return;
+         }
+         mPlainEnterDown = false;
+         if(!mAltEnterDown)
+         {
+            return;
+         }
+         mAltEnterDown = false;
+         event.stopImmediatePropagation();
+      }
+      
+      private function forgetPlainEnter(event:Event) : void
+      {
+         mPlainEnterDown = false;
       }
       
       private function createLetterbox() : void
@@ -630,31 +623,14 @@ package Facade
          {
             this.loadingBarTick();
             mEventComponent.removeListener("enterFrame");
-            mAssetLoader = new AssetLoadingComponent(this);
+            if(mAssetLoadingComponent == null)
+            {
+               mAssetLoadingComponent = new AssetLoadingComponent(this);
+            }
             mEventComponent.addListener("LoadingFinishedEvent",architectureLoaded);
             mEventComponent.addListener("ConfigFileLoadedEvent",configLoaded);
             mMainStateMachine = new MainStateMachine(this);
             mMainStateMachine.enterLoadingState();
-         }
-      }
-      
-      private function setupExternalInterfaces() : void
-      {
-         if(ExternalInterface.available)
-         {
-            ExternalInterface.addCallback("orderComplete",function(param1:String, param2:uint):void
-            {
-               StoreServices.orderCompleteCallback(this as DBFacade,param1,param2);
-            });
-            ExternalInterface.addCallback("earnCurrencyCallback",function(param1:Object):void
-            {
-               if(param1 && param1.vc_amount > 0)
-               {
-                  mDBAccountInfo.getUsersFullAccountInfo();
-               }
-               mMetricsLogger.log("FacebookEarnCallback");
-            });
-            Logger.debug("ExternalInterface setup complete");
          }
       }
       
@@ -714,16 +690,29 @@ package Facade
          Logger.errorCallback = loggerErrorCall;
       }
       
+      public function toggleFpsOverlay() : void
+      {
+         if(mFPSReadout)
+         {
+            mFPSReadout.toggleVisibility();
+         }
+      }
+      
+      public function get fpsReadout() : FPSReadout
+      {
+         return mFPSReadout;
+      }
+      
       public function preLoadJson() : void
       {
          this.loadingBarTick();
-         var _loc3_:String = dbConfigManager.getConfigString("gameMasterPath","Resources/Levels/DB_GameMaster.json");
+         var _loc3_:String = dbConfigManager.getConfigString("gameMasterPath","Resources/Levels/DB_GameMaster_C.json");
          var _loc4_:String = buildFullDownloadPath(_loc3_);
          var _loc1_:String = buildFullDownloadPath("Resources/Levels/library_server.json");
          var _loc2_:String = buildFullDownloadPath("Resources/Combat/AttackTimeline.json");
-         mAssetLoader.getJsonAsset(_loc4_,gameMasterFinishedLoading,errorLoadingGameMaster);
-         mAssetLoader.getJsonAsset(_loc1_,libraryFinishedLoading,errorLoadingLibrary);
-         mAssetLoader.getJsonAsset(_loc2_,timelineFinishedLoading,errorLoadingAttackTimeline);
+         mAssetLoadingComponent.getJsonAsset(_loc4_,gameMasterFinishedLoading,errorLoadingGameMaster);
+         mAssetLoadingComponent.getJsonAsset(_loc1_,libraryFinishedLoading,errorLoadingLibrary);
+         mAssetLoadingComponent.getJsonAsset(_loc2_,timelineFinishedLoading,errorLoadingAttackTimeline);
       }
       
       private function errorLoadingGameMaster() : void
@@ -769,11 +758,6 @@ package Facade
       public function getTileLibraryJson(path:String) : Object
       {
          return mTileLibraryMap.itemFor(path);
-      }
-      
-      public function get facebookAccountInfo() : FacebookAccountInfo
-      {
-         return mFacebookAccountInfo;
       }
       
       public function get libraryJson() : Array
@@ -882,20 +866,35 @@ package Facade
       
       public function loadingBarTick() : void
       {
-         var _loc2_:TextField = null;
-         var _loc1_:String = null;
          if(mLoadingBar)
          {
             mLoadingBar.value += 0.06666666666666667;
             mLoadingBarIntStatus = mLoadingBarIntStatus + 1;
-            if(mLoadingBar.root.parent as MovieClip && (mLoadingBar.root.parent as MovieClip).loading_text)
-            {
-               _loc2_ = (mLoadingBar.root.parent as MovieClip).loading_text as TextField;
-               _loc1_ = "LOADING " + String.fromCharCode(64 + mLoadingBarIntStatus) + "...";
-               Logger.info("loadingBarTick at: " + _loc1_);
-               _loc2_.text = _loc1_;
-            }
+            setLoadingBarText("LOADING " + String.fromCharCode(64 + mLoadingBarIntStatus) + "...");
          }
+      }
+      
+      public function setLoadingBarText(message:String) : void
+      {
+         var _loc2_:MovieClip = mInitialLoadingClip ? mInitialLoadingClip.loadingBar as MovieClip : null;
+         var _loc4_:TextField = _loc2_ ? _loc2_.loading_text as TextField : null;
+         if(!_loc4_ || _loc4_.text == message)
+         {
+            return;
+         }
+         Logger.info("loadingBarTick at: " + message);
+         _loc4_.text = message;
+         var _loc3_:Number = _loc4_.textWidth + 4;
+         if(_loc3_ > _loc4_.width)
+         {
+            _loc4_.x -= (_loc3_ - _loc4_.width) / 2;
+            _loc4_.width = _loc3_;
+         }
+      }
+      
+      public function get loadingStateLeft() : Boolean
+      {
+         return mMainStateMachine != null && !(mMainStateMachine.currentState is LoadingState);
       }
       
       public function powerUpDistributedObjectManager() : void
@@ -928,7 +927,7 @@ package Facade
          Logger.warn("WorldServer connection lost, resuming: " + reason);
          mMainStateAtDrop = mMainStateMachine?.currentStateName;
          showReconnectingIndicator();
-         if(!mReconnectFrozeInput && inputManager != null && !inputManager.disableInputs)
+         if(!mReconnectFrozeInput && inputManager != null)
          {
             inputManager.disableControls();
             mReconnectFrozeInput = true;
@@ -993,13 +992,17 @@ package Facade
       
       public function warningPopup(title:String, message:String) : void
       {
-         var _loc3_:DBUIOneButtonPopup = new DBUIOneButtonPopup(this,title,message,Locale.getString("OK"),null);
+         var _loc3_:DBUIOneButtonPopup = new DBUIOneButtonPopup(this,"WARNING_POPUP",title,message,Locale.getString("OK"),null);
          MemoryTracker.track(_loc3_,"DBUIOneButtonPopup - created in DBFacade.warningPopup()");
       }
       
-      public function errorPopup(title:String, message:String, UILayerName:String = "") : void
+      public function errorPopup(title:String, message:String, uiLayerName:String) : void
       {
-         var _loc4_:DBUIOneButtonPopup = new DBUIOneButtonPopup(this,title,message,Locale.getString("OK"),null,true,null,null,null,UILayerName);
+         if(menuNavigationController && menuNavigationController.getAllCurrentLayers().indexOf(uiLayerName) >= 0)
+         {
+            return;
+         }
+         var _loc4_:DBUIOneButtonPopup = new DBUIOneButtonPopup(this,uiLayerName,title,message,Locale.getString("OK"),null);
          MemoryTracker.track(_loc4_,"DBUIOneButtonPopup - created in DBFacade.errorPopup()");
       }
       
@@ -1064,8 +1067,6 @@ package Facade
       {
          this.loadingBarTick();
          mDBAccountInfo = event.dbAccountInfo;
-         mDBAccountInfo.checkFriendsHash();
-         PixelTracker.returnDAU(this);
          mEventComponent.removeListener("LoadingFinishedEvent");
          mGameClock.initTime();
          this.run();
@@ -1100,7 +1101,7 @@ package Facade
          return mGameMasterJson;
       }
       
-      public function get hud() : UIHud
+      public function get hud() : IGameHud
       {
          return mHud;
       }
@@ -1130,24 +1131,9 @@ package Facade
          return mMainStateMachine;
       }
       
-      public function get facebookController() : DBFacebookAPIController
+      public function get heroInputSuspended() : Boolean
       {
-         return mDBFaceBookAPIController;
-      }
-      
-      public function get isFacebookPlayer() : Boolean
-      {
-         return dbConfigManager.networkId == 1;
-      }
-      
-      public function get isKongregatePlayer() : Boolean
-      {
-         return dbConfigManager.networkId == 2;
-      }
-      
-      public function get isDRPlayer() : Boolean
-      {
-         return dbConfigManager.networkId == 3;
+         return mMainStateMachine != null && mMainStateMachine.currentState is LoadingScreenState;
       }
       
       public function get accountBonus() : AccountBonus
@@ -1217,36 +1203,6 @@ package Facade
          return mValidationToken;
       }
       
-      public function get facebookId() : String
-      {
-         return mFacebookId;
-      }
-      
-      public function get kongregatePlayerId() : String
-      {
-         return mKongregatePlayerId;
-      }
-      
-      public function get facebookPlayerId() : String
-      {
-         return mFacebookPlayerId;
-      }
-      
-      public function get facebookThirdPartyId() : String
-      {
-         return mFacebookThirdPartyId;
-      }
-      
-      public function set facebookThirdPartyId(value:String) : void
-      {
-         mFacebookThirdPartyId = value;
-      }
-      
-      public function get facebookApplication() : String
-      {
-         return mFacebookApplication;
-      }
-      
       public function get demographics() : Object
       {
          return mDemographics;
@@ -1254,7 +1210,7 @@ package Facade
       
       public function get demographicsJson() : String
       {
-         return com.maccherone.json.JSON.encode(mDemographics);
+         return JsonCodec.encode(mDemographics);
       }
       
       public function get steamInputManager() : SteamInputManager
@@ -1288,13 +1244,19 @@ package Facade
          mHiddenFocusText.mouseEnabled = false;
          mHiddenFocusText.tabEnabled = false;
          addRootDisplayObject(mHiddenFocusText);
-         mHiddenFocusText.addEventListener("focusOut",_textFocus);
+         EventListeners.add(mHiddenFocusText,"focusOut",_textFocus);
          this.regainFocus();
       }
       
       public function regainFocus() : void
       {
          mStageRef.focus = mHiddenFocusText ? mHiddenFocusText : mStageRef;
+      }
+      
+      public function get textInputHasFocus() : Boolean
+      {
+         var _loc1_:TextField = mStageRef.focus as TextField;
+         return _loc1_ != null && _loc1_.type == "input" && _loc1_ != mHiddenFocusText;
       }
       
       public function loggerErrorCall(logString:String) : void
@@ -1391,16 +1353,6 @@ package Facade
          return mDistributedObjectManager.mMatchMaker.getInfiniteDungeonDetailForNodeId(nodeId);
       }
       
-      public function get adManager() : AdManager
-      {
-         return mAdManager;
-      }
-      
-      public function set adManager(manager:AdManager) : void
-      {
-         mAdManager = manager;
-      }
-      
       public function overlaySteamwithURL(urlLink:String) : void
       {
          var _loc3_:URLRequest = null;
@@ -1432,6 +1384,31 @@ package Facade
       public function get customSkinVisualsOverrideHandler() : CustomSkinVisualsOverrideHandler
       {
          return mCustomSkinVisualsOverrideHandler;
+      }
+      
+      public function get keyBindings() : KeyBindings
+      {
+         return mKeyBindings;
+      }
+      
+      public function get uiHideToggle() : UIHideToggle
+      {
+         return mUIHideToggle;
+      }
+      
+      public function get settingsModel() : SettingsModel
+      {
+         if(mSettingsModel == null)
+         {
+            mSettingsModel = new SettingsModel(this);
+            MemoryTracker.track(mSettingsModel,"SettingsModel - created in DBFacade.settingsModel");
+         }
+         return mSettingsModel;
+      }
+      
+      public function get displayTimingSettings() : DisplayTimingSettings
+      {
+         return mDisplayTimingSettings;
       }
    }
 }

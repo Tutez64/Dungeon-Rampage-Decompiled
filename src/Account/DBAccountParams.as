@@ -33,8 +33,6 @@ package Account
       
       private static const KEY_INTRO:uint = 12;
       
-      private static const LIFESTREET:uint = 13;
-      
       private static const ACHIEVEMENT_1:uint = 14;
       
       private static const ACHIEVEMENT_2:uint = 15;
@@ -227,58 +225,6 @@ package Account
       public function setKeyIntroParam() : void
       {
          setParam(12,true);
-      }
-      
-      public function hasLifestreetParam() : Boolean
-      {
-         return hasParam(13);
-      }
-      
-      public function setLifestreetParam() : void
-      {
-         setParam(13,true);
-      }
-      
-      public function hasAchievement(achievementNum:uint) : Boolean
-      {
-         switch(int(achievementNum) - 1)
-         {
-            case 0:
-               return hasParam(14);
-            case 1:
-               return hasParam(15);
-            case 2:
-               return hasParam(16);
-            case 3:
-               return hasParam(17);
-            case 4:
-               return hasParam(18);
-            case 5:
-               return hasParam(19);
-            default:
-               return false;
-         }
-      }
-      
-      public function setAchievement(achievementNum:uint) : void
-      {
-         switch(int(achievementNum) - 1)
-         {
-            case 0:
-               return setParam(14,true);
-            case 1:
-               return setParam(15,true);
-            case 2:
-               return setParam(16,true);
-            case 3:
-               return setParam(17,true);
-            case 4:
-               return setParam(18,true);
-            case 5:
-               return setParam(19,true);
-            default:
-               return;
-         }
       }
       
       public function hasSuperWeakParam() : Boolean

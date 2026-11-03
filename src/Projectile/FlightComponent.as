@@ -47,7 +47,6 @@ package Projectile
          if(mProjectile.gmProjectile.Lifetime > 0 && mDBFacade.gameClock.gameTime - mStartTime > mProjectile.gmProjectile.Lifetime)
          {
             mProjectile.destroy();
-            return;
          }
       }
       

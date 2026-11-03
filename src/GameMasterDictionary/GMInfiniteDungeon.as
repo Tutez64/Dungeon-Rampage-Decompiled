@@ -1,43 +1,46 @@
 package GameMasterDictionary
 {
-   import org.as3commons.collections.Map;
+   import flash.Boot;
    
    public class GMInfiniteDungeon
    {
       
-      public var Id:int;
-      
-      public var Constant:String;
+      public var RewardFloors:Vector.<uint>;
       
       public var Name:String;
       
+      public var Id:int;
+      
+      public var FloorRewardsMap:GMMap;
+      
       public var DModFloorStart:Vector.<uint>;
       
-      public var RewardFloors:Vector.<uint>;
+      public var Constant:String;
       
-      public var FloorRewardsMap:Map;
-      
-      public function GMInfiniteDungeon(json:Object)
+      public function GMInfiniteDungeon(json:Object = undefined)
       {
-         super();
-         Id = json.Id;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         Id = int(json.Id);
          Constant = json.Constant;
          Name = json.Name;
          DModFloorStart = new Vector.<uint>();
-         DModFloorStart.push(json.DMod1FloorStart);
-         DModFloorStart.push(json.DMod2FloorStart);
-         DModFloorStart.push(json.DMod3FloorStart);
-         DModFloorStart.push(json.DMod4FloorStart);
+         DModFloorStart.push(uint(json.DMod1FloorStart));
+         DModFloorStart.push(uint(json.DMod2FloorStart));
+         DModFloorStart.push(uint(json.DMod3FloorStart));
+         DModFloorStart.push(uint(json.DMod4FloorStart));
          RewardFloors = new Vector.<uint>();
-         RewardFloors.push(json.Reward1Floor);
-         RewardFloors.push(json.Reward2Floor);
-         RewardFloors.push(json.Reward3Floor);
-         RewardFloors.push(json.Reward4Floor);
-         FloorRewardsMap = new Map();
-         FloorRewardsMap.add(json.Reward1Floor,json.Reward1);
-         FloorRewardsMap.add(json.Reward2Floor,json.Reward2);
-         FloorRewardsMap.add(json.Reward3Floor,json.Reward3);
-         FloorRewardsMap.add(json.Reward4Floor,json.Reward4);
+         RewardFloors.push(uint(json.Reward1Floor));
+         RewardFloors.push(uint(json.Reward2Floor));
+         RewardFloors.push(uint(json.Reward3Floor));
+         RewardFloors.push(uint(json.Reward4Floor));
+         FloorRewardsMap = new GMMap();
+         FloorRewardsMap.add(uint(json.Reward1Floor),json.Reward1);
+         FloorRewardsMap.add(uint(json.Reward2Floor),json.Reward2);
+         FloorRewardsMap.add(uint(json.Reward3Floor),json.Reward3);
+         FloorRewardsMap.add(uint(json.Reward4Floor),json.Reward4);
       }
    }
 }

@@ -10,7 +10,7 @@ package GeneratedCode
       
       private var the_instance:DistributedTownArea;
       
-      public const FLID_tileLibrary:uint = 286;
+      public const FLID_tileLibrary:uint = 295;
       
       public function DistributedTownAreaNetworkComponent(Inst:DistributedTownArea, gs:GeneratedDcSocket, id:uint)
       {
@@ -30,7 +30,7 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 286)
+         switch(int(fieldid) - 295)
          {
             case 0:
                recv_tileLibrary(packet);

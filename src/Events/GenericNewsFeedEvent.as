@@ -13,12 +13,12 @@ package Events
       
       private var mPicSwfClassName:String;
       
-      public function GenericNewsFeedEvent(type:String, message:String, picSwfLocation:String = "", picSwfClassName:String = "", bubbles:Boolean = false, cancelable:Boolean = false)
+      public function GenericNewsFeedEvent(genericNewsFeedEventType:String, message:String, picSwfLocation:String = "", picSwfClassName:String = "", bubbles:Boolean = false, cancelable:Boolean = false)
       {
          mMessage = message;
          mPicSwfLocation = picSwfLocation;
          mPicSwfClassName = picSwfClassName;
-         super(type,bubbles,cancelable);
+         super(genericNewsFeedEventType,bubbles,cancelable);
       }
       
       public function get message() : String

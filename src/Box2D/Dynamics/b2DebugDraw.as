@@ -1,189 +1,319 @@
 package Box2D.Dynamics
 {
-   import Box2D.Collision.*;
-   import Box2D.Collision.Shapes.*;
-   import Box2D.Common.*;
-   import Box2D.Common.Math.*;
-   import Box2D.Dynamics.Contacts.*;
+   import Box2D.Common.Math.b2Transform;
+   import Box2D.Common.Math.b2Vec2;
+   import Box2D.Common.b2Color;
+   import box2dcompat.As3Array;
+   import flash.Boot;
    import flash.display.Sprite;
-   
-   use namespace b2internal;
    
    public class b2DebugDraw
    {
       
-      public static var e_shapeBit:uint = 1;
+      public static var e_shapeBit:int = 1;
       
-      public static var e_jointBit:uint = 2;
+      public static var e_jointBit:int = 2;
       
-      public static var e_aabbBit:uint = 4;
+      public static var e_aabbBit:int = 4;
       
-      public static var e_pairBit:uint = 8;
+      public static var e_pairBit:int = 8;
       
-      public static var e_centerOfMassBit:uint = 16;
+      public static var e_centerOfMassBit:int = 16;
       
-      public static var e_controllerBit:uint = 32;
+      public static var e_controllerBit:int = 32;
       
-      private var m_drawFlags:uint;
+      public var m_xformScale:Number;
       
-      b2internal var m_sprite:Sprite;
+      public var m_sprite:Sprite;
       
-      private var m_drawScale:Number = 1;
+      public var m_lineThickness:Number;
       
-      private var m_lineThickness:Number = 1;
+      public var m_fillAlpha:Number;
       
-      private var m_alpha:Number = 1;
+      public var m_drawScale:Number;
       
-      private var m_fillAlpha:Number = 1;
+      public var m_drawFlags:int;
       
-      private var m_xformScale:Number = 1;
+      public var m_alpha:Number;
       
       public function b2DebugDraw()
       {
-         super();
-         this.m_drawFlags = 0;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         m_drawScale = 1;
+         m_lineThickness = 1;
+         m_alpha = 1;
+         m_fillAlpha = 1;
+         m_xformScale = 1;
+         m_drawFlags = 0;
       }
       
-      public function SetFlags(flags:uint) : void
+      public function setXFormScale(xformScale:Number) : void
       {
-         this.m_drawFlags = flags;
+         SetXFormScale(xformScale);
       }
       
-      public function GetFlags() : uint
+      public function setSprite(sprite:Sprite) : void
       {
-         return this.m_drawFlags;
+         SetSprite(sprite);
       }
       
-      public function AppendFlags(flags:uint) : void
+      public function setLineThickness(lineThickness:Number) : void
       {
-         this.m_drawFlags |= flags;
+         SetLineThickness(lineThickness);
       }
       
-      public function ClearFlags(flags:uint) : void
+      public function setFlags(flags:int) : void
       {
-         this.m_drawFlags &= ~flags;
+         SetFlags(flags);
       }
       
-      public function SetSprite(sprite:Sprite) : void
+      public function setFillAlpha(alpha:Number) : void
       {
-         this.m_sprite = sprite;
+         SetFillAlpha(alpha);
       }
       
-      public function GetSprite() : Sprite
+      public function setDrawScale(drawScale:Number) : void
       {
-         return this.m_sprite;
+         SetDrawScale(drawScale);
       }
       
-      public function SetDrawScale(drawScale:Number) : void
+      public function setAlpha(alpha:Number) : void
       {
-         this.m_drawScale = drawScale;
+         SetAlpha(alpha);
       }
       
-      public function GetDrawScale() : Number
+      public function getXFormScale() : Number
       {
-         return this.m_drawScale;
+         return GetXFormScale();
       }
       
-      public function SetLineThickness(lineThickness:Number) : void
+      public function getSprite() : Sprite
       {
-         this.m_lineThickness = lineThickness;
+         return GetSprite();
       }
       
-      public function GetLineThickness() : Number
+      public function getLineThickness() : Number
       {
-         return this.m_lineThickness;
+         return GetLineThickness();
       }
       
-      public function SetAlpha(alpha:Number) : void
+      public function getFlags() : int
       {
-         this.m_alpha = alpha;
+         return GetFlags();
       }
       
-      public function GetAlpha() : Number
+      public function getFillAlpha() : Number
       {
-         return this.m_alpha;
+         return GetFillAlpha();
       }
       
-      public function SetFillAlpha(alpha:Number) : void
+      public function getDrawScale() : Number
       {
-         this.m_fillAlpha = alpha;
+         return GetDrawScale();
       }
       
-      public function GetFillAlpha() : Number
+      public function getAlpha() : Number
       {
-         return this.m_fillAlpha;
+         return GetAlpha();
+      }
+      
+      public function drawTransform(xf:b2Transform) : void
+      {
+         DrawTransform(xf);
+      }
+      
+      public function drawSolidPolygon(vertices:Array, vertexCount:int, color:b2Color) : void
+      {
+         var _loc6_:int = 0;
+         m_sprite.graphics.lineStyle(m_lineThickness,color.get_color(),m_alpha);
+         m_sprite.graphics.moveTo(vertices[0].x * m_drawScale,vertices[0].y * m_drawScale);
+         m_sprite.graphics.beginFill(color.get_color(),m_fillAlpha);
+         var _loc4_:int = 1;
+         var _loc5_:int = vertexCount;
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            m_sprite.graphics.lineTo(vertices[_loc6_].x * m_drawScale,vertices[_loc6_].y * m_drawScale);
+         }
+         m_sprite.graphics.lineTo(vertices[0].x * m_drawScale,vertices[0].y * m_drawScale);
+         m_sprite.graphics.endFill();
+      }
+      
+      public function drawSolidCircle(center:b2Vec2, radius:Number, axis:b2Vec2, color:b2Color) : void
+      {
+         DrawSolidCircle(center,radius,axis,color);
+      }
+      
+      public function drawSegment(p1:b2Vec2, p2:b2Vec2, color:b2Color) : void
+      {
+         DrawSegment(p1,p2,color);
+      }
+      
+      public function drawPolygon(vertices:Array, vertexCount:int, color:b2Color) : void
+      {
+         var _loc6_:int = 0;
+         m_sprite.graphics.lineStyle(m_lineThickness,color.get_color(),m_alpha);
+         m_sprite.graphics.moveTo(vertices[0].x * m_drawScale,vertices[0].y * m_drawScale);
+         var _loc4_:int = 1;
+         var _loc5_:int = vertexCount;
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            m_sprite.graphics.lineTo(vertices[_loc6_].x * m_drawScale,vertices[_loc6_].y * m_drawScale);
+         }
+         m_sprite.graphics.lineTo(vertices[0].x * m_drawScale,vertices[0].y * m_drawScale);
+      }
+      
+      public function drawCircle(center:b2Vec2, radius:Number, color:b2Color) : void
+      {
+         DrawCircle(center,radius,color);
+      }
+      
+      public function clearFlags(flags:int) : void
+      {
+         ClearFlags(flags);
+      }
+      
+      public function clear() : void
+      {
+         Clear();
+      }
+      
+      public function appendFlags(flags:int) : void
+      {
+         AppendFlags(flags);
       }
       
       public function SetXFormScale(xformScale:Number) : void
       {
-         this.m_xformScale = xformScale;
+         m_xformScale = xformScale;
+      }
+      
+      public function SetSprite(sprite:Sprite) : void
+      {
+         m_sprite = sprite;
+      }
+      
+      public function SetLineThickness(lineThickness:Number) : void
+      {
+         m_lineThickness = lineThickness;
+      }
+      
+      public function SetFlags(flags:int) : void
+      {
+         m_drawFlags = flags;
+      }
+      
+      public function SetFillAlpha(alpha:Number) : void
+      {
+         m_fillAlpha = alpha;
+      }
+      
+      public function SetDrawScale(drawScale:Number) : void
+      {
+         m_drawScale = drawScale;
+      }
+      
+      public function SetAlpha(alpha:Number) : void
+      {
+         m_alpha = alpha;
       }
       
       public function GetXFormScale() : Number
       {
-         return this.m_xformScale;
+         return m_xformScale;
       }
       
-      public function DrawPolygon(vertices:Array, vertexCount:int, color:b2Color) : void
+      public function GetSprite() : Sprite
       {
-         this.m_sprite.graphics.lineStyle(this.m_lineThickness,color.color,this.m_alpha);
-         this.m_sprite.graphics.moveTo(vertices[0].x * this.m_drawScale,vertices[0].y * this.m_drawScale);
-         var _loc4_:* = 1;
-         while(_loc4_ < vertexCount)
-         {
-            this.m_sprite.graphics.lineTo(vertices[_loc4_].x * this.m_drawScale,vertices[_loc4_].y * this.m_drawScale);
-            _loc4_++;
-         }
-         this.m_sprite.graphics.lineTo(vertices[0].x * this.m_drawScale,vertices[0].y * this.m_drawScale);
+         return m_sprite;
       }
       
-      public function DrawSolidPolygon(vertices:Vector.<b2Vec2>, vertexCount:int, color:b2Color) : void
+      public function GetLineThickness() : Number
       {
-         this.m_sprite.graphics.lineStyle(this.m_lineThickness,color.color,this.m_alpha);
-         this.m_sprite.graphics.moveTo(vertices[0].x * this.m_drawScale,vertices[0].y * this.m_drawScale);
-         this.m_sprite.graphics.beginFill(color.color,this.m_fillAlpha);
-         var _loc4_:* = 1;
-         while(_loc4_ < vertexCount)
-         {
-            this.m_sprite.graphics.lineTo(vertices[_loc4_].x * this.m_drawScale,vertices[_loc4_].y * this.m_drawScale);
-            _loc4_++;
-         }
-         this.m_sprite.graphics.lineTo(vertices[0].x * this.m_drawScale,vertices[0].y * this.m_drawScale);
-         this.m_sprite.graphics.endFill();
+         return m_lineThickness;
       }
       
-      public function DrawCircle(center:b2Vec2, radius:Number, color:b2Color) : void
+      public function GetFlags() : int
       {
-         this.m_sprite.graphics.lineStyle(this.m_lineThickness,color.color,this.m_alpha);
-         this.m_sprite.graphics.drawCircle(center.x * this.m_drawScale,center.y * this.m_drawScale,radius * this.m_drawScale);
+         return m_drawFlags;
       }
       
-      public function DrawSolidCircle(center:b2Vec2, radius:Number, axis:b2Vec2, color:b2Color) : void
+      public function GetFillAlpha() : Number
       {
-         this.m_sprite.graphics.lineStyle(this.m_lineThickness,color.color,this.m_alpha);
-         this.m_sprite.graphics.moveTo(0,0);
-         this.m_sprite.graphics.beginFill(color.color,this.m_fillAlpha);
-         this.m_sprite.graphics.drawCircle(center.x * this.m_drawScale,center.y * this.m_drawScale,radius * this.m_drawScale);
-         this.m_sprite.graphics.endFill();
-         this.m_sprite.graphics.moveTo(center.x * this.m_drawScale,center.y * this.m_drawScale);
-         this.m_sprite.graphics.lineTo((center.x + axis.x * radius) * this.m_drawScale,(center.y + axis.y * radius) * this.m_drawScale);
+         return m_fillAlpha;
       }
       
-      public function DrawSegment(p1:b2Vec2, p2:b2Vec2, color:b2Color) : void
+      public function GetDrawScale() : Number
       {
-         this.m_sprite.graphics.lineStyle(this.m_lineThickness,color.color,this.m_alpha);
-         this.m_sprite.graphics.moveTo(p1.x * this.m_drawScale,p1.y * this.m_drawScale);
-         this.m_sprite.graphics.lineTo(p2.x * this.m_drawScale,p2.y * this.m_drawScale);
+         return m_drawScale;
+      }
+      
+      public function GetAlpha() : Number
+      {
+         return m_alpha;
       }
       
       public function DrawTransform(xf:b2Transform) : void
       {
-         this.m_sprite.graphics.lineStyle(this.m_lineThickness,16711680,this.m_alpha);
-         this.m_sprite.graphics.moveTo(xf.position.x * this.m_drawScale,xf.position.y * this.m_drawScale);
-         this.m_sprite.graphics.lineTo((xf.position.x + this.m_xformScale * xf.R.col1.x) * this.m_drawScale,(xf.position.y + this.m_xformScale * xf.R.col1.y) * this.m_drawScale);
-         this.m_sprite.graphics.lineStyle(this.m_lineThickness,65280,this.m_alpha);
-         this.m_sprite.graphics.moveTo(xf.position.x * this.m_drawScale,xf.position.y * this.m_drawScale);
-         this.m_sprite.graphics.lineTo((xf.position.x + this.m_xformScale * xf.R.col2.x) * this.m_drawScale,(xf.position.y + this.m_xformScale * xf.R.col2.y) * this.m_drawScale);
+         m_sprite.graphics.lineStyle(m_lineThickness,16711680,m_alpha);
+         m_sprite.graphics.moveTo(xf.position.x * m_drawScale,xf.position.y * m_drawScale);
+         m_sprite.graphics.lineTo((xf.position.x + m_xformScale * xf.R.col1.x) * m_drawScale,(xf.position.y + m_xformScale * xf.R.col1.y) * m_drawScale);
+         m_sprite.graphics.lineStyle(m_lineThickness,65280,m_alpha);
+         m_sprite.graphics.moveTo(xf.position.x * m_drawScale,xf.position.y * m_drawScale);
+         m_sprite.graphics.lineTo((xf.position.x + m_xformScale * xf.R.col2.x) * m_drawScale,(xf.position.y + m_xformScale * xf.R.col2.y) * m_drawScale);
+      }
+      
+      public function DrawSolidPolygon(vertices:*, vertexCount:int, color:b2Color) : void
+      {
+         drawSolidPolygon(As3Array.of(vertices),vertexCount,color);
+      }
+      
+      public function DrawSolidCircle(center:b2Vec2, radius:Number, axis:b2Vec2, color:b2Color) : void
+      {
+         m_sprite.graphics.lineStyle(m_lineThickness,color.get_color(),m_alpha);
+         m_sprite.graphics.moveTo(0,0);
+         m_sprite.graphics.beginFill(color.get_color(),m_fillAlpha);
+         m_sprite.graphics.drawCircle(center.x * m_drawScale,center.y * m_drawScale,radius * m_drawScale);
+         m_sprite.graphics.endFill();
+         m_sprite.graphics.moveTo(center.x * m_drawScale,center.y * m_drawScale);
+         m_sprite.graphics.lineTo((center.x + axis.x * radius) * m_drawScale,(center.y + axis.y * radius) * m_drawScale);
+      }
+      
+      public function DrawSegment(p1:b2Vec2, p2:b2Vec2, color:b2Color) : void
+      {
+         m_sprite.graphics.lineStyle(m_lineThickness,color.get_color(),m_alpha);
+         m_sprite.graphics.moveTo(p1.x * m_drawScale,p1.y * m_drawScale);
+         m_sprite.graphics.lineTo(p2.x * m_drawScale,p2.y * m_drawScale);
+      }
+      
+      public function DrawPolygon(vertices:*, vertexCount:int, color:b2Color) : void
+      {
+         drawPolygon(As3Array.of(vertices),vertexCount,color);
+      }
+      
+      public function DrawCircle(center:b2Vec2, radius:Number, color:b2Color) : void
+      {
+         m_sprite.graphics.lineStyle(m_lineThickness,color.get_color(),m_alpha);
+         m_sprite.graphics.drawCircle(center.x * m_drawScale,center.y * m_drawScale,radius * m_drawScale);
+      }
+      
+      public function ClearFlags(flags:int) : void
+      {
+         m_drawFlags &= ~flags;
+      }
+      
+      public function Clear() : void
+      {
+         m_sprite.graphics.clear();
+      }
+      
+      public function AppendFlags(flags:int) : void
+      {
+         m_drawFlags |= flags;
       }
    }
 }

@@ -4,11 +4,13 @@ package Actor
    import Brain.Event.EventComponent;
    import Brain.Logger.Logger;
    import Brain.Sound.SoundAsset;
+   import Brain.Starling.SwfConverter.BakeScheduler;
    import Brain.Utils.ColorMatrix;
    import Brain.Utils.MemoryTracker;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.PreRenderWorkComponent;
    import Combat.Weapon.WeaponView;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.HeroGameObject;
    import DistributedObjects.NPCGameObject;
    import Effects.EffectGameObject;
@@ -16,6 +18,7 @@ package Actor
    import Facade.DBFacade;
    import Floor.FloorObject;
    import Floor.FloorView;
+   import GameMasterDictionary.GMActor;
    import GameMasterDictionary.GMAttack;
    import GeneratedCode.CombatResult;
    import Sound.DBSoundComponent;
@@ -24,12 +27,15 @@ package Actor
    import flash.display.Sprite;
    import flash.filters.GlowFilter;
    import flash.geom.ColorTransform;
+   import flash.geom.Rectangle;
    import flash.geom.Vector3D;
    
    public class ActorView extends FloorView
    {
       
       public static var BODY_Y_OFFSET:Number = -45;
+      
+      private static const DEBUG_HEADING:Boolean = false;
       
       protected static var mMouseOverEffect:GlowFilter = new GlowFilter(16633879,1,16,16,5);
       
@@ -69,26 +75,40 @@ package Actor
       
       protected var mBodyFilters:Array;
       
+      protected var mStatusTintColor:uint;
+      
+      protected var mStatusTintAmount:Number = 0;
+      
+      private var mStatusTintAttachments:Vector.<EffectView>;
+      
       protected var mDeathSoundEffect:SoundAsset;
       
       protected var mDeathSoundVolume:Number;
+      
+      protected var mMouseHitRect:Rectangle;
+      
+      private var mMouseHitRectFixed:Boolean;
+      
+      private var mMousePickable:Boolean = true;
+      
+      public var mousePickedCentrally:Boolean = false;
       
       private var specialVFXObject_Back:EffectGameObject;
       
       private var specialVFXObject_Front:EffectGameObject;
       
-      public function ActorView(facade:DBFacade, actorGameObject:ActorGameObject)
+      public function ActorView(dbFacade:DBFacade, actorGameObject:ActorGameObject)
       {
-         super(facade,actorGameObject);
+         super(dbFacade,actorGameObject);
          mParentActorObject = actorGameObject;
          mBodyFilters = [];
          mVelocity = new Vector3D(0,0,0);
-         mEventComponent = new EventComponent(mFacade);
-         mPreRenderWorkComponent = new PreRenderWorkComponent(mFacade,"ActorView");
-         mLogicalWorkComponent = new LogicalWorkComponent(mFacade,"ActorView");
-         mSoundComponent = new DBSoundComponent(facade);
+         mEventComponent = new EventComponent(mDBFacade);
+         mPreRenderWorkComponent = new PreRenderWorkComponent(mDBFacade,"ActorView");
+         mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"ActorView");
+         mSoundComponent = new DBSoundComponent(dbFacade);
          mRoot.name = "ActorView.mRoot_" + actorGameObject.id;
-         mAssetLoadingComponent = new AssetLoadingComponent(mFacade);
+         mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          mBody = new Sprite();
          mBody.name = "ActorView.mBody";
          mRoot.addChild(mBody);
@@ -102,6 +122,10 @@ package Actor
          var _loc3_:Number = mParentActorObject.actorData.brightness;
          var _loc5_:Number = mParentActorObject.actorData.hue;
          var _loc2_:Number = mParentActorObject.actorData.saturation;
+         if(_loc3_ == 0 && _loc5_ == 0 && _loc2_ == 0)
+         {
+            return;
+         }
          var _loc4_:ColorMatrix = new ColorMatrix();
          if(_loc3_ != 0)
          {
@@ -116,6 +140,10 @@ package Actor
             _loc4_.adjustSaturation(_loc2_);
          }
          node.filters = [_loc4_.filter];
+         if(node is ActorRenderer)
+         {
+            ActorRenderer(node).applyColorFilter(_loc4_.matrix);
+         }
       }
       
       public function get bodyAnimRenderer() : ActorRenderer
@@ -146,12 +174,29 @@ package Actor
             {
                this.bodyAnimRenderer.forceFrame(0);
                mCurrentWeaponAnimRenderer.heading = this.heading;
-               mCurrentWeaponAnimRenderer.play(mAnimName,this.bodyAnimRenderer.currentFrame,this.bodyAnimRenderer.loop);
-               mBody.addChild(mCurrentWeaponAnimRenderer);
+               mCurrentWeaponAnimRenderer.play(mAnimName,this.bodyAnimRenderer.currentFrame,true,this.bodyAnimRenderer.loop);
             }
             else
             {
                mCurrentWeaponAnimRenderer.stop();
+            }
+            mBody.addChild(mCurrentWeaponAnimRenderer);
+            if(this.root.parent != null)
+            {
+               mCurrentWeaponAnimRenderer.setLayer(this.layer);
+               mCurrentWeaponAnimRenderer.visible = this.root.visible;
+            }
+            if(mBodyFilters.length > 0)
+            {
+               mCurrentWeaponAnimRenderer.setHighlightFilter(getDominantFilterColor());
+            }
+            if(mStatusTintAmount > 0)
+            {
+               mCurrentWeaponAnimRenderer.applyStatusTint(mStatusTintColor,mStatusTintAmount);
+            }
+            else
+            {
+               mCurrentWeaponAnimRenderer.clearStatusTint();
             }
          }
       }
@@ -163,14 +208,54 @@ package Actor
       
       public function disableMouse() : void
       {
+         mMousePickable = false;
          mRoot.mouseChildren = false;
          mRoot.mouseEnabled = false;
       }
       
       public function enableMouse() : void
       {
+         mMousePickable = true;
+         if(mousePickedCentrally)
+         {
+            return;
+         }
          mRoot.mouseChildren = true;
          mRoot.mouseEnabled = true;
+      }
+      
+      public function get mousePickable() : Boolean
+      {
+         return mMousePickable;
+      }
+      
+      public function get mouseHitRect() : Rectangle
+      {
+         if(mMouseHitRect)
+         {
+            return mMouseHitRect;
+         }
+         return mBody && mBody.width > 0 ? mBody.getBounds(mRoot) : null;
+      }
+      
+      public function get fixedMouseHitRect() : Rectangle
+      {
+         return mMouseHitRect;
+      }
+      
+      protected function setMouseHitRect(x:Number, y:Number, width:Number, height:Number) : void
+      {
+         if(!mMouseHitRect)
+         {
+            mMouseHitRect = new Rectangle();
+         }
+         mMouseHitRect.setTo(x,y,width,height);
+      }
+      
+      protected function setFixedMouseHitRect(x:Number, y:Number, width:Number, height:Number) : void
+      {
+         setMouseHitRect(x,y,width,height);
+         mMouseHitRectFixed = true;
       }
       
       public function actionsForDeadState() : void
@@ -196,7 +281,7 @@ package Actor
       {
          if(mWantNametag)
          {
-            mNametag = new ActorNametag(mFacade,mAssetLoadingComponent,mLogicalWorkComponent,mParentActorObject.actorData.gMActor.NametagY);
+            mNametag = new ActorNametag(mDBFacade,mAssetLoadingComponent,mLogicalWorkComponent,mParentActorObject.actorData.gMActor.NametagY);
             mNametag.cacheAsBitmap = true;
             mNametag.hpBar.scaleX = mParentActorObject.actorData.gMActor.HealthbarScale / root.scaleX;
             mNametag.hpBar.scaleY = mParentActorObject.actorData.gMActor.HealthbarScale / root.scaleY;
@@ -210,6 +295,86 @@ package Actor
       public function get body() : Sprite
       {
          return mBody;
+      }
+      
+      public function applyStatusTint(color:uint, amount:Number) : void
+      {
+         mStatusTintColor = color;
+         mStatusTintAmount = amount;
+         if(amount <= 0)
+         {
+            clearStatusTint();
+            return;
+         }
+         if(mBodyAnimRenderer != null)
+         {
+            mBodyAnimRenderer.applyStatusTint(color,amount);
+         }
+         if(mCurrentWeaponAnimRenderer != null)
+         {
+            mCurrentWeaponAnimRenderer.applyStatusTint(color,amount);
+         }
+         if(mStatusTintAttachments != null)
+         {
+            for each(var _loc3_:EffectView in mStatusTintAttachments)
+            {
+               _loc3_.applyStatusTint(color,amount);
+            }
+         }
+      }
+      
+      public function clearStatusTint() : void
+      {
+         mStatusTintAmount = 0;
+         if(mBodyAnimRenderer != null)
+         {
+            mBodyAnimRenderer.clearStatusTint();
+         }
+         if(mCurrentWeaponAnimRenderer != null)
+         {
+            mCurrentWeaponAnimRenderer.clearStatusTint();
+         }
+         if(mStatusTintAttachments != null)
+         {
+            for each(var _loc1_:EffectView in mStatusTintAttachments)
+            {
+               _loc1_.clearStatusTint();
+            }
+         }
+      }
+      
+      public function registerStatusTintAttachment(effectView:EffectView) : void
+      {
+         if(effectView == null)
+         {
+            return;
+         }
+         if(mStatusTintAttachments == null)
+         {
+            mStatusTintAttachments = new Vector.<EffectView>();
+         }
+         if(mStatusTintAttachments.indexOf(effectView) == -1)
+         {
+            mStatusTintAttachments.push(effectView);
+            if(mStatusTintAmount > 0)
+            {
+               effectView.applyStatusTint(mStatusTintColor,mStatusTintAmount);
+            }
+         }
+      }
+      
+      public function unregisterStatusTintAttachment(effectView:EffectView) : void
+      {
+         if(mStatusTintAttachments == null || effectView == null)
+         {
+            return;
+         }
+         var _loc2_:int = mStatusTintAttachments.indexOf(effectView);
+         if(_loc2_ != -1)
+         {
+            effectView.clearStatusTint();
+            mStatusTintAttachments.splice(_loc2_,1);
+         }
       }
       
       public function buildBuff(buff:MovieClip, sortLayer:String) : void
@@ -250,16 +415,12 @@ package Actor
          super.init();
          mBodyAnimRenderer = new ActorRenderer(mDBFacade,mParentActorObject,true);
          mBodyAnimRenderer.loadAssets();
-         if(mParentActorObject.actorData.assetType == "SPRITE_SHEET")
-         {
-            mBody.scaleX = mBody.scaleY = mParentActorObject.actorData.scale3DModel;
-         }
          mBody.addChild(mBodyAnimRenderer);
          applyColor(mBodyAnimRenderer);
          buildNametag();
          if(mParentActorObject.actorData.deathSound)
          {
-            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),mParentActorObject.actorData.deathSound,function(param1:SoundAsset):void
+            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),mParentActorObject.actorData.deathSound,function(param1:SoundAsset):void
             {
                mDeathSoundEffect = param1;
                mDeathSoundVolume = mParentActorObject.actorData.deathVolume;
@@ -279,7 +440,7 @@ package Actor
       {
          specialVFXObject_Back = new EffectGameObject(mDBFacade,DBFacade.buildFullDownloadPath(swfPath),className,1);
          MemoryTracker.track(specialVFXObject_Back,"EffectGameObject \'" + swfPath + ":" + className + "\' - created in ActorView.addSpecialBackEffect()");
-         root.addChildAt(specialVFXObject_Back.view.root,0);
+         EffectView(specialVFXObject_Back.view).attachToParent(root,true);
          EffectView(specialVFXObject_Back.view).play(true,function():void
          {
          });
@@ -289,7 +450,7 @@ package Actor
       {
          specialVFXObject_Front = new EffectGameObject(mDBFacade,DBFacade.buildFullDownloadPath(swfPath),className,1);
          MemoryTracker.track(specialVFXObject_Front,"EffectGameObject \'" + swfPath + ":" + className + "\' - created in ActorView.addSpecialFrontEffect()");
-         root.addChild(specialVFXObject_Front.view.root);
+         EffectView(specialVFXObject_Front.view).attachToParent(root,false);
          EffectView(specialVFXObject_Front.view).play(true,function():void
          {
          });
@@ -422,6 +583,10 @@ package Actor
       public function set heading(angle:Number) : void
       {
          mHeading = angle;
+         if(false && mParentActorObject is NPCGameObject)
+         {
+            Logger.debugch("heading","ActorView set heading id=" + mParentActorObject.id + " const=" + (mParentActorObject.actorData ? mParentActorObject.actorData.constant : "?") + " heading=" + mHeading + " anim=" + mAnimName);
+         }
          if(this.bodyAnimRenderer)
          {
             this.bodyAnimRenderer.heading = angle;
@@ -437,6 +602,38 @@ package Actor
          return mHeading;
       }
       
+      override public function addToStage() : void
+      {
+         super.addToStage();
+         var _loc1_:ActorRenderer = this.bodyAnimRenderer;
+         if(_loc1_ != null)
+         {
+            _loc1_.setLayer(this.layer);
+            _loc1_.visible = this.root.visible;
+         }
+         if(mCurrentWeaponAnimRenderer != null)
+         {
+            mCurrentWeaponAnimRenderer.setLayer(this.layer);
+            mCurrentWeaponAnimRenderer.visible = this.root.visible;
+         }
+      }
+      
+      override public function removeFromStage() : void
+      {
+         var _loc1_:ActorRenderer = this.bodyAnimRenderer;
+         if(_loc1_ != null)
+         {
+            _loc1_.setLayer(0);
+            _loc1_.visible = false;
+         }
+         if(mCurrentWeaponAnimRenderer != null)
+         {
+            mCurrentWeaponAnimRenderer.setLayer(0);
+            mCurrentWeaponAnimRenderer.visible = false;
+         }
+         super.removeFromStage();
+      }
+      
       override public function destroy() : void
       {
          if(mNametag)
@@ -447,6 +644,16 @@ package Actor
          if(mDeathSoundEffect)
          {
             mDeathSoundEffect = null;
+         }
+         if(specialVFXObject_Back)
+         {
+            specialVFXObject_Back.destroy();
+            specialVFXObject_Back = null;
+         }
+         if(specialVFXObject_Front)
+         {
+            specialVFXObject_Front.destroy();
+            specialVFXObject_Front = null;
          }
          mEventComponent.destroy();
          mEventComponent = null;
@@ -466,6 +673,7 @@ package Actor
          mCurrentWeaponView = null;
          mCurrentWeaponAnimRenderer = null;
          mBodyFilters = null;
+         mStatusTintAttachments = null;
          mBody = null;
          mEffect = null;
          mParentActorObject = null;
@@ -502,6 +710,15 @@ package Actor
          removeEffect(mMouseSelectedEffect);
       }
       
+      public function setStarlingHitArea(bounds:Rectangle) : void
+      {
+         if(mMouseHitRectFixed || bounds == null || bounds.width <= 0 || bounds.height <= 0)
+         {
+            return;
+         }
+         setMouseHitRect(bounds.x,bounds.y,bounds.width,bounds.height);
+      }
+      
       public function reviveHighlight() : void
       {
          var _loc1_:ColorTransform = new ColorTransform();
@@ -520,6 +737,14 @@ package Actor
          {
             mBodyFilters.push(effect);
             mBody.filters = mBodyFilters;
+            if(mBodyAnimRenderer != null)
+            {
+               mBodyAnimRenderer.setHighlightFilter(getDominantFilterColor());
+            }
+            if(mCurrentWeaponAnimRenderer != null)
+            {
+               mCurrentWeaponAnimRenderer.setHighlightFilter(getDominantFilterColor());
+            }
          }
       }
       
@@ -530,7 +755,42 @@ package Actor
          {
             mBodyFilters.splice(_loc2_,1);
             mBody.filters = mBodyFilters;
+            if(mBodyAnimRenderer != null)
+            {
+               if(mBodyFilters.length > 0)
+               {
+                  mBodyAnimRenderer.setHighlightFilter(getDominantFilterColor());
+               }
+               else
+               {
+                  mBodyAnimRenderer.clearHighlightFilter();
+               }
+            }
+            if(mCurrentWeaponAnimRenderer != null)
+            {
+               if(mBodyFilters.length > 0)
+               {
+                  mCurrentWeaponAnimRenderer.setHighlightFilter(getDominantFilterColor());
+               }
+               else
+               {
+                  mCurrentWeaponAnimRenderer.clearHighlightFilter();
+               }
+            }
          }
+      }
+      
+      private function getDominantFilterColor() : uint
+      {
+         if(mBodyFilters.indexOf(mMouseSelectedEffect) >= 0)
+         {
+            return mMouseSelectedEffect.color;
+         }
+         if(mBodyFilters.indexOf(mMouseOverEffect) >= 0)
+         {
+            return mMouseOverEffect.color;
+         }
+         return (mBodyFilters[mBodyFilters.length - 1] as GlowFilter).color;
       }
       
       protected function playHitEffect(gmAttack:GMAttack, isAttackeeHero:Boolean) : void
@@ -647,30 +907,18 @@ package Actor
       private function isThisAProp(id:uint) : Boolean
       {
          var _loc2_:ActorGameObject = mDBFacade.gameObjectManager.getReferenceFromId(id) as ActorGameObject;
-         if(_loc2_ && _loc2_.actorData.gMActor.CharType == "PROP")
-         {
-            return true;
-         }
-         return false;
+         return _loc2_ && _loc2_.actorData.gMActor.CharType == GMActor.CHAR_TYPE_PROP;
       }
       
       private function doesCombatResultInvolveUserOrPetOfUser(combatResult:CombatResult) : Boolean
       {
-         if(isThisIdUserOrPetOfUser(combatResult.attacker) || isThisIdUserOrPetOfUser(combatResult.attackee))
-         {
-            return true;
-         }
-         return false;
+         return isThisIdUserOrPetOfUser(combatResult.attacker) || isThisIdUserOrPetOfUser(combatResult.attackee);
       }
       
       private function doesCombatResultHaveShowHealFlag(combatResult:CombatResult) : Boolean
       {
          var _loc2_:ActorGameObject = mDBFacade.gameObjectManager.getReferenceFromId(combatResult.attackee) as ActorGameObject;
-         if(_loc2_.hasShowHealNumbers)
-         {
-            return true;
-         }
-         return false;
+         return _loc2_.hasShowHealNumbers;
       }
       
       private function isThisIdUserOrPetOfUser(id:uint) : Boolean
@@ -701,8 +949,13 @@ package Actor
       
       public function receiveDamage(combatResult:CombatResult, gmAttack:GMAttack) : void
       {
+         var attackerGameObject:ActorGameObject;
          var impactSound:String;
-         var attackerGameObject:ActorGameObject = mDBFacade.gameObjectManager.getReferenceFromId(combatResult.attacker) as ActorGameObject;
+         if(combatResult.damage != 0)
+         {
+            BakeScheduler.noteCombat();
+         }
+         attackerGameObject = mDBFacade.gameObjectManager.getReferenceFromId(combatResult.attacker) as ActorGameObject;
          if(attackerGameObject != null)
          {
             if(!attackerGameObject.isOwner)
@@ -718,7 +971,7 @@ package Actor
             }
             if(mParentActorObject.actorData.hitSound)
             {
-               this.mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),mParentActorObject.actorData.hitSound,function(param1:SoundAsset):void
+               this.mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),mParentActorObject.actorData.hitSound,function(param1:SoundAsset):void
                {
                   mSoundComponent.playSfxOneShot(param1,worldCenter,0,mParentActorObject.actorData.hitVolume);
                });
@@ -735,7 +988,7 @@ package Actor
             {
                impactSound = "StrongHit";
             }
-            this.mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),impactSound,function(param1:SoundAsset):void
+            this.mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),impactSound,function(param1:SoundAsset):void
             {
                mSoundComponent.playSfxOneShot(param1,worldCenter,0,gmAttack.ImpactVolume);
             });
@@ -755,21 +1008,24 @@ package Actor
          }
       }
       
-      public function spawnDamageFloater(isCriticalHit:Boolean, delta:int, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, effectiveness:int, type:uint = 0, floaterType:String = "DAMAGE_MOVEMENT_TYPE") : void
+      protected function get wantDamageFloaters() : Boolean
       {
-         var _loc8_:DamageFloater = null;
-         if(mDBFacade.featureFlags.getFlagValue("want-damage-floaters"))
+         return mDBFacade.featureFlags.getFlagValue("want-damage-floaters") && !mDBFacade.uiHideToggle.hidden;
+      }
+      
+      public function spawnDamageFloater(isCriticalHit:Boolean, delta:int, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, effectiveness:int, inType:uint = 0, floaterType:String = "DAMAGE_MOVEMENT_TYPE") : void
+      {
+         if(wantDamageFloaters)
          {
-            _loc8_ = new DamageFloater(mDBFacade,delta,mParentActorObject,0,24,0.9,90,null,attackerIsOwner,attackeeIsOwner,true,isCriticalHit,effectiveness,type,floaterType);
+            DamageFloater.spawn(mDBFacade,delta,mParentActorObject,0,24,0.9,90,attackerIsOwner,attackeeIsOwner,isCriticalHit,effectiveness,inType,floaterType);
          }
       }
       
-      public function spawnHealFloater(delta:int, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, effectiveness:int, type:uint = 0, floaterType:String = "DAMAGE_MOVEMENT_TYPE") : void
+      public function spawnHealFloater(delta:int, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, effectiveness:int, inType:uint = 0, floaterType:String = "DAMAGE_MOVEMENT_TYPE") : void
       {
-         var _loc7_:DamageFloater = null;
-         if(mDBFacade.featureFlags.getFlagValue("want-damage-floaters"))
+         if(wantDamageFloaters)
          {
-            _loc7_ = new DamageFloater(mDBFacade,delta,mParentActorObject,4,24,0.9,90,null,attackerIsOwner,attackeeIsOwner,true,false,effectiveness,type,floaterType);
+            DamageFloater.spawn(mDBFacade,delta,mParentActorObject,4,24,0.9,90,attackerIsOwner,attackeeIsOwner,false,effectiveness,inType,floaterType);
          }
       }
       

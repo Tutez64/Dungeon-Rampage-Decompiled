@@ -17,8 +17,11 @@ package StateMachine.MainStateMachine
    import Events.MatchMakerLoadedEvent;
    import Facade.DBFacade;
    import Facade.TrickleCacheLoader;
+   import SteamAchievements.SteamAchievementsHelper;
    import SteamAchievements.SteamAchievementsManager;
+   import UI.Hud.StarlingConverted.HudArt;
    import UI.Map.PlayerActivityCount;
+   import Util.GameLogOutput;
    
    public class LoadingState extends State
    {
@@ -111,8 +114,15 @@ package StateMachine.MainStateMachine
          mDBFacade.applyServiceDiscoveryResult(event.serviceDiscoveryResult);
          mConfigLoaded = true;
          mDBFacade.featureFlags.loadFeatureFlagValuesFromConfigs(mDBFacade.dbConfigManager);
+         if(mDBFacade.featureFlags.getFlagValue("file-logging-by-default"))
+         {
+            GameLogOutput.configure(["--log"]);
+         }
+         mDBFacade.initStarlingRendering();
          SteamAccountInfo.getOrCreateAccount(mDBFacade,steamInfoLoaded);
+         mDBFacade.steamAchievementsHelper = new SteamAchievementsHelper(mDBFacade);
          mDBFacade.steamAchievementsManager = new SteamAchievementsManager(mDBFacade);
+         Logger.infoch("SteamAchievements","creating SteamAchievementsHelper");
          Logger.infoch("SteamAchievements","creating SteamAchievementsManager");
          TownState.preLoadAssets(mDBFacade);
          TrickleCacheLoader.swfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_loading_screen.swf"),mDBFacade);
@@ -177,6 +187,10 @@ package StateMachine.MainStateMachine
          mDBFacade.loadingBarTick();
          mAccountLoaded = true;
          mDBAccountInfo = dbAccountLoadedEvent.dbAccountInfo;
+         if(mDBFacade.featureFlags.getFlagValue("starling-hud"))
+         {
+            HudArt.begin(mDBFacade);
+         }
          checkIfLoadingFinished();
       }
       

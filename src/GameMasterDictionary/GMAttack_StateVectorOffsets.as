@@ -1,7 +1,11 @@
 package GameMasterDictionary
 {
+   import flash.Boot;
+   
    public class GMAttack_StateVectorOffsets
    {
+      
+      public var type:Number;
       
       public var speed:Number;
       
@@ -9,11 +13,12 @@ package GameMasterDictionary
       
       public var defence:Number;
       
-      public var type:Number;
-      
-      public function GMAttack_StateVectorOffsets(sp:Number, off:Number, def:Number, tp:Number)
+      public function GMAttack_StateVectorOffsets(sp:Number = 0, off:Number = 0, def:Number = 0, tp:Number = 0)
       {
-         super();
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
          speed = sp;
          offence = off;
          defence = def;

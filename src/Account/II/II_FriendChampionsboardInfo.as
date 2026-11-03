@@ -1,7 +1,7 @@
 package Account.II
 {
-   import com.maccherone.json.JSON;
-   import org.as3commons.collections.Map;
+   import Collections.Map;
+   import Json.JsonCodec;
    
    public class II_FriendChampionsboardInfo
    {
@@ -18,12 +18,11 @@ package Account.II
          nodeIdToScore = new Map();
          nodeIdToActiveSkin = new Map();
          mNodeIdToFriendInfoJson = new Map();
-         updateMapnodeScore(friendLeaderboardJson);
+         updateMapNodeScore(friendLeaderboardJson);
       }
       
-      public function updateMapnodeScore(friendLeaderboardJson:Object) : void
+      public function updateMapNodeScore(friendLeaderboardJson:Object) : void
       {
-         var _loc2_:* = null;
          nodeIdToScore.add(friendLeaderboardJson.mapnode_id,friendLeaderboardJson.score);
          nodeIdToActiveSkin.add(friendLeaderboardJson.mapnode_id,friendLeaderboardJson.active_skin);
          mNodeIdToFriendInfoJson.add(friendLeaderboardJson.mapnode_id,friendLeaderboardJson);
@@ -36,9 +35,9 @@ package Account.II
          if(mNodeIdToFriendInfoJson.hasKey(nodeId))
          {
             _loc3_ = mNodeIdToFriendInfoJson.itemFor(nodeId);
-            _loc2_.push(com.maccherone.json.JSON.decode(_loc3_.weapon1));
-            _loc2_.push(com.maccherone.json.JSON.decode(_loc3_.weapon2));
-            _loc2_.push(com.maccherone.json.JSON.decode(_loc3_.weapon3));
+            _loc2_.push(JsonCodec.decode(_loc3_.weapon1));
+            _loc2_.push(JsonCodec.decode(_loc3_.weapon2));
+            _loc2_.push(JsonCodec.decode(_loc3_.weapon3));
          }
          return _loc2_;
       }

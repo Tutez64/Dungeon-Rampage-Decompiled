@@ -11,6 +11,7 @@ package UI.Inventory
    import Brain.SceneGraph.SceneGraphComponent;
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import Events.BoostersParsedEvent;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
@@ -41,6 +42,12 @@ package UI.Inventory
       
       private var mActivateAnotherButton:UIButton;
       
+      private var mActivatedCallback:Function;
+      
+      private var mActivationPending:Boolean = false;
+      
+      private var mUpdatingInfo:Boolean = false;
+      
       private var mSparkleController:MovieClipRenderController;
       
       protected var mEventComponent:EventComponent;
@@ -51,10 +58,11 @@ package UI.Inventory
       
       protected var mAssetLoadingComponent:AssetLoadingComponent;
       
-      public function BoosterInfoCard(dbFacade:DBFacade, sceneGraphComponent:SceneGraphComponent, root:MovieClip)
+      public function BoosterInfoCard(dbFacade:DBFacade, sceneGraphComponent:SceneGraphComponent, root:MovieClip, activatedCallback:Function = null)
       {
          super(dbFacade,root);
          mDBFacade = dbFacade;
+         mActivatedCallback = activatedCallback;
          setupBoosterCardUI();
          hide();
       }
@@ -76,6 +84,7 @@ package UI.Inventory
             mAssetLoadingComponent.destroy();
             mAssetLoadingComponent = null;
          }
+         mActivatedCallback = null;
          super.destroy();
       }
       
@@ -88,6 +97,7 @@ package UI.Inventory
       public function set info(info:StackableInfo) : void
       {
          var invInfo:DBInventoryInfo;
+         mUpdatingInfo = true;
          mInfo = info;
          if(mInfo == null)
          {
@@ -112,11 +122,11 @@ package UI.Inventory
                mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
             }
             setupBoosterInfoUI(mInfo);
-            mRoot.label.text = GameMasterLocale.getGameMasterSubString("STACKABLE_NAME",mInfo.gmStackable.Constant);
-            mRoot.description.text = GameMasterLocale.getGameMasterSubString("STACKABLE_DESCRIPTION",mInfo.gmStackable.Constant);
-            mRoot.button_activate.label.text = Locale.getString("BOOSTER_CARD_ACTIVATE");
+            TextUtil.setText(mRoot.label,GameMasterLocale.getGameMasterSubString("STACKABLE_NAME",mInfo.gmStackable.Constant));
+            TextUtil.setText(mRoot.description,GameMasterLocale.getGameMasterSubString("STACKABLE_DESCRIPTION",mInfo.gmStackable.Constant));
+            Locale.setText(mRoot.button_activate.label,"BOOSTER_CARD_ACTIVATE");
             mRoot.booster_activated.visible = false;
-            mRoot.booster_activated.label_time.text = "00:00:00";
+            TextUtil.setText(mRoot.booster_activated.label_time,"00:00:00");
             mActivateButton = new UIButton(mDBFacade,mRoot.button_activate);
             mActivateButton.releaseCallback = function():void
             {
@@ -131,6 +141,8 @@ package UI.Inventory
             mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_town.swf"),boostersLoaded);
             setupTimer();
          }
+         mUpdatingInfo = false;
+         completePendingActivationIfReady();
       }
       
       private function setupTimer() : void
@@ -186,6 +198,7 @@ package UI.Inventory
          {
             hide();
          }
+         completePendingActivationIfReady();
       }
       
       private function iconsLoaded(swfAsset:SwfAsset) : void
@@ -202,6 +215,7 @@ package UI.Inventory
          {
             mRoot.visible = true;
             show();
+            completePendingActivationIfReady();
          }
       }
       
@@ -234,12 +248,13 @@ package UI.Inventory
          mRoot.booster_activated.booster_icon.visible = false;
          mRoot.booster_activated.removeChild(_loc6_);
          mRoot.booster_activated.addChild(_loc6_);
-         mRoot.booster_activated.booster_icon_text.text = _loc2_;
+         TextUtil.setText(mRoot.booster_activated.booster_icon_text,_loc2_);
          mFlagBooster = true;
          if(mFlagIcon && mFlagBooster)
          {
             mRoot.visible = true;
             show();
+            completePendingActivationIfReady();
          }
       }
       
@@ -261,7 +276,21 @@ package UI.Inventory
       private function activateBooster() : void
       {
          var _loc1_:StackableInfo = mInfo as StackableInfo;
+         mActivationPending = true;
          StoreServicesController.useAccountBooster(mDBFacade,_loc1_);
+      }
+      
+      private function completePendingActivationIfReady() : void
+      {
+         if(!mActivationPending || mUpdatingInfo || mInfo != null && !isShowing())
+         {
+            return;
+         }
+         mActivationPending = false;
+         if(mActivatedCallback != null)
+         {
+            mActivatedCallback();
+         }
       }
       
       private function setupBoosterInfoUI(info:StackableInfo) : void
@@ -281,6 +310,19 @@ package UI.Inventory
       public function isShowing() : Boolean
       {
          return this.visible;
+      }
+      
+      public function get visibleActivationButton() : UIButton
+      {
+         if(mRoot.button_activate.visible)
+         {
+            return mActivateButton;
+         }
+         if(mRoot.booster_activated.visible)
+         {
+            return mActivateAnotherButton;
+         }
+         return null;
       }
    }
 }

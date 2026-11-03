@@ -42,7 +42,7 @@ package Combat.Weapon
       
       protected var mFramesFinished:uint = 0;
       
-      protected var mPlayerExittedState:Boolean = false;
+      protected var mPlayerExitedState:Boolean = false;
       
       protected var mChargeReleaseGMAttack:GMAttack;
       
@@ -151,19 +151,19 @@ package Combat.Weapon
                   });
                }
             }
-            mPlayerExittedState = false;
+            mPlayerExitedState = false;
          }
       }
       
       override public function onWeaponUp(autoAim:Boolean = true) : void
       {
          var _loc6_:Number = NaN;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc10_:AttackTimeline = null;
          var _loc11_:Number = NaN;
-         var _loc7_:* = 0;
+         var _loc7_:uint = 0;
          var _loc4_:Number = NaN;
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc9_:Boolean = false;
          var _loc5_:* = 0;
          var _loc8_:AttackTimeline = null;
@@ -176,11 +176,11 @@ package Combat.Weapon
          {
             mHoldingAttackTimeline.stopAndFinish();
          }
-         if(!mPlayerExittedState)
+         if(!mPlayerExitedState)
          {
             if(mTotalTime > 0 && mNotEnoughManaTask == null)
             {
-               _loc6_ = mFramesFinished / 24 * 1 / mTotalTime;
+               _loc6_ = mFramesFinished / 24 / mTotalTime;
                if(_loc6_ > 1)
                {
                   _loc6_ = 1;
@@ -204,7 +204,7 @@ package Combat.Weapon
                _loc7_ = 1;
                if(_loc6_ > 0 && (mProjectileMinMultiplier > 1 || mProjectileMaxMultiplier > 1))
                {
-                  _loc7_ = uint(Math.ceil(mProjectileMinMultiplier + _loc6_ * (mProjectileMaxMultiplier - mProjectileMinMultiplier)));
+                  _loc7_ = Math.ceil(mProjectileMinMultiplier + _loc6_ * (mProjectileMaxMultiplier - mProjectileMinMultiplier));
                }
                _loc4_ = 0;
                if(_loc7_ > 1)
@@ -298,11 +298,7 @@ package Combat.Weapon
             {
                return true;
             }
-            if(mCurrentAttackTimeline.isAttackWithinComboWindow())
-            {
-               return true;
-            }
-            return false;
+            return mCurrentAttackTimeline.isAttackWithinComboWindow();
          }
          return true;
       }

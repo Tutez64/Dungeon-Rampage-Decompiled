@@ -2,146 +2,225 @@ package Box2D.Dynamics.Joints
 {
    import Box2D.Common.Math.b2Vec2;
    import Box2D.Common.b2Settings;
-   import Box2D.Common.b2internal;
    import Box2D.Dynamics.b2Body;
    import Box2D.Dynamics.b2TimeStep;
-   
-   use namespace b2internal;
+   import flash.Boot;
    
    public class b2Joint
    {
       
-      b2internal static const e_unknownJoint:int = 0;
+      public var m_userData:*;
       
-      b2internal static const e_revoluteJoint:int = 1;
+      public var m_type:int;
       
-      b2internal static const e_prismaticJoint:int = 2;
+      public var m_prev:b2Joint;
       
-      b2internal static const e_distanceJoint:int = 3;
+      public var m_next:b2Joint;
       
-      b2internal static const e_pulleyJoint:int = 4;
+      public var m_localCenterB:b2Vec2;
       
-      b2internal static const e_mouseJoint:int = 5;
+      public var m_localCenterA:b2Vec2;
       
-      b2internal static const e_gearJoint:int = 6;
+      public var m_islandFlag:Boolean;
       
-      b2internal static const e_lineJoint:int = 7;
+      public var m_invMassB:Number;
       
-      b2internal static const e_weldJoint:int = 8;
+      public var m_invMassA:Number;
       
-      b2internal static const e_frictionJoint:int = 9;
+      public var m_invIB:Number;
       
-      b2internal static const e_inactiveLimit:int = 0;
+      public var m_invIA:Number;
       
-      b2internal static const e_atLowerLimit:int = 1;
+      public var m_edgeB:b2JointEdge;
       
-      b2internal static const e_atUpperLimit:int = 2;
+      public var m_edgeA:b2JointEdge;
       
-      b2internal static const e_equalLimits:int = 3;
+      public var m_collideConnected:Boolean;
       
-      b2internal var m_type:int;
+      public var m_bodyB:b2Body;
       
-      b2internal var m_prev:b2Joint;
+      public var m_bodyA:b2Body;
       
-      b2internal var m_next:b2Joint;
-      
-      b2internal var m_edgeA:b2JointEdge = new b2JointEdge();
-      
-      b2internal var m_edgeB:b2JointEdge = new b2JointEdge();
-      
-      b2internal var m_bodyA:b2Body;
-      
-      b2internal var m_bodyB:b2Body;
-      
-      b2internal var m_islandFlag:Boolean;
-      
-      b2internal var m_collideConnected:Boolean;
-      
-      private var m_userData:*;
-      
-      b2internal var m_localCenterA:b2Vec2 = new b2Vec2();
-      
-      b2internal var m_localCenterB:b2Vec2 = new b2Vec2();
-      
-      b2internal var m_invMassA:Number;
-      
-      b2internal var m_invMassB:Number;
-      
-      b2internal var m_invIA:Number;
-      
-      b2internal var m_invIB:Number;
-      
-      public function b2Joint(def:b2JointDef)
+      public function b2Joint(def:b2JointDef = undefined)
       {
-         super();
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         m_edgeA = new b2JointEdge();
+         m_edgeB = new b2JointEdge();
+         m_localCenterA = new b2Vec2();
+         m_localCenterB = new b2Vec2();
          b2Settings.b2Assert(def.bodyA != def.bodyB);
-         this.m_type = def.type;
-         this.m_prev = null;
-         this.m_next = null;
-         this.m_bodyA = def.bodyA;
-         this.m_bodyB = def.bodyB;
-         this.m_collideConnected = def.collideConnected;
-         this.m_islandFlag = false;
-         this.m_userData = def.userData;
+         m_type = def.type;
+         m_prev = null;
+         m_next = null;
+         m_bodyA = def.bodyA;
+         m_bodyB = def.bodyB;
+         m_collideConnected = def.collideConnected;
+         m_islandFlag = false;
+         m_userData = def.userData;
       }
       
-      b2internal static function Create(def:b2JointDef, allocator:*) : b2Joint
+      public static function create(def:b2JointDef, allocator:*) : b2Joint
       {
          var _loc3_:b2Joint = null;
          switch(def.type)
          {
-            case e_distanceJoint:
-               _loc3_ = new b2DistanceJoint(def as b2DistanceJointDef);
+            case 1:
+               _loc3_ = new b2RevoluteJoint(b2RevoluteJointDef(def));
                break;
-            case e_mouseJoint:
-               _loc3_ = new b2MouseJoint(def as b2MouseJointDef);
+            case 2:
+               _loc3_ = new b2PrismaticJoint(b2PrismaticJointDef(def));
                break;
-            case e_prismaticJoint:
-               _loc3_ = new b2PrismaticJoint(def as b2PrismaticJointDef);
+            case 3:
+               _loc3_ = new b2DistanceJoint(b2DistanceJointDef(def));
                break;
-            case e_revoluteJoint:
-               _loc3_ = new b2RevoluteJoint(def as b2RevoluteJointDef);
+            case 4:
+               _loc3_ = new b2PulleyJoint(b2PulleyJointDef(def));
                break;
-            case e_pulleyJoint:
-               _loc3_ = new b2PulleyJoint(def as b2PulleyJointDef);
+            case 5:
+               _loc3_ = new b2MouseJoint(b2MouseJointDef(def));
                break;
-            case e_gearJoint:
-               _loc3_ = new b2GearJoint(def as b2GearJointDef);
+            case 6:
+               _loc3_ = new b2GearJoint(b2GearJointDef(def));
                break;
-            case e_lineJoint:
-               _loc3_ = new b2LineJoint(def as b2LineJointDef);
+            case 7:
+               _loc3_ = new b2LineJoint(b2LineJointDef(def));
                break;
-            case e_weldJoint:
-               _loc3_ = new b2WeldJoint(def as b2WeldJointDef);
+            case 8:
+               _loc3_ = new b2WeldJoint(b2WeldJointDef(def));
                break;
-            case e_frictionJoint:
-               _loc3_ = new b2FrictionJoint(def as b2FrictionJointDef);
+            case 9:
+               _loc3_ = new b2FrictionJoint(b2FrictionJointDef(def));
          }
          return _loc3_;
       }
       
-      b2internal static function Destroy(joint:b2Joint, allocator:*) : void
+      public static function destroy(joint:b2Joint, allocator:*) : void
       {
+      }
+      
+      public static function Create(def:b2JointDef, allocator:*) : b2Joint
+      {
+         return b2Joint.create(def,allocator);
+      }
+      
+      public static function Destroy(joint:b2Joint, allocator:*) : void
+      {
+         b2Joint.destroy(joint,allocator);
+      }
+      
+      public function solveVelocityConstraints(step:b2TimeStep) : void
+      {
+         SolveVelocityConstraints(step);
+      }
+      
+      public function solvePositionConstraints(baumgarte:Number) : Boolean
+      {
+         return SolvePositionConstraints(baumgarte);
+      }
+      
+      public function setUserData(data:*) : void
+      {
+         SetUserData(data);
+      }
+      
+      public function isActive() : Boolean
+      {
+         return IsActive();
+      }
+      
+      public function initVelocityConstraints(step:b2TimeStep) : void
+      {
+         InitVelocityConstraints(step);
+      }
+      
+      public function getUserData() : *
+      {
+         return GetUserData();
+      }
+      
+      public function getType() : int
+      {
+         return GetType();
+      }
+      
+      public function getReactionTorque(inv_dt:Number) : Number
+      {
+         return GetReactionTorque(inv_dt);
+      }
+      
+      public function getReactionForce(inv_dt:Number) : b2Vec2
+      {
+         return GetReactionForce(inv_dt);
+      }
+      
+      public function getNext() : b2Joint
+      {
+         return GetNext();
+      }
+      
+      public function getBodyB() : b2Body
+      {
+         return GetBodyB();
+      }
+      
+      public function getBodyA() : b2Body
+      {
+         return GetBodyA();
+      }
+      
+      public function getAnchorB() : b2Vec2
+      {
+         return GetAnchorB();
+      }
+      
+      public function getAnchorA() : b2Vec2
+      {
+         return GetAnchorA();
+      }
+      
+      public function finalizeVelocityConstraints() : void
+      {
+         FinalizeVelocityConstraints();
+      }
+      
+      public function SolveVelocityConstraints(step:b2TimeStep) : void
+      {
+      }
+      
+      public function SolvePositionConstraints(baumgarte:Number) : Boolean
+      {
+         return false;
+      }
+      
+      public function SetUserData(data:*) : void
+      {
+         m_userData = data;
+      }
+      
+      public function IsActive() : Boolean
+      {
+         if((m_bodyA.m_flags & b2Body.e_activeFlag) == b2Body.e_activeFlag)
+         {
+            return (m_bodyB.m_flags & b2Body.e_activeFlag) == b2Body.e_activeFlag;
+         }
+         return false;
+      }
+      
+      public function InitVelocityConstraints(step:b2TimeStep) : void
+      {
+      }
+      
+      public function GetUserData() : *
+      {
+         return m_userData;
       }
       
       public function GetType() : int
       {
-         return this.m_type;
-      }
-      
-      public function GetAnchorA() : b2Vec2
-      {
-         return null;
-      }
-      
-      public function GetAnchorB() : b2Vec2
-      {
-         return null;
-      }
-      
-      public function GetReactionForce(inv_dt:Number) : b2Vec2
-      {
-         return null;
+         return m_type;
       }
       
       public function GetReactionTorque(inv_dt:Number) : Number
@@ -149,51 +228,38 @@ package Box2D.Dynamics.Joints
          return 0;
       }
       
-      public function GetBodyA() : b2Body
+      public function GetReactionForce(inv_dt:Number) : b2Vec2
       {
-         return this.m_bodyA;
-      }
-      
-      public function GetBodyB() : b2Body
-      {
-         return this.m_bodyB;
+         return null;
       }
       
       public function GetNext() : b2Joint
       {
-         return this.m_next;
+         return m_next;
       }
       
-      public function GetUserData() : *
+      public function GetBodyB() : b2Body
       {
-         return this.m_userData;
+         return m_bodyB;
       }
       
-      public function SetUserData(data:*) : void
+      public function GetBodyA() : b2Body
       {
-         this.m_userData = data;
+         return m_bodyA;
       }
       
-      public function IsActive() : Boolean
+      public function GetAnchorB() : b2Vec2
       {
-         return this.m_bodyA.IsActive() && this.m_bodyB.IsActive();
+         return null;
       }
       
-      b2internal function InitVelocityConstraints(step:b2TimeStep) : void
+      public function GetAnchorA() : b2Vec2
       {
+         return null;
       }
       
-      b2internal function SolveVelocityConstraints(step:b2TimeStep) : void
+      public function FinalizeVelocityConstraints() : void
       {
-      }
-      
-      b2internal function FinalizeVelocityConstraints() : void
-      {
-      }
-      
-      b2internal function SolvePositionConstraints(baumgarte:Number) : Boolean
-      {
-         return false;
       }
    }
 }

@@ -1,43 +1,70 @@
 package Box2D.Common.Math
 {
+   import flash.Boot;
+   
    public class b2Transform
    {
       
-      public var position:b2Vec2 = new b2Vec2();
+      public var position:b2Vec2;
       
-      public var R:b2Mat22 = new b2Mat22();
+      public var R:b2Mat22;
       
-      public function b2Transform(pos:b2Vec2 = null, r:b2Mat22 = null)
+      public function b2Transform(pos:b2Vec2 = undefined, r:b2Mat22 = undefined)
       {
-         super();
-         if(pos)
+         if(Boot.skip_constructor)
          {
-            this.position.SetV(pos);
-            this.R.SetM(r);
+            return;
+         }
+         position = new b2Vec2();
+         R = new b2Mat22();
+         if(pos != null)
+         {
+            position.setV(pos);
+            R.setM(r);
          }
       }
       
-      public function Initialize(pos:b2Vec2, r:b2Mat22) : void
+      public function setIdentity() : void
       {
-         this.position.SetV(pos);
-         this.R.SetM(r);
+         SetIdentity();
+      }
+      
+      public function set(x:b2Transform) : void
+      {
+         Set(x);
+      }
+      
+      public function initialize(pos:b2Vec2, r:b2Mat22) : void
+      {
+         Initialize(pos,r);
+      }
+      
+      public function getAngle() : Number
+      {
+         return GetAngle();
       }
       
       public function SetIdentity() : void
       {
-         this.position.SetZero();
-         this.R.SetIdentity();
+         position.setZero();
+         R.setIdentity();
       }
       
       public function Set(x:b2Transform) : void
       {
-         this.position.SetV(x.position);
-         this.R.SetM(x.R);
+         position.setV(x.position);
+         R.setM(x.R);
+      }
+      
+      public function Initialize(pos:b2Vec2, r:b2Mat22) : void
+      {
+         position.setV(pos);
+         R.setM(r);
       }
       
       public function GetAngle() : Number
       {
-         return Math.atan2(this.R.col1.y,this.R.col1.x);
+         return Math.atan2(R.col1.y,R.col1.x);
       }
    }
 }

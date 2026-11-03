@@ -45,7 +45,7 @@ package UI.Popup
             _loc8_ = Locale.getString("EXIT_KEEP_PLAYING");
             _loc3_ = closePopupAction;
          }
-         super(dbFacade,_loc4_,_loc6_,_loc2_,_loc5_,_loc8_,_loc3_,true,closePopupAction,true,true,"EXIT_POPUP");
+         super(dbFacade,"EXIT_POPUP",_loc4_,_loc6_,_loc2_,_loc5_,_loc8_,_loc3_,true,closePopupAction);
       }
       
       private function wishlistAction() : void
@@ -72,7 +72,6 @@ package UI.Popup
             var _loc1_:URLRequest = new URLRequest("https://discord.com/invite/dungeonrampage");
             navigateToURL(_loc1_,"_blank");
          };
-         setupMenuNavigationLinks();
       }
       
       override protected function getSwfPath() : String
@@ -85,7 +84,7 @@ package UI.Popup
          return "popup_exit";
       }
       
-      public function setupMenuNavigationLinks() : void
+      override protected function setupMenuNavigation() : void
       {
          mCloseButton.clearNavigationAndInteractions();
          mLeftButton.clearNavigationAndInteractions();

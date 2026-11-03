@@ -1,21 +1,21 @@
 package Actor.Player
 {
    import Actor.DamageFloater;
-   import Brain.AssetRepository.SwfAsset;
    import Brain.Clock.GameClock;
    import Brain.Logger.Logger;
    import Brain.Sound.SoundAsset;
    import Brain.Sound.SoundHandle;
+   import Brain.Utils.MemoryTracker;
    import Brain.WorkLoop.Task;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.HeroGameObject;
    import Dungeon.Tile;
+   import Effects.EffectGameObject;
+   import Effects.EffectView;
    import Facade.DBFacade;
    import Floor.FloorObject;
-   import flash.display.MovieClip;
-   import flash.display.Sprite;
    import flash.geom.Point;
    import flash.geom.Vector3D;
-   import org.as3commons.collections.framework.IIterator;
    
    public class HeroOwnerView extends HeroView
    {
@@ -34,7 +34,7 @@ package Actor.Player
       
       protected var mNotEnoughManaSoundEffect:SoundAsset;
       
-      protected var mFootRing:MovieClip;
+      protected var mFootRing:EffectGameObject;
       
       protected var mHeartbeatSoundEffect:SoundAsset;
       
@@ -47,43 +47,47 @@ package Actor.Player
       
       private function fadeOccludingObjects(gameClock:GameClock) : void
       {
-         var _loc9_:FloorObject = null;
-         var _loc6_:Point = null;
-         var _loc10_:* = null;
-         var _loc7_:* = null;
-         var _loc3_:IIterator = null;
-         var _loc5_:* = null;
+         var _loc11_:FloorObject = null;
+         var _loc7_:Point = null;
+         var _loc12_:* = null;
+         var _loc8_:* = null;
+         var _loc2_:Array = null;
+         var _loc5_:int = 0;
+         var _loc9_:int = 0;
+         var _loc6_:Tile = null;
          if(mHeroPlayerObject.tile == null)
          {
             Logger.warn("mHeroPlayerObject.tile is null.");
             return;
          }
          var _loc4_:Point = new Point();
-         var _loc8_:Number = 4;
-         var _loc2_:Vector.<Tile> = mHeroPlayerObject.distributedDungeonFloor.GetTilesAroundAvatar(_loc8_);
-         for each(_loc5_ in _loc2_)
+         var _loc10_:Number = 4;
+         var _loc3_:Vector.<Tile> = mHeroPlayerObject.distributedDungeonFloor.GetTilesAroundAvatar(_loc10_);
+         for each(_loc6_ in _loc3_)
          {
-            _loc3_ = _loc5_.floorObjects.iterator();
-            while(_loc3_.hasNext())
+            _loc2_ = _loc6_.floorObjectsSnapshot;
+            _loc5_ = int(_loc2_.length);
+            _loc9_ = 0;
+            while(_loc9_ < _loc5_)
             {
-               _loc9_ = _loc3_.next();
-               if(_loc9_.archwayAlpha && _loc9_.view.root.hitTestObject(mBody))
+               _loc11_ = _loc2_[_loc9_];
+               if(_loc11_.archwayAlpha && _loc11_.view.root.hitTestObject(mBody))
                {
                   _loc4_.x = mBody.x;
                   _loc4_.y = mBody.y;
-                  _loc6_ = mBody.localToGlobal(_loc4_);
-                  if(_loc9_.view.root.hitTestPoint(_loc6_.x,_loc6_.y,false))
+                  _loc7_ = mDBFacade.designLocalToGlobal(mBody,_loc4_);
+                  if(_loc11_.view.root.hitTestPoint(_loc7_.x,_loc7_.y,false))
                   {
-                     _loc9_.view.doFade();
+                     _loc11_.view.doFade();
                   }
                }
+               _loc9_++;
             }
          }
       }
       
       override public function init() : void
       {
-         var hitSprite:Sprite;
          super.init();
          this.nametag.hpBarVisible = false;
          mVisibilityTask = mLogicalWorkComponent.doEveryFrame(fadeOccludingObjects);
@@ -94,27 +98,18 @@ package Actor.Player
          }
          else
          {
-            hitSprite = new Sprite();
-            hitSprite.mouseEnabled = false;
-            hitSprite.graphics.beginFill(0,0);
-            hitSprite.graphics.drawRect(-HIT_AREA_HALF_WIDTH,-HIT_AREA_HALF_HEIGHT + BODY_Y_OFFSET + HIT_AREA_Y_OFFSET,HIT_AREA_HALF_WIDTH * 2,HIT_AREA_HALF_HEIGHT * 2);
-            hitSprite.graphics.endFill();
+            setFixedMouseHitRect(-HIT_AREA_HALF_WIDTH,-HIT_AREA_HALF_HEIGHT + BODY_Y_OFFSET + HIT_AREA_Y_OFFSET,HIT_AREA_HALF_WIDTH * 2,HIT_AREA_HALF_HEIGHT * 2);
             root.mouseChildren = false;
-            root.mouseEnabled = true;
-            root.hitArea = hitSprite;
-            root.addChild(root.hitArea);
          }
-         mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/FX/db_fx_library.swf"),function(param1:SwfAsset):void
+         mFootRing = new EffectGameObject(mDBFacade,DBFacade.buildFullDownloadPath("Resources/Art2D/FX/db_fx_library.swf"),"db_fx_player_ring",1);
+         MemoryTracker.track(mFootRing,"EffectGameObject \'db_fx_player_ring\' - created in HeroOwnerView.init()","pool");
+         mFootRing.view.root.scaleX = mFootRing.view.root.scaleY = 0.75;
+         EffectView(mFootRing.view).attachToParent(mBody,true);
+         EffectView(mFootRing.view).play(true,function():void
          {
-            var _loc2_:Class = param1.getClass("db_fx_player_ring");
-            if(_loc2_)
-            {
-               mFootRing = new _loc2_();
-               mFootRing.scaleX = mFootRing.scaleY = 0.75 * (1 / mParentActorObject.actorData.scale3DModel);
-               mBody.addChildAt(mFootRing,0);
-            }
          });
-         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),"TEMP_Heartbeat1",function(param1:SoundAsset):void
+         registerStatusTintAttachment(EffectView(mFootRing.view));
+         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),"TEMP_Heartbeat1",function(param1:SoundAsset):void
          {
             mHeartbeatSoundEffect = param1;
          });
@@ -154,6 +149,13 @@ package Actor.Player
       
       override public function set position(pos:Vector3D) : void
       {
+         if(isNaN(mPrevPosX))
+         {
+            mPrevPosX = pos.x;
+            mPrevPosY = pos.y;
+         }
+         mTickPosX = pos.x;
+         mTickPosY = pos.y;
          mRoot.x = pos.x;
          mRoot.y = pos.y;
       }
@@ -163,12 +165,11 @@ package Actor.Player
          return mNotEnoughManaSoundEffect;
       }
       
-      override public function spawnDamageFloater(isCriticalHit:Boolean, delta:int, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, effectiveness:int, type:uint = 0, floaterType:String = "DAMAGE_MOVEMENT_TYPE") : void
+      override public function spawnDamageFloater(isCriticalHit:Boolean, delta:int, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, effectiveness:int, inType:uint = 0, floaterType:String = "DAMAGE_MOVEMENT_TYPE") : void
       {
-         var _loc8_:DamageFloater = null;
-         if(mDBFacade.featureFlags.getFlagValue("want-damage-floaters"))
+         if(wantDamageFloaters)
          {
-            _loc8_ = new DamageFloater(mDBFacade,delta,mParentActorObject,0,24,1.2,90,null,attackerIsOwner,attackeeIsOwner,true,isCriticalHit,effectiveness,type,floaterType);
+            DamageFloater.spawn(mDBFacade,delta,mParentActorObject,0,24,1.2,90,attackerIsOwner,attackeeIsOwner,isCriticalHit,effectiveness,inType,floaterType);
          }
       }
       
@@ -176,6 +177,12 @@ package Actor.Player
       {
          mNotEnoughManaSoundEffect = null;
          mVisibilityTask.destroy();
+         if(mFootRing)
+         {
+            unregisterStatusTintAttachment(EffectView(mFootRing.view));
+            mFootRing.destroy();
+            mFootRing = null;
+         }
          if(mHeartbeatSoundEffect)
          {
             mHeartbeatSoundEffect = null;

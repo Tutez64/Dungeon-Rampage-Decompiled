@@ -3,7 +3,9 @@ package UI.FriendManager.States
    import Account.FriendInfo;
    import Brain.Event.EventComponent;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
    import Brain.jsonRPC.JSONRPCService;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.PresenceManager;
    import Events.FriendshipEvent;
    import Facade.DBFacade;
@@ -71,16 +73,16 @@ package UI.FriendManager.States
          mUIFriendManager.clearUI();
       }
       
-      public function destroy() : void
+      override public function destroy() : void
       {
-         mDBFacade = null;
          mEventComponent.removeListener(UIFriendManager.FRIENDSHIP_MADE);
          mEventComponent.destroy();
+         super.destroy();
       }
       
       private function refresh(list:Array) : void
       {
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          for each(var _loc2_:uint in list)
          {
             _loc3_ = 0;
@@ -124,6 +126,20 @@ package UI.FriendManager.States
          mFriendRequestPopulater = new FriendPopulater(mDBFacade,mTownStateMachine,mListOfFriendRequests,mUIFriendManager);
          mDeclineButton = createButton("friend_management_button_grey",Locale.getString("DECLINE"),800,1000,declineButtonCallback);
          mAcceptButton = createButton("friend_management_button",Locale.getString("ACCEPT"),1075,1000,acceptButtonCallback);
+         setupMenuNavigation();
+      }
+      
+      private function setupMenuNavigation() : void
+      {
+         mDeclineButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
+         mAcceptButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
+         mDeclineButton.isToTheLeftOf(mAcceptButton);
+         mFriendRequestPopulater.setupMenuNavigation(mUIFriendManager.currentTabButton,mDeclineButton,mAcceptButton);
+      }
+      
+      override public function getFirstNavigationUIObject() : UIObject
+      {
+         return mFriendRequestPopulater.getFirstNavigationUIObject();
       }
       
       private function declineButtonCallback() : void
@@ -142,7 +158,7 @@ package UI.FriendManager.States
             rpcFunc = JSONRPCService.getFunction("DRFriendRequestUpdate",mDBFacade.rpcRoot + "friendrequests");
             rpcFunc(mDBFacade.accountId,mSelectedFriendRequestIds,mSelectedFriendToIds,2,mDBFacade.validationToken,function(param1:*):void
             {
-               var _loc2_:* = 0;
+               var _loc2_:uint = 0;
                refresh(mSelectedFriendRequestIds);
                _loc2_ = 0;
                while(_loc2_ < mSelectedFriendToIds.length)
@@ -172,7 +188,7 @@ package UI.FriendManager.States
             rpcFunc = JSONRPCService.getFunction("DRFriendRequestUpdate",mDBFacade.rpcRoot + "friendrequests");
             rpcFunc(mDBFacade.accountId,mSelectedFriendRequestIds,mSelectedFriendToIds,1,mDBFacade.validationToken,function(param1:*):void
             {
-               var _loc2_:* = 0;
+               var _loc2_:uint = 0;
                refresh(mSelectedFriendRequestIds);
                var _loc3_:Vector.<uint> = Vector.<uint>(mSelectedFriendToIds);
                PresenceManager.instance().addFriends(_loc3_);
@@ -184,13 +200,17 @@ package UI.FriendManager.States
                   mDBFacade.metrics.log("DRFriendAccept",{"friendId":mSelectedFriendToIds[_loc2_].toString()});
                   _loc2_++;
                }
+               if(param1 != null && param1.length > 0)
+               {
+                  mDBFacade.steamAchievementsHelper.unlockAchievement("ADD_FRIEND");
+               }
             },UIFriendManager.createFriendRPCErrorCallback(mDBFacade,"acceptButton"));
          }
       }
       
       private function friendshipMadeHandler(event:FriendshipEvent) : void
       {
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc2_:uint = event.id;
          _loc3_ = 0;
          while(_loc3_ < mPendingFriendRequests.length)

@@ -11,73 +11,75 @@ package GeneratedCode
       
       private var the_instance:HeroGameObject;
       
-      public const FLID_type:uint = 146;
+      public const FLID_type:uint = 147;
       
-      public const FLID_position:uint = 147;
+      public const FLID_position:uint = 148;
       
-      public const FLID_heading:uint = 148;
+      public const FLID_heading:uint = 149;
       
-      public const FLID_scale:uint = 149;
+      public const FLID_scale:uint = 150;
       
-      public const FLID_flip:uint = 150;
+      public const FLID_flip:uint = 151;
       
-      public const FLID_hitPoints:uint = 151;
+      public const FLID_hitPoints:uint = 152;
       
-      public const FLID_weaponDetails:uint = 152;
+      public const FLID_weaponDetails:uint = 153;
       
-      public const FLID_consumableDetails:uint = 153;
+      public const FLID_consumableDetails:uint = 154;
       
-      public const FLID_healthBombsUsed:uint = 154;
+      public const FLID_healthBombsUsed:uint = 155;
       
-      public const FLID_partyBombsUsed:uint = 155;
+      public const FLID_partyBombsUsed:uint = 156;
       
-      public const FLID_playerID:uint = 156;
+      public const FLID_playerID:uint = 157;
       
-      public const FLID_state:uint = 157;
+      public const FLID_state:uint = 158;
       
-      public const FLID_team:uint = 158;
+      public const FLID_team:uint = 159;
       
-      public const FLID_ReceiveAttackChoreography:uint = 159;
+      public const FLID_ReceiveAttackChoreography:uint = 160;
       
-      public const FLID_ReceiveCombatResult:uint = 160;
+      public const FLID_ReceiveCombatResult:uint = 161;
       
-      public const FLID_skinType:uint = 161;
+      public const FLID_skinType:uint = 162;
       
-      public const FLID_screenName:uint = 162;
+      public const FLID_screenName:uint = 163;
       
-      public const FLID_manaPoints:uint = 163;
+      public const FLID_manaPoints:uint = 164;
       
-      public const FLID_experiencePoints:uint = 164;
+      public const FLID_experiencePoints:uint = 165;
       
-      public const FLID_slotPoints:uint = 165;
+      public const FLID_slotPoints:uint = 166;
       
-      public const FLID_dungeonBusterPoints:uint = 166;
+      public const FLID_dungeonBusterPoints:uint = 167;
       
-      public const FLID_setAFK:uint = 167;
+      public const FLID_setAFK:uint = 168;
       
-      public const FLID_ReportBuffEffect:uint = 168;
+      public const FLID_ascensionLevel:uint = 169;
       
-      public const FLID_ReceivedBuffEffect:uint = 169;
+      public const FLID_ReportBuffEffect:uint = 170;
       
-      public const FLID_TooFullForDoober:uint = 170;
+      public const FLID_ReceivedBuffEffect:uint = 171;
       
-      public const FLID_ProposeCombatResults:uint = 171;
+      public const FLID_TooFullForDoober:uint = 172;
       
-      public const FLID_ProposeAttackChoreography:uint = 172;
+      public const FLID_ProposeCombatResults:uint = 173;
       
-      public const FLID_ProposeRevive:uint = 173;
+      public const FLID_ProposeAttackChoreography:uint = 174;
       
-      public const FLID_ProposeSelfRevive:uint = 174;
+      public const FLID_ProposeRevive:uint = 175;
       
-      public const FLID_ProposeSelfRevive_Resp:uint = 175;
+      public const FLID_ProposeSelfRevive:uint = 176;
       
-      public const FLID_PartyBomb:uint = 176;
+      public const FLID_ProposeSelfRevive_Resp:uint = 177;
       
-      public const FLID_ProposeCreateNPC:uint = 177;
+      public const FLID_PartyBomb:uint = 178;
       
-      public const FLID_setStateAndAttackChoreography:uint = 178;
+      public const FLID_ProposeCreateNPC:uint = 179;
       
-      public const FLID_StopChoreography:uint = 179;
+      public const FLID_setStateAndAttackChoreography:uint = 180;
+      
+      public const FLID_StopChoreography:uint = 181;
       
       public function HeroGameObjectNetworkComponent(Inst:HeroGameObject, gs:GeneratedDcSocket, id:uint)
       {
@@ -99,79 +101,82 @@ package GeneratedCode
       {
          switch(fieldid)
          {
-            case 146:
+            case 147:
                recv_type(packet);
                break;
-            case 147:
+            case 148:
                recv_position(packet);
                break;
-            case 148:
+            case 149:
                recv_heading(packet);
                break;
-            case 149:
+            case 150:
                recv_scale(packet);
                break;
-            case 150:
+            case 151:
                recv_flip(packet);
                break;
-            case 151:
+            case 152:
                recv_hitPoints(packet);
                break;
-            case 152:
+            case 153:
                recv_weaponDetails(packet);
                break;
-            case 153:
+            case 154:
                recv_consumableDetails(packet);
                break;
-            case 154:
+            case 155:
                recv_healthBombsUsed(packet);
                break;
-            case 155:
+            case 156:
                recv_partyBombsUsed(packet);
                break;
-            case 156:
+            case 157:
                recv_playerID(packet);
                break;
-            case 157:
+            case 158:
                recv_state(packet);
                break;
-            case 158:
+            case 159:
                recv_team(packet);
                break;
-            case 159:
+            case 160:
                recv_ReceiveAttackChoreography(packet);
                break;
-            case 160:
+            case 161:
                recv_ReceiveCombatResult(packet);
                break;
-            case 161:
+            case 162:
                recv_skinType(packet);
                break;
-            case 162:
+            case 163:
                recv_screenName(packet);
                break;
-            case 163:
+            case 164:
                recv_manaPoints(packet);
                break;
-            case 164:
+            case 165:
                recv_experiencePoints(packet);
                break;
-            case 165:
+            case 166:
                recv_slotPoints(packet);
                break;
-            case 166:
+            case 167:
                recv_dungeonBusterPoints(packet);
                break;
-            case 167:
+            case 168:
                recv_setAFK(packet);
                break;
-            case 176:
-               recv_PartyBomb(packet);
+            case 169:
+               recv_ascensionLevel(packet);
                break;
             case 178:
+               recv_PartyBomb(packet);
+               break;
+            case 180:
                recv_setStateAndAttackChoreography(packet);
                break;
-            case 179:
+            case 181:
                recv_StopChoreography(packet);
                break;
             default:
@@ -201,6 +206,7 @@ package GeneratedCode
          recv_slotPoints(packet);
          recv_dungeonBusterPoints(packet);
          recv_setAFK(packet);
+         recv_ascensionLevel(packet);
          recvByIdLoop(packet);
       }
       
@@ -255,7 +261,7 @@ package GeneratedCode
       {
          var v_weaponDetails:Vector.<WeaponDetails> = (function(param1:DcNetworkPacket):Vector.<WeaponDetails>
          {
-            var _loc3_:* = 0;
+            var _loc3_:uint = 0;
             var _loc5_:WeaponDetails = null;
             var _loc4_:Vector.<WeaponDetails> = new Vector.<WeaponDetails>();
             var _loc2_:uint = 4;
@@ -275,7 +281,7 @@ package GeneratedCode
       {
          var v_consumableDetails:Vector.<ConsumableDetails> = (function(param1:DcNetworkPacket):Vector.<ConsumableDetails>
          {
-            var _loc3_:* = 0;
+            var _loc3_:uint = 0;
             var _loc5_:ConsumableDetails = null;
             var _loc4_:Vector.<ConsumableDetails> = new Vector.<ConsumableDetails>();
             var _loc2_:uint = 2;
@@ -361,8 +367,8 @@ package GeneratedCode
       {
          var v_slotPoints:Vector.<uint> = (function(param1:DcNetworkPacket):Vector.<uint>
          {
-            var _loc3_:* = 0;
-            var _loc5_:* = 0;
+            var _loc3_:uint = 0;
+            var _loc5_:uint = 0;
             var _loc4_:Vector.<uint> = new Vector.<uint>();
             var _loc2_:uint = 4;
             _loc3_ = 0;
@@ -387,6 +393,12 @@ package GeneratedCode
       {
          var _loc2_:uint = packet.readUnsignedByte();
          the_instance.setAFK = _loc2_;
+      }
+      
+      public function recv_ascensionLevel(packet:DcNetworkPacket) : void
+      {
+         var _loc2_:uint = packet.readUnsignedInt();
+         the_instance.ascensionLevel = _loc2_;
       }
       
       public function recv_PartyBomb(packet:DcNetworkPacket) : void

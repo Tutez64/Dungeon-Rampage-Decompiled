@@ -6,14 +6,15 @@ package Projectile
    import Box2D.Common.Math.b2Vec2;
    import Box2D.Dynamics.b2Fixture;
    import Brain.Utils.MemoryTracker;
+   import Collections.Set;
    import Combat.CombatGameObject;
    import Combat.Weapon.WeaponGameObject;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.DistributedDungeonFloor;
    import DistributedObjects.NPCGameObject;
    import Dungeon.NavCollider;
    import Facade.DBFacade;
    import flash.geom.Vector3D;
-   import org.as3commons.collections.Set;
    
    public class ChainProjectileGameObject extends ProjectileGameObject
    {
@@ -40,9 +41,9 @@ package Projectile
       
       private var mActorJustHit:ActorGameObject;
       
-      public function ChainProjectileGameObject(dbFacade:DBFacade, actorId:uint, actorTeam:uint, attackType:uint, weapon:WeaponGameObject, distDungeonfloor:DistributedDungeonFloor, position:Vector3D, directionVector:Vector3D, visualOffset:Vector3D, range:Number = 0, currentChain:uint = 0, ignoreList:Set = null, effectObject:Object = null, combatResultCallback:Function = null, autoAim:Boolean = true, dontRotate:Boolean = false)
+      public function ChainProjectileGameObject(dbFacade:DBFacade, actorId:uint, actorTeam:uint, attackType:uint, weapon:WeaponGameObject, distDungeonFloor:DistributedDungeonFloor, position:Vector3D, directionVector:Vector3D, visualOffset:Vector3D, range:Number = 0, currentChain:uint = 0, ignoreList:Set = null, effectObject:Object = null, combatResultCallback:Function = null, autoAim:Boolean = true, dontRotate:Boolean = false)
       {
-         super(dbFacade,actorId,actorTeam,attackType,weapon,distDungeonfloor,position,directionVector,visualOffset,range,effectObject,combatResultCallback,autoAim,dontRotate,currentChain);
+         super(dbFacade,actorId,actorTeam,attackType,weapon,distDungeonFloor,position,directionVector,visualOffset,range,effectObject,combatResultCallback,autoAim,dontRotate,currentChain);
          mNumChains = currentChain;
          if(ignoreList == null)
          {
@@ -101,7 +102,7 @@ package Projectile
             {
                if(!CombatGameObject.didAttackGoThroughWall(mDBFacade,mB2Body.GetPosition(),_loc4_,NavCollider.convertToB2Vec2(_loc4_.worldCenter),mDistributedDungeonFloor))
                {
-                  if(_loc4_.team == 1)
+                  if(_loc4_.team == DBGlobal.TEAM_ENVIRONMENT)
                   {
                      mEnvironmentTargets.push(_loc4_);
                   }
@@ -142,7 +143,7 @@ package Projectile
       
       private function processNewChains(targets:Vector.<NPCGameObject>) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          _loc2_ = 0;
          while(_loc2_ < targets.length)
          {

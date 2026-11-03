@@ -4,6 +4,7 @@ package UI.Inventory.Chests
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
    import Brain.Render.MovieClipRenderer;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import flash.display.MovieClip;
    import flash.text.TextField;
@@ -59,7 +60,7 @@ package UI.Inventory.Chests
          mUnusableMC = mSlotMC.unusable;
          mIconExistsMC = mSlotMC.icon_exists;
          mNumberLabel = mSlotMC.number_label;
-         mNumberLabel.text = mKeyInfo.count.toString();
+         TextUtil.setText(mNumberLabel,mKeyInfo.count.toString());
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(mKeyInfo.gmKeyOffer.BundleSwfFilepath),function(param1:SwfAsset):void
          {
             var _loc2_:Class = param1.getClass(mKeyInfo.gmKeyOffer.BundleIcon);
@@ -87,7 +88,7 @@ package UI.Inventory.Chests
       public function refresh(newKeyInfo:KeyInfo) : void
       {
          mKeyInfo = newKeyInfo;
-         mNumberLabel.text = newKeyInfo.count.toString();
+         TextUtil.setText(mNumberLabel,newKeyInfo.count.toString());
       }
       
       public function setSelected(value:Boolean) : void

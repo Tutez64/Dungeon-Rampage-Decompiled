@@ -118,7 +118,7 @@ package Town
          mHomeState.rootMovieClip = new _loc7_() as MovieClip;
          var _loc4_:Class = mTownSwfAsset.getClass("UI_town_tavern");
          mTavernState.rootMovieClip = new _loc4_() as MovieClip;
-         var _loc1_:Class = mTownSwfAsset.getClass("DR_UI_town_inventory");
+         var _loc1_:Class = mTownSwfAsset.getClass("UI_town_skills");
          mInventoryState.rootMovieClip = new _loc1_() as MovieClip;
          var _loc9_:Class = mTownSwfAsset.getClass("DR_UI_town_shop");
          mShopState.rootMovieClip = new _loc9_() as MovieClip;
@@ -133,6 +133,7 @@ package Town
          _loc3_ = mMapSwfAsset.getClass("Map_2_1");
          mMapState.rootMovieClip = new _loc3_() as MovieClip;
          mUILeaderboard = new UILeaderboard(mDBFacade,mTownSwfAsset,callbackToFriendManager,getGifts,this);
+         mUILeaderboard.preLoadSWF();
       }
       
       private function buildStates() : void
@@ -164,16 +165,14 @@ package Town
          this.transitionToState(mHomeState);
       }
       
-      public function enterInventoryState(returnToMapStateOnClose:Boolean = false, tabCategory:String = "", type:uint = 0, offerId:uint = 0, showEquipOption:Boolean = false) : void
+      public function enterInventoryState(returnToMapStateOnClose:Boolean = false, tabCategory:String = "", revealItemTypeId:uint = 0, offerId:uint = 0, showEquipOption:Boolean = false) : void
       {
          mInventoryState.startAtCategoryTab = tabCategory;
          mTownHeader.jumpToMapState = returnToMapStateOnClose;
-         mInventoryState.setRevlealedState(type,offerId,showEquipOption);
+         mInventoryState.setRevealedState(revealItemTypeId,offerId,showEquipOption);
          this.transitionToState(mInventoryState);
-         if(mDBFacade.steamAchievementsManager)
-         {
-            mDBFacade.steamAchievementsManager.checkStorageAchievements();
-         }
+         var _loc6_:int = int(mDBFacade.dbAccountInfo.inventoryInfo.storageLimitWeapon);
+         mDBFacade.steamAchievementsHelper.checkStorageAchievements(_loc6_);
       }
       
       public function enterTavernState(returnToMapStateOnClose:Boolean = false) : void

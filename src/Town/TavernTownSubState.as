@@ -46,7 +46,7 @@ package Town
          });
          super.resetHeaderLinks();
          super.setupHeaderLinks();
-         mDBFacade.menuNavigationController.pushNewLayer("TAVERN_MENU",mTownStateMachine.townHeader.determineCallback,mTavernUI.getDefaultMenuNavigationObject());
+         mDBFacade.menuNavigationController.pushNewLayer("TAVERN_MENU",mTownStateMachine.townHeader.determineCallback,mTavernUI.getDefaultMenuNavigationObject(),null,mTavernUI.selectPreviousHero,mTavernUI.selectNextHero);
          mTavernUI.refresh();
          mTownStateMachine.townHeader.showCloseButton(true);
          mTavernUI.animateEntry();

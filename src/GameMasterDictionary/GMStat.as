@@ -1,11 +1,11 @@
 package GameMasterDictionary
 {
+   import flash.Boot;
+   
    public class GMStat extends GMItem
    {
       
       public var StatType:String;
-      
-      public var Bonus:Number;
       
       public var MaxCap:Number;
       
@@ -13,14 +13,19 @@ package GameMasterDictionary
       
       public var Description:String;
       
-      public function GMStat(jsonAsset:Object)
+      public var Bonus:Number;
+      
+      public function GMStat(jsonAsset:Object = undefined)
       {
-         super(jsonAsset);
-         StatType = jsonAsset.StatType;
-         Bonus = jsonAsset.Bonus;
-         MaxCap = jsonAsset.MaxCap;
-         IconName = jsonAsset.IconName;
-         Description = jsonAsset.Description;
+         if(!Boot.skip_constructor)
+         {
+            super(jsonAsset);
+            StatType = jsonAsset.StatType;
+            Bonus = Number(jsonAsset.Bonus);
+            MaxCap = Number(jsonAsset.MaxCap);
+            IconName = jsonAsset.IconName;
+            Description = jsonAsset.Description;
+         }
       }
    }
 }

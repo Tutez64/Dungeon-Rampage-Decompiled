@@ -3,25 +3,40 @@ package UI.EquipPicker
    import Account.AvatarInfo;
    import Account.InventoryBaseInfo;
    import Account.ItemInfo;
+   import Brain.AssetRepository.AssetLoadingComponent;
+   import Brain.AssetRepository.ImageAsset;
    import Brain.Event.EventComponent;
    import Brain.Logger.Logger;
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
-   import Brain.UI.UIPopup;
    import Events.DBAccountResponseEvent;
    import Facade.DBFacade;
    import Facade.Locale;
    import GameMasterDictionary.GMHero;
    import GameMasterDictionary.GMWeaponItem;
+   import UI.ControllerIconData;
    import UI.Inventory.UIInventoryItem;
+   import UI.Popup.DBUIPopup;
+   import flash.display.Bitmap;
+   import flash.display.DisplayObject;
    import flash.display.MovieClip;
+   import flash.events.Event;
+   import flash.geom.Point;
+   import flash.geom.Vector3D;
+   import flash.utils.Dictionary;
    
    public class HeroWithEquipPicker extends UIObject
    {
       
+      private static const CONTROLLER_ICON_POSITION_FOR_WEAPON_BUTTONS:Vector3D = new Vector3D(13,-50);
+      
+      private static const CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS:Point = new Point(25,25);
+      
       protected var mDBFacade:DBFacade;
       
       protected var mEventComponent:EventComponent;
+      
+      protected var mAssetLoadingComponent:AssetLoadingComponent;
       
       private var mHeroSlots:Vector.<HeroElement>;
       
@@ -49,24 +64,44 @@ package UI.EquipPicker
       
       private var mAllowSelectingUnownedHeroes:Boolean = true;
       
+      private var mFirstSlotLeftNavigation:UIObject;
+      
+      private var mAvatarAlertsOn:Boolean = false;
+      
+      private var mAlertDisabledHeroId:uint = 0;
+      
+      private var mComparisonWeapon:GMWeaponItem;
+      
+      private var mComparisonPower:uint;
+      
       private var mSelectedHeroIndex:int = -1;
       
-      public function HeroWithEquipPicker(dbFacade:DBFacade, root:MovieClip, weaponTooltipClass:Class, heroTooltipClass:Class, heroSelectedCallback:Function, clickedEquippedWeaponCallback:Function = null, getSelectedHeroIndexCallback:Function = null, setSelectedHeroIndexCallback:Function = null, equipResponseFinishedCallback:Function = null, allowEquipmentSwapping:Boolean = false, allowSelectingUnownedHeroes:Boolean = true)
+      private var mGlyphFilePathToControllerIconData:Dictionary = new Dictionary();
+      
+      public function HeroWithEquipPicker(dbFacade:DBFacade, root:MovieClip, weaponTooltipClass:Class, heroTooltipClass:Class, heroSelectedCallback:Function, clickedEquippedWeaponCallback:Function = null, getSelectedHeroIndexCallback:Function = null, setSelectedHeroIndexCallback:Function = null, equipResponseFinishedCallback:Function = null, allowEquipmentSwapping:Boolean = false, allowSelectingUnownedHeroes:Boolean = true, isActiveCallback:Function = null)
       {
          super(dbFacade,root);
          mDBFacade = dbFacade;
          mAllowSelectingUnownedHeroes = allowSelectingUnownedHeroes;
          mEventComponent = new EventComponent(mDBFacade);
+         mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          mHeroSelectedCallback = heroSelectedCallback;
          mClickedEquippedWeaponCallback = clickedEquippedWeaponCallback;
          mEquipResponseCallback = equipResponseFinishedCallback;
          mSetSelectedHeroCallback = setSelectedHeroIndexCallback;
          mGetSelectedHeroCallback = getSelectedHeroIndexCallback;
-         mRoot.label.text = Locale.getString("WEAPON_PICKER_LABEL");
+         Locale.setText(mRoot.label,"WEAPON_PICKER_LABEL");
          mEquipElements = new Vector.<AvatarEquipElement>();
-         mEquipElements.push(new AvatarEquipElement(mDBFacade,"J",mRoot.UI_weapons.equip_slot_0,weaponTooltipClass,unequipItem,handleItemDrop,0,equippedWeaponClicked,equipResponseFinishedCallback,allowEquipmentSwapping));
-         mEquipElements.push(new AvatarEquipElement(mDBFacade,"K",mRoot.UI_weapons.equip_slot_1,weaponTooltipClass,unequipItem,handleItemDrop,1,equippedWeaponClicked,equipResponseFinishedCallback,allowEquipmentSwapping));
-         mEquipElements.push(new AvatarEquipElement(mDBFacade,"L",mRoot.UI_weapons.equip_slot_2,weaponTooltipClass,unequipItem,handleItemDrop,2,equippedWeaponClicked,equipResponseFinishedCallback,allowEquipmentSwapping));
+         mEquipElements.push(new AvatarEquipElement(mDBFacade,mDBFacade.keyBindings.displayNameFor("attackWeapon1"),mRoot.UI_weapons.equip_slot_0,weaponTooltipClass,unequipItem,handleItemDrop,0,equippedWeaponClicked,equipResponseFinishedCallback,allowEquipmentSwapping));
+         mEquipElements.push(new AvatarEquipElement(mDBFacade,mDBFacade.keyBindings.displayNameFor("attackWeapon2"),mRoot.UI_weapons.equip_slot_1,weaponTooltipClass,unequipItem,handleItemDrop,1,equippedWeaponClicked,equipResponseFinishedCallback,allowEquipmentSwapping));
+         mEquipElements.push(new AvatarEquipElement(mDBFacade,mDBFacade.keyBindings.displayNameFor("attackWeapon3"),mRoot.UI_weapons.equip_slot_2,weaponTooltipClass,unequipItem,handleItemDrop,2,equippedWeaponClicked,equipResponseFinishedCallback,allowEquipmentSwapping));
+         mEventComponent.removeAllListeners();
+         mEventComponent.addListener("OnSteamInputGlyphsChanged",onSteamInputGlyphsChanged);
+         mEventComponent.addListener("ControllerConnectionChangedEvent",onControllerConnectionChanged);
+         if(mDBFacade.steamInputManager.isSteamInputReady)
+         {
+            initControllerIcons();
+         }
          mEquipSlots = new Vector.<EquipSlot>();
          mEquipSlots.push(new EquipSlot(mDBFacade,mRoot.empty_z,this.handleItemDrop,0));
          mEquipSlots.push(new EquipSlot(mDBFacade,mRoot.empty_x,this.handleItemDrop,1));
@@ -84,13 +119,113 @@ package UI.EquipPicker
          mShiftLeft.releaseCallback = shiftLeft;
          mShiftRight = new UIButton(mDBFacade,mRoot.shift_right);
          mShiftRight.releaseCallback = shiftRight;
-         mShiftLeft.visible = false;
-         mShiftRight.visible = false;
          mTotalGMHeroes = mDBFacade.gameMaster.Heroes.length;
+         mShiftLeft.visible = mTotalGMHeroes > mHeroSlots.length;
+         mShiftRight.visible = mShiftLeft.visible;
          mEventComponent.addListener("DB_ACCOUNT_INFO_RESPONSE",function(param1:DBAccountResponseEvent):void
          {
-            refresh();
+            if(isActiveCallback == null || isActiveCallback())
+            {
+               refresh();
+            }
          });
+      }
+      
+      private function onSteamInputGlyphsChanged(inEvent:Event) : void
+      {
+         if(mDBFacade.steamInputManager.isSteamInputReady)
+         {
+            initControllerIcons();
+         }
+      }
+      
+      private function onControllerConnectionChanged(inEvent:Event) : void
+      {
+         hideAndUnloadControllerIcons();
+         if(mDBFacade.steamInputManager.isSteamInputReady)
+         {
+            initControllerIcons();
+         }
+      }
+      
+      public function hideAndUnloadControllerIcons() : void
+      {
+         hideControllerIcons();
+         for(var _loc2_:String in mGlyphFilePathToControllerIconData)
+         {
+            delete mGlyphFilePathToControllerIconData[_loc2_];
+         }
+         for each(var _loc1_:AvatarEquipElement in mEquipElements)
+         {
+            _loc1_.setLabelAsText();
+         }
+      }
+      
+      private function hideControllerIcons() : void
+      {
+         var _loc2_:ControllerIconData = null;
+         for(var _loc1_:String in mGlyphFilePathToControllerIconData)
+         {
+            _loc2_ = mGlyphFilePathToControllerIconData[_loc1_];
+            if(!_loc2_.mIsHidden)
+            {
+               if(_loc2_.mOwner.contains(_loc2_.mControllerGlyph))
+               {
+                  _loc2_.mOwner.removeChild(_loc2_.mControllerGlyph);
+               }
+               _loc2_.mIsHidden = true;
+            }
+         }
+      }
+      
+      private function initControllerIcons() : void
+      {
+         var _loc1_:Vector.<String> = new Vector.<String>();
+         _loc1_.push("attack_weapon_1");
+         _loc1_.push("attack_weapon_2");
+         _loc1_.push("attack_weapon_3");
+         var _loc2_:Number = 0;
+         for each(var _loc3_:AvatarEquipElement in mEquipElements)
+         {
+            initControllerIcon(_loc3_,_loc1_[_loc2_]);
+            _loc2_++;
+         }
+      }
+      
+      private function initControllerIcon(equipElement:AvatarEquipElement, ActionName:String) : void
+      {
+         var iconData:ControllerIconData;
+         var glyphFilePath:String = mDBFacade.steamInputManager.getGlyphFilePathForAction(ActionName);
+         if(glyphFilePath == null || glyphFilePath == "" || glyphFilePath == "error1")
+         {
+            equipElement.setLabelAsText();
+            return;
+         }
+         iconData = mGlyphFilePathToControllerIconData[glyphFilePath];
+         if(iconData != null)
+         {
+            equipElement.setLabelAsControllerGlyph(iconData.mControllerGlyph);
+         }
+         else
+         {
+            mAssetLoadingComponent.getImageAsset(glyphFilePath,function(param1:ImageAsset):void
+            {
+               loadControllerIcon(param1,equipElement,glyphFilePath,CONTROLLER_ICON_POSITION_FOR_WEAPON_BUTTONS,CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS);
+            },null,false);
+         }
+      }
+      
+      private function loadControllerIcon(asset:ImageAsset, equipElement:AvatarEquipElement, glyphFilePath:String, iconPosition:Vector3D, iconScale:Point) : void
+      {
+         var _loc6_:Bitmap = asset.image as Bitmap;
+         var _loc7_:DisplayObject = new Bitmap(_loc6_.bitmapData);
+         _loc7_.x = iconPosition.x;
+         _loc7_.y = iconPosition.y;
+         _loc7_.width = iconScale.x;
+         _loc7_.height = iconScale.y;
+         equipElement.setLabelAsControllerGlyph(_loc7_);
+         var _loc8_:ControllerIconData = new ControllerIconData(_loc7_,equipElement.root,false);
+         mGlyphFilePathToControllerIconData[glyphFilePath] = _loc8_;
       }
       
       private function get selectedHeroIndex() : int
@@ -117,23 +252,32 @@ package UI.EquipPicker
          if(mClickedEquippedWeaponCallback != null && equipElement.itemInfo != null)
          {
             equipElement.select();
-            mClickedEquippedWeaponCallback(equipElement.itemInfo);
+            mClickedEquippedWeaponCallback(equipElement.itemInfo,equipElement);
          }
       }
       
       public function showWeaponComparison(gmWeaponItem:GMWeaponItem, power:uint) : void
       {
-         for each(var _loc3_:HeroElement in mHeroSlots)
-         {
-            _loc3_.showWeaponComparison(gmWeaponItem,power);
-         }
+         mComparisonWeapon = gmWeaponItem;
+         mComparisonPower = power;
+         applyWeaponComparison();
       }
       
       public function hideWeaponComparison() : void
       {
+         mComparisonWeapon = null;
+         applyWeaponComparison();
+      }
+      
+      private function applyWeaponComparison() : void
+      {
          for each(var _loc1_:HeroElement in mHeroSlots)
          {
             _loc1_.hideWeaponComparison();
+            if(mComparisonWeapon != null)
+            {
+               _loc1_.showWeaponComparison(mComparisonWeapon,mComparisonPower);
+            }
          }
       }
       
@@ -149,7 +293,9 @@ package UI.EquipPicker
       
       public function get currentlySelectedHero() : GMHero
       {
-         return selectedHeroIndex != -1 ? mHeroSlots[selectedHeroIndex].gmHero : null;
+         var _loc2_:Vector.<GMHero> = mDBFacade.gameMaster.Heroes;
+         var _loc1_:int = selectedHeroIndex;
+         return _loc1_ >= 0 && _loc1_ < _loc2_.length ? _loc2_[_loc1_] : null;
       }
       
       public function get currentlySelectedAvatarInfo() : AvatarInfo
@@ -158,9 +304,90 @@ package UI.EquipPicker
          return _loc1_ ? mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(_loc1_.Id) : null;
       }
       
+      public function selectPreviousHero() : void
+      {
+         selectAdjacentHero(-1);
+      }
+      
+      public function selectNextHero() : void
+      {
+         selectAdjacentHero(1);
+      }
+      
+      private function selectAdjacentHero(direction:int) : void
+      {
+         var _loc6_:Vector.<GMHero> = mDBFacade.gameMaster.Heroes;
+         if(_loc6_.length == 0)
+         {
+            return;
+         }
+         var _loc5_:int = selectedHeroIndex;
+         if(_loc5_ < 0 || _loc5_ >= _loc6_.length)
+         {
+            _loc5_ = 0;
+         }
+         var _loc2_:Boolean = mDBFacade.dbConfigManager.getConfigBoolean("want_hidden_heroes",false);
+         var _loc4_:int = _loc5_;
+         while(true)
+         {
+            _loc4_ = (_loc4_ + direction + _loc6_.length) % _loc6_.length;
+            if(!(_loc4_ != _loc5_ && (_loc6_[_loc4_].Hidden && !_loc2_ || !mAllowSelectingUnownedHeroes && !mDBFacade.dbAccountInfo.inventoryInfo.ownsItem(_loc6_[_loc4_].Id))))
+            {
+               break;
+            }
+         }
+         if(_loc4_ == _loc5_)
+         {
+            return;
+         }
+         if(_loc4_ < mCurrentStartIndex)
+         {
+            mCurrentStartIndex = _loc4_;
+         }
+         else if(_loc4_ >= mCurrentStartIndex + mHeroSlots.length)
+         {
+            mCurrentStartIndex = _loc4_ - (mHeroSlots.length - 1);
+         }
+         populateHeroSlots();
+         var _loc3_:HeroElement = mHeroSlots[_loc4_ - mCurrentStartIndex];
+         heroClicked(_loc3_,mDBFacade.dbAccountInfo.inventoryInfo.ownsItem(_loc3_.gmHero.Id));
+         mDBFacade.menuNavigationController.setFocusedUiObject(_loc3_);
+      }
+      
+      private function rotateRosterLeft() : void
+      {
+         if(mCurrentStartIndex > 0)
+         {
+            shiftLeft();
+         }
+      }
+      
+      private function rotateRosterRight() : void
+      {
+         if(mCurrentStartIndex + mHeroSlots.length < mTotalGMHeroes)
+         {
+            shiftRight();
+         }
+      }
+      
+      private function updateFirstSlotLeftNavigation() : void
+      {
+         var _loc1_:Function = mHeroSlots[0].leftNavigationAdditionalInteraction;
+         mHeroSlots[0].clearLeftNavigation();
+         if(_loc1_ != null)
+         {
+            mHeroSlots[0].leftNavigationAdditionalInteraction = _loc1_;
+         }
+         if(mCurrentStartIndex == 0 && mFirstSlotLeftNavigation != null)
+         {
+            mHeroSlots[0].leftNavigation = mFirstSlotLeftNavigation;
+         }
+      }
+      
       override public function destroy() : void
       {
          mEventComponent.destroy();
+         mAssetLoadingComponent.destroy();
          mDBFacade = null;
          mShiftLeft.destroy();
          mShiftRight.destroy();
@@ -197,39 +424,40 @@ package UI.EquipPicker
       
       public function setAvatarAlert(val:Boolean) : void
       {
-         var _loc2_:AvatarInfo = null;
-         var _loc3_:* = 0;
-         _loc3_ = 0;
-         while(_loc3_ < mHeroSlots.length)
-         {
-            if(val)
-            {
-               if(mHeroSlots[_loc3_].gmHero)
-               {
-                  _loc2_ = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mHeroSlots[_loc3_].gmHero.Id) as AvatarInfo;
-                  if(_loc2_ && _loc2_.skillPointsAvailable > 0)
-                  {
-                     mHeroSlots[_loc3_].alert = val;
-                  }
-                  else
-                  {
-                     mHeroSlots[_loc3_].alert = false;
-                  }
-               }
-            }
-            else
-            {
-               mHeroSlots[_loc3_].alert = val;
-            }
-            _loc3_++;
-         }
+         mAvatarAlertsOn = val;
+         mAlertDisabledHeroId = 0;
+         applyAvatarAlerts();
       }
       
       public function disableAvatarAlertOnSelectedHero() : void
       {
-         if(selectedHeroIndex > -1)
+         var _loc1_:GMHero = currentlySelectedHero;
+         if(_loc1_)
          {
-            mHeroSlots[selectedHeroIndex].alert = false;
+            mAlertDisabledHeroId = _loc1_.Id;
+         }
+         applyAvatarAlerts();
+      }
+      
+      private function applyAvatarAlerts() : void
+      {
+         var _loc1_:AvatarInfo = null;
+         var _loc3_:uint = 0;
+         var _loc2_:GMHero = null;
+         _loc3_ = 0;
+         while(_loc3_ < mHeroSlots.length)
+         {
+            _loc2_ = mHeroSlots[_loc3_].gmHero;
+            if(mAvatarAlertsOn && _loc2_ && _loc2_.Id != mAlertDisabledHeroId)
+            {
+               _loc1_ = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(_loc2_.Id) as AvatarInfo;
+               mHeroSlots[_loc3_].alert = _loc1_ && _loc1_.skillPointsAvailable > 0;
+            }
+            else
+            {
+               mHeroSlots[_loc3_].alert = false;
+            }
+            _loc3_++;
          }
       }
       
@@ -240,14 +468,17 @@ package UI.EquipPicker
             setActiveAvatarAsCurrentSelection();
          }
          hideWeaponComparison();
-         setCurrentIndexToShowSelectedHero();
+         if(selectedHeroIndex < mCurrentStartIndex || selectedHeroIndex >= mCurrentStartIndex + mHeroSlots.length)
+         {
+            setCurrentIndexToShowSelectedHero();
+         }
          populateHeroSlots();
          setEquipWeaponSlots();
       }
       
       private function populateHeroSlots() : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc3_:Vector.<GMHero> = mDBFacade.gameMaster.Heroes;
          var _loc1_:uint = mCurrentStartIndex;
          _loc2_ = 0;
@@ -266,7 +497,10 @@ package UI.EquipPicker
             _loc2_++;
          }
          updateShiftButtons();
+         updateFirstSlotLeftNavigation();
          determineSelectedElement();
+         applyAvatarAlerts();
+         applyWeaponComparison();
       }
       
       private function setCurrentIndexToShowSelectedHero() : void
@@ -293,7 +527,7 @@ package UI.EquipPicker
       
       private function determineSelectedElement() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          _loc1_ = 0;
          while(_loc1_ < mHeroSlots.length)
          {
@@ -311,7 +545,7 @@ package UI.EquipPicker
       
       private function findHeroIndex(avatarId:uint) : uint
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc3_:Vector.<GMHero> = mDBFacade.gameMaster.Heroes;
          _loc2_ = 0;
          while(_loc2_ < _loc3_.length)
@@ -369,14 +603,9 @@ package UI.EquipPicker
       
       public function setEquipWeaponSlots() : void
       {
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc1_:int = 0;
          if(selectedHeroIndex >= mDBFacade.gameMaster.Heroes.length)
-         {
-            return;
-         }
-         var _loc2_:AvatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mDBFacade.gameMaster.Heroes[selectedHeroIndex].Id);
-         if(_loc2_ == null)
          {
             return;
          }
@@ -386,11 +615,17 @@ package UI.EquipPicker
             mEquipElements[_loc4_].clear();
             _loc4_++;
          }
+         var _loc2_:AvatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mDBFacade.gameMaster.Heroes[selectedHeroIndex].Id);
+         if(_loc2_ == null)
+         {
+            return;
+         }
          var _loc3_:Vector.<ItemInfo> = mDBFacade.dbAccountInfo.inventoryInfo.getEquipedItemsOnAvatar(_loc2_.id);
          if(_loc3_.length > 3)
          {
             Logger.warn("Avatar has more than three equipped items.  Equipping first three.");
          }
+         mDBFacade.steamAchievementsHelper.unlockThreeLegendaryWeapons(_loc3_);
          _loc4_ = 0;
          while(_loc4_ < mEquipElements.length)
          {
@@ -421,9 +656,9 @@ package UI.EquipPicker
       public function equipItemOnCurrentAvatar(info:InventoryBaseInfo, itemSlot:uint, responseFinishedCallback:Function = null, errorCallback:Function = null) : void
       {
          var equipServiceResponse:Function;
-         var equippingModal:UIPopup;
+         var equippingModal:DBUIPopup;
          var avatarId:uint;
-         var avatarInfo:AvatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mHeroSlots[selectedHeroIndex].gmHero.Id);
+         var avatarInfo:AvatarInfo = currentlySelectedAvatarInfo;
          if(avatarInfo)
          {
             equipServiceResponse = function():void
@@ -434,15 +669,15 @@ package UI.EquipPicker
                   responseFinishedCallback();
                }
             };
-            equippingModal = UIPopup.show(mDBFacade,Locale.getString("EQUIPPING_MODAL"));
+            equippingModal = createEquippingModal();
             avatarId = avatarInfo.id;
-            mDBFacade.dbAccountInfo.inventoryInfo.equipItemOnAvatar(avatarId,info.databaseId,itemSlot,equipServiceResponse,errorCallback);
+            mDBFacade.dbAccountInfo.inventoryInfo.equipItemOnAvatar(avatarId,info.databaseId,itemSlot,equipServiceResponse,closeEquippingModalOnError(equippingModal,errorCallback));
          }
       }
       
       public function unequipItem(info:InventoryBaseInfo, responseFinishedCallback:Function = null, errorCallback:Function = null) : void
       {
-         var equippingModal:UIPopup = UIPopup.show(mDBFacade,Locale.getString("EQUIPPING_MODAL"));
+         var equippingModal:DBUIPopup = createEquippingModal();
          var equipServiceResponse:Function = function():void
          {
             equippingModal.destroy();
@@ -451,13 +686,30 @@ package UI.EquipPicker
                responseFinishedCallback();
             }
          };
-         mDBFacade.dbAccountInfo.inventoryInfo.unequipItemOffAvatar(info,equipServiceResponse,errorCallback);
+         mDBFacade.dbAccountInfo.inventoryInfo.unequipItemOffAvatar(info,equipServiceResponse,closeEquippingModalOnError(equippingModal,errorCallback));
+      }
+      
+      private function createEquippingModal() : DBUIPopup
+      {
+         return new DBUIPopup(mDBFacade,"",Locale.getString("EQUIPPING_MODAL"),null,false);
+      }
+      
+      private function closeEquippingModalOnError(modal:DBUIPopup, callback:Function) : Function
+      {
+         return function(... rest):void
+         {
+            modal.destroy();
+            if(callback != null)
+            {
+               callback.apply(null,rest);
+            }
+         };
       }
       
       public function highlightItem(info:InventoryBaseInfo) : void
       {
          var _loc2_:AvatarEquipElement = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          _loc3_ = 0;
          while(_loc3_ < mEquipElements.length)
          {
@@ -476,7 +728,7 @@ package UI.EquipPicker
       
       public function deselectEquipment() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          _loc1_ = 0;
          while(_loc1_ < mEquipElements.length)
          {
@@ -533,6 +785,8 @@ package UI.EquipPicker
          mHeroSlots[4].isToTheLeftOf(mHeroSlots[5]);
          mHeroSlots[5].isToTheLeftOf(mHeroSlots[6]);
          mHeroSlots[6].isToTheLeftOf(mHeroSlots[7]);
+         mHeroSlots[0].leftNavigationAdditionalInteraction = rotateRosterLeft;
+         mHeroSlots[7].rightNavigationAdditionalInteraction = rotateRosterRight;
          mHeroSlots[0].upNavigation = returnObject;
          mHeroSlots[1].upNavigation = returnObject;
          mHeroSlots[2].upNavigation = returnObject;
@@ -541,13 +795,19 @@ package UI.EquipPicker
          mHeroSlots[5].upNavigation = returnObject;
          mHeroSlots[6].upNavigation = returnObject;
          mHeroSlots[7].upNavigation = returnObject;
+         mEquipElements[0].upNavigation = returnObject;
+         mEquipElements[1].upNavigation = returnObject;
+         mEquipElements[2].upNavigation = returnObject;
          mEquipElements[0].isToTheLeftOf(mEquipElements[1]);
          mEquipElements[1].isToTheLeftOf(mEquipElements[2]);
          mEquipElements[2].isToTheLeftOf(mHeroSlots[0]);
+         mFirstSlotLeftNavigation = mEquipElements[2];
+         updateFirstSlotLeftNavigation();
       }
       
       public function resetHeroWithEquipPickerMenuNavigation() : void
       {
+         mFirstSlotLeftNavigation = null;
          mHeroSlots[0].clearNavigationAndInteractions();
          mHeroSlots[1].clearNavigationAndInteractions();
          mHeroSlots[2].clearNavigationAndInteractions();

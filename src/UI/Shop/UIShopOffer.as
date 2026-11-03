@@ -11,6 +11,7 @@ package UI.Shop
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
    import Brain.Utils.MemoryTracker;
+   import Brain.Utils.TextUtil;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
@@ -25,6 +26,7 @@ package UI.Shop
    import flash.events.MouseEvent;
    import flash.filters.ColorMatrixFilter;
    import flash.text.TextField;
+   import flash.text.TextLineMetrics;
    
    public class UIShopOffer extends UIObject
    {
@@ -63,19 +65,19 @@ package UI.Shop
       
       protected var mCashIcon:MovieClip;
       
+      protected var mGemIcon:MovieClip;
+      
       protected var mCoinIcon:MovieClip;
       
-      protected var mBuyButton:UIButton;
+      internal var mBuyButton:UIButton;
       
-      protected var mBuyButtonCoin:UIButton;
+      internal var mBuyButtonCoin:UIButton;
       
-      protected var mBuyButtonCash:UIButton;
+      internal var mBuyButtonCash:UIButton;
       
-      protected var mExclusiveOfferButton:UIButton;
+      internal var mExclusiveOfferButton:UIButton;
       
-      protected var mBuyButtonTimerBasedSale:UIButton;
-      
-      protected var mDLCBuyButton:UIButton;
+      internal var mBuyButtonTimerBasedSale:UIButton;
       
       protected var mGiftIcon:MovieClip;
       
@@ -138,6 +140,7 @@ package UI.Shop
          mOriginalPrice = mRoot.buy_button.original_price;
          mStrikePrice = mRoot.buy_button.strike;
          mCashIcon = mRoot.buy_button.icons_bundle.cash;
+         mGemIcon = mRoot.buy_button.icons_bundle.gem;
          mCoinIcon = mRoot.buy_button.icons_bundle.coin;
          mGiftIcon = mRoot.buy_button.icons_bundle.gift_icon;
          mStar = mRoot.star;
@@ -156,7 +159,7 @@ package UI.Shop
          mAlreadyOwnedLabel = mRoot.already_owned_label;
          mAlreadyOwnedLabel.visible = false;
          mHeroRequiredLabel = mRoot.shop_herorequired;
-         mHeroRequiredLabel.hero_label.text = Locale.getString("PURCHASE_HERO_BEFORE_BUYING_SYTLE_TAVERN_LABEL");
+         Locale.setText(mHeroRequiredLabel.hero_label,"PURCHASE_HERO_BEFORE_BUYING_SYTLE_TAVERN_LABEL");
          mHeroRequiredLabel.visible = false;
          if(mRoot.timer)
          {
@@ -166,6 +169,7 @@ package UI.Shop
          mBuyButtonCoin.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
          mBuyButtonCoin.releaseCallback = this.buyButtonCoinCallback;
          mBuyButtonCoin.root.icons_bundle.cash.visible = false;
+         mBuyButtonCoin.root.icons_bundle.gem.visible = false;
          mBuyButtonCoin.root.icons_bundle.gift_icon.visible = false;
          mBuyButtonCoin.root.original_price.visible = false;
          mBuyButtonCoin.root.strike.visible = false;
@@ -173,6 +177,7 @@ package UI.Shop
          mBuyButtonCash.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
          mBuyButtonCash.releaseCallback = this.buyButtonCallback;
          mBuyButtonCash.root.icons_bundle.coin.visible = false;
+         mBuyButtonCash.root.icons_bundle.cash.visible = false;
          mBuyButtonCash.root.icons_bundle.gift_icon.visible = false;
          mBuyButtonCash.root.original_price.visible = false;
          mBuyButtonCash.root.strike.visible = false;
@@ -180,6 +185,7 @@ package UI.Shop
          mBuyButtonTimerBasedSale.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
          mBuyButtonTimerBasedSale.releaseCallback = this.buyButtonCallback;
          mBuyButtonTimerBasedSale.root.icons_bundle.coin.visible = false;
+         mBuyButtonTimerBasedSale.root.icons_bundle.cash.visible = false;
          mBuyButtonTimerBasedSale.root.icons_bundle.gift_icon.visible = false;
          mBuyButtonTimerBasedSale.root.original_price.visible = false;
          mBuyButtonTimerBasedSale.root.strike.visible = false;
@@ -200,6 +206,19 @@ package UI.Shop
          }
       }
       
+      public function get navigationButton() : UIButton
+      {
+         var _loc2_:Array = [mBuyButton,mBuyButtonCoin,mBuyButtonCash,mExclusiveOfferButton,mBuyButtonTimerBasedSale];
+         for each(var _loc1_:UIButton in _loc2_)
+         {
+            if(_loc1_ != null && _loc1_.canBeFocused())
+            {
+               return _loc1_;
+            }
+         }
+         return null;
+      }
+      
       protected function buyButtonCallback() : void
       {
          return this.buyButtonInternal(this.offer);
@@ -216,6 +235,11 @@ package UI.Shop
          var callback:Function = mBuySuccessCallback;
          if(!buyOffer)
          {
+            return;
+         }
+         if(mGMOffer.CurrencyType == GMOffer.DLC_CURRENCY)
+         {
+            mDBFacade.overlaySteamBasedOnAppId(mGMOffer.SteamAppId);
             return;
          }
          if(IsCashPageExclusiveOffer())
@@ -238,7 +262,7 @@ package UI.Shop
          }
          else if(this.canGiftOffer())
          {
-            popup = new DBUIOneButtonPopup(mDBFacade,Locale.getString("SHOP_GIFT_CONFIRM_TITLE"),Locale.getString("SHOP_GIFT_CONFIRM_DESC"),Locale.getString("OK"),null);
+            popup = new DBUIOneButtonPopup(mDBFacade,"SHOP_GIFT_CONFIRM_POPUP",Locale.getString("SHOP_GIFT_CONFIRM_TITLE"),Locale.getString("SHOP_GIFT_CONFIRM_DESC"),Locale.getString("OK"),null);
             MemoryTracker.track(popup,"DBUIOneButtonPopup - created in UIShopOffer.buyOffer()");
             if(callback != null)
             {
@@ -511,7 +535,7 @@ package UI.Shop
       
       protected function get nativeIconSize() : Number
       {
-         return 100;
+         return DBGlobal.WEAPON_ICON_NATIVE_SIZE;
       }
       
       protected function hasRequirements() : Boolean
@@ -549,10 +573,6 @@ package UI.Shop
                mDescriptionLabel.textColor = 15535124;
             }
             mTitle.textColor = 8947848;
-            if(this.mGMOffer.CurrencyType == "DLC")
-            {
-               mDLCBuyButton.enabled = false;
-            }
          }
       }
       
@@ -601,62 +621,60 @@ package UI.Shop
       
       public function showOffer(gmOffer:GMOffer, gmHero:GMHero) : void
       {
-         var canBuy:Boolean;
-         var canGift:Boolean;
-         var gemVisible:Boolean;
-         var coinVisible:Boolean;
-         var levelReq:uint;
-         var buyButtonEnabled:Boolean;
+         var _loc5_:Boolean = false;
+         var _loc6_:Boolean = false;
+         var _loc7_:Boolean = false;
          this.offer = gmOffer;
          mGMHero = gmHero;
+         var _loc9_:String = null;
          if(gmOffer.Details[0].HeroId || gmOffer.Details[0].SkinId)
          {
-            mTitle.text = GameMasterLocale.getGameMasterSubString("SKIN_NAME",this.offer.getOfferItemConstant(mDBFacade.gameMaster));
+            _loc9_ = GameMasterLocale.getGameMasterSubString("SKIN_NAME",this.offer.getOfferItemConstant(mDBFacade.gameMaster));
          }
          else if(gmOffer.Details[0].PetId)
          {
-            mTitle.text = GameMasterLocale.getGameMasterSubString("PET_NAME",this.offer.getOfferItemConstant(mDBFacade.gameMaster));
+            _loc9_ = GameMasterLocale.getGameMasterSubString("PET_NAME",this.offer.getOfferItemConstant(mDBFacade.gameMaster));
          }
          else if(!gmOffer.Details[0].WeaponId)
          {
             if(gmOffer.Details[0].OfferId)
             {
-               mTitle.text = GameMasterLocale.getGameMasterSubString("BUNDLE_OFFER_NAME",this.offer.Id.toString());
+               _loc9_ = GameMasterLocale.getGameMasterSubString("BUNDLE_OFFER_NAME",this.offer.Id.toString());
             }
             else
             {
                Logger.debug(gmOffer.Id.toString());
             }
          }
+         if(_loc9_ != null)
+         {
+            TextUtil.setText(mTitle,_loc9_,1.45);
+            TextUtil.fitToField(mTitle);
+         }
          mTitle.textColor = this.getTextRarityColor();
-         if(mTitle.numLines == 1)
-         {
-            mTitle.y = mTitleY + mTitle.height * 0.2;
-         }
-         else
-         {
-            mTitle.y = mTitleY;
-         }
+         var _loc10_:TextLineMetrics = mTitle.getLineMetrics(0);
+         var _loc4_:Number = mTitle.numLines == 1 ? _loc10_.ascent + _loc10_.descent : mTitle.textHeight;
+         mTitle.y = mTitleY + Math.max(0,mTitle.height - (_loc4_ + 4) * mTitle.scaleY) / 2;
          loadOfferIcon();
          if(gmOffer.Details.length > 0)
          {
             if(gmOffer.Details[0].StackableId)
             {
                mStackCountTF.visible = true;
-               mStackCountTF.text = "x" + gmOffer.Details[0].StackableCount.toString();
+               TextUtil.setText(mStackCountTF,"x" + gmOffer.Details[0].StackableCount.toString());
             }
          }
-         mRequiresLabel.text = Locale.getString("REQUIRES");
+         Locale.setText(mRequiresLabel,"REQUIRES");
          mRequiresLabel.visible = this.hasRequirements();
          if(mDescriptionLabel)
          {
-            mDescriptionLabel.text = this.offerDescription;
+            TextUtil.setText(mDescriptionLabel,this.offerDescription,1.55);
          }
          if(IsCashPageExclusiveOffer())
          {
             mBuyButton.visible = false;
             mExclusiveOfferButton.visible = true;
-            mExclusiveOfferButton.label.text = Locale.getString("UI_SHOP_CASH_PAGE_EXCLUSIVE");
+            Locale.setText(mExclusiveOfferButton.label,"UI_SHOP_CASH_PAGE_EXCLUSIVE");
             mBuyButtonCoin.visible = false;
             mBuyButtonCash.visible = false;
             mRoot.label_or.visible = false;
@@ -668,22 +686,8 @@ package UI.Shop
             mBuyButtonCash.visible = true;
             mRoot.label_or.visible = true;
             mExclusiveOfferButton.visible = false;
-            mBuyButtonCash.label.text = this.offer.Price > 0 ? this.offer.Price.toString() : Locale.getString("SHOP_FREE");
-            mBuyButtonCoin.label.text = this.coinOffer.Price > 0 ? this.coinOffer.Price.toString() : Locale.getString("SHOP_FREE");
-         }
-         else if(this.mGMOffer.CurrencyType == "DLC")
-         {
-            mBuyButton.visible = false;
-            mBuyButtonCoin.visible = false;
-            mBuyButtonCash.visible = false;
-            mRoot.label_or.visible = false;
-            mExclusiveOfferButton.visible = false;
-            mDLCBuyButton = new UIButton(mDBFacade,mRoot.dlc_button);
-            mDLCBuyButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
-            mDLCBuyButton.releaseCallback = function():void
-            {
-               mDBFacade.overlaySteamBasedOnAppId(gmOffer.SteamAppId);
-            };
+            TextUtil.setText(mBuyButtonCash.label,this.offer.Price > 0 ? this.offer.Price.toString() : Locale.getString("SHOP_FREE"));
+            TextUtil.setText(mBuyButtonCoin.label,this.coinOffer.Price > 0 ? this.coinOffer.Price.toString() : Locale.getString("SHOP_FREE"));
          }
          else
          {
@@ -692,7 +696,11 @@ package UI.Shop
             mBuyButtonCash.visible = false;
             mRoot.label_or.visible = false;
             mExclusiveOfferButton.visible = false;
-            mBuyButton.label.text = this.offer.Price > 0 ? this.offer.Price.toString() : Locale.getString("SHOP_FREE");
+            TextUtil.setText(mBuyButton.label,this.offer.Price > 0 ? this.offer.Price.toString() : Locale.getString("SHOP_FREE"));
+            if(this.offer.CurrencyType == GMOffer.DLC_CURRENCY)
+            {
+               Locale.setText(mBuyButton.label,"BUY");
+            }
          }
          if(mSaleOffer)
          {
@@ -702,9 +710,9 @@ package UI.Shop
             if(mSaleOffer.percentOff != 0)
             {
                mSaleLabel.visible = true;
-               mSaleLabel.text = mSaleOffer.percentOff.toString() + Locale.getString("SHOP_PERCENT_OFF");
+               TextUtil.setText(mSaleLabel,mSaleOffer.percentOff.toString() + Locale.getString("SHOP_PERCENT_OFF"));
                mOriginalPrice.visible = true;
-               mOriginalPrice.text = mGMOffer.Price.toString();
+               TextUtil.setText(mOriginalPrice,mGMOffer.Price.toString());
                mStrikePrice.visible = true;
                mStrikePrice.width = mOriginalPrice.textWidth + 4;
             }
@@ -715,18 +723,18 @@ package UI.Shop
                mOriginalPrice.visible = false;
             }
             mBuyButtonTimerBasedSale.root.original_price.visible = true;
-            mBuyButtonTimerBasedSale.root.original_price.text = mGMOffer.Price.toString();
+            TextUtil.setText(mBuyButtonTimerBasedSale.root.original_price,mGMOffer.Price.toString());
             mBuyButtonTimerBasedSale.root.strike.visible = true;
             mBuyButtonTimerBasedSale.root.strike.width = mBuyButtonTimerBasedSale.root.original_price.textWidth + 4;
             if(mCoinOffer && mCoinSaleOffer && mCoinOffer.Price != mCoinSaleOffer.Price)
             {
                mBuyButtonCoin.root.original_price.visible = true;
-               mBuyButtonCoin.root.original_price.text = mCoinOffer.Price.toString();
+               TextUtil.setText(mBuyButtonCoin.root.original_price,mCoinOffer.Price.toString());
                mBuyButtonCoin.root.strike.visible = true;
                mBuyButtonCoin.root.strike.width = mBuyButtonCoin.root.original_price.textWidth + 4;
             }
             mBuyButtonCash.root.original_price.visible = true;
-            mBuyButtonCash.root.original_price.text = mGMOffer.Price.toString();
+            TextUtil.setText(mBuyButtonCash.root.original_price,mGMOffer.Price.toString());
             mBuyButtonCash.root.strike.visible = true;
             mBuyButtonCash.root.strike.width = mBuyButtonCash.root.original_price.textWidth + 4;
          }
@@ -736,14 +744,14 @@ package UI.Shop
             {
                mRoot.sale_ribbon.visible = true;
                mRoot.sale_ribbon_label.visible = false;
-               mRoot.new_ribbon_label.text = Locale.getString("SHOP_RARE");
+               Locale.setText(mRoot.new_ribbon_label,"SHOP_RARE");
                mRoot.new_ribbon_label.visible = true;
             }
             else if(mGMOffer.isNew)
             {
                mRoot.sale_ribbon.visible = true;
                mRoot.sale_ribbon_label.visible = false;
-               mRoot.new_ribbon_label.text = Locale.getString("SHOP_NEW");
+               Locale.setText(mRoot.new_ribbon_label,"SHOP_NEW");
                mRoot.new_ribbon_label.visible = true;
             }
             else
@@ -760,33 +768,37 @@ package UI.Shop
          {
             mNumSold = StoreServices.getOfferQuantitySold(this.offer);
          }
-         canBuy = this.canBuyOffer();
-         canGift = this.canGiftOffer();
-         if(canGift)
+         var _loc12_:Boolean = this.canBuyOffer();
+         var _loc11_:Boolean = this.canGiftOffer();
+         if(_loc11_)
          {
             mGiftIcon.visible = true;
             mCashIcon.visible = false;
+            mGemIcon.visible = false;
             mCoinIcon.visible = false;
          }
          else
          {
             mGiftIcon.visible = false;
-            gemVisible = this.offer.Price > 0 && this.offer.CurrencyType == "PREMIUM";
-            coinVisible = this.offer.Price > 0 && this.offer.CurrencyType == "BASIC";
-            mCashIcon.visible = gemVisible;
-            mCoinIcon.visible = coinVisible;
-            mBuyButtonTimerBasedSale.root.icons_bundle.cash.visible = gemVisible;
-            mBuyButtonTimerBasedSale.root.icons_bundle.coin.visible = coinVisible;
+            _loc5_ = this.offer.Price > 0 && this.offer.CurrencyType == GMOffer.PREMIUM_CURRENCY;
+            _loc6_ = this.offer.Price > 0 && this.offer.CurrencyType == GMOffer.BASIC_CURRENCY;
+            _loc7_ = this.offer.Price > 0 && this.offer.CurrencyType == GMOffer.DLC_CURRENCY;
+            mGemIcon.visible = _loc5_;
+            mCoinIcon.visible = _loc6_;
+            mCashIcon.visible = _loc7_;
+            mBuyButtonTimerBasedSale.root.icons_bundle.gem.visible = _loc5_;
+            mBuyButtonTimerBasedSale.root.icons_bundle.coin.visible = _loc6_;
+            mBuyButtonTimerBasedSale.root.icons_bundle.cash.visible = _loc7_;
          }
-         levelReq = StoreServicesController.getOfferLevelReq(mDBFacade,this.offer);
-         mLevelStarLabel.text = levelReq.toString();
+         var _loc8_:uint = StoreServicesController.getOfferLevelReq(mDBFacade,this.offer);
+         TextUtil.setText(mLevelStarLabel,_loc8_.toString());
          mLevelStarLabel.visible = mStar.visible = false;
          if(getStartDate() || getEndDate())
          {
             if(mRoot.timer)
             {
                mRoot.timer.visible = true;
-               mRoot.timer.text = getDateString();
+               TextUtil.setText(mRoot.timer,getDateString());
             }
             mBuyButton.visible = false;
             if(this.coinOffer)
@@ -800,7 +812,7 @@ package UI.Shop
                mBuyButtonCoin.visible = false;
                mBuyButtonCash.visible = false;
                mBuyButtonTimerBasedSale.visible = true;
-               mBuyButtonTimerBasedSale.label.text = this.offer.Price.toString();
+               TextUtil.setText(mBuyButtonTimerBasedSale.label,this.offer.Price.toString());
             }
          }
          if(this.offer.LimitedQuantity > 0)
@@ -808,7 +820,7 @@ package UI.Shop
             if(mLimitLabel)
             {
                mLimitLabel.visible = true;
-               mLimitLabel.text = getQuantityString();
+               TextUtil.setText(mLimitLabel,getQuantityString());
             }
          }
          else if(mLimitLabel)
@@ -816,12 +828,12 @@ package UI.Shop
             mLimitLabel.visible = false;
          }
          mAlreadyOwnedLabel.visible = !this.requirementsMetForPurchase();
-         buyButtonEnabled = canBuy || canGift;
-         mBuyButton.enabled = buyButtonEnabled;
-         mBuyButtonCoin.enabled = buyButtonEnabled;
-         mBuyButtonCash.enabled = buyButtonEnabled;
-         mBuyButtonTimerBasedSale.enabled = buyButtonEnabled;
-         this.greyOffer(!canBuy && !canGift || this.shouldGreyOffer(mGMHero));
+         var _loc3_:Boolean = _loc12_ || _loc11_;
+         mBuyButton.enabled = _loc3_;
+         mBuyButtonCoin.enabled = _loc3_;
+         mBuyButtonCash.enabled = _loc3_;
+         mBuyButtonTimerBasedSale.enabled = _loc3_;
+         this.greyOffer(!_loc12_ && !_loc11_ || this.shouldGreyOffer(mGMHero));
       }
       
       protected function requirementsMetForPurchase() : Boolean
@@ -888,6 +900,31 @@ package UI.Shop
             return false;
          }
          return true;
+      }
+      
+      public function getPrimaryBuyButton() : UIButton
+      {
+         if(mBuyButton.visible)
+         {
+            return mBuyButton;
+         }
+         if(mBuyButtonCoin.visible)
+         {
+            return mBuyButtonCoin;
+         }
+         if(mBuyButtonCash.visible)
+         {
+            return mBuyButtonCash;
+         }
+         if(mBuyButtonTimerBasedSale.visible)
+         {
+            return mBuyButtonTimerBasedSale;
+         }
+         if(mExclusiveOfferButton.visible)
+         {
+            return mExclusiveOfferButton;
+         }
+         return null;
       }
    }
 }

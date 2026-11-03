@@ -29,7 +29,7 @@ package Actor.StateMachine
       public function enterAttackChoreographyState(playSpeed:Number, targetActor:ActorGameObject, attackTimeline:AttackTimeline, attackChoreography:AttackChoreography, finishedCallback:Function = null, stopCallback:Function = null, loop:Boolean = false) : void
       {
          attackTimeline.appendChoreography(attackChoreography);
-         var _loc8_:Boolean = attackChoreography.loop == 1 ? true : false;
+         var _loc8_:Boolean = attackChoreography.loop == 1;
          attackTimeline.currentAttackType = attackChoreography.attack.attackType;
          attackTimeline.projectileMultiplier = attackChoreography.scalingMaxProjectiles;
          enterChoreographyState(playSpeed,targetActor,attackTimeline,finishedCallback,stopCallback,loop);

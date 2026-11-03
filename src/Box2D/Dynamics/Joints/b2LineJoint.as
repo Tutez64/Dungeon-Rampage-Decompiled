@@ -5,129 +5,612 @@ package Box2D.Dynamics.Joints
    import Box2D.Common.Math.b2Transform;
    import Box2D.Common.Math.b2Vec2;
    import Box2D.Common.b2Settings;
-   import Box2D.Common.b2internal;
    import Box2D.Dynamics.b2Body;
    import Box2D.Dynamics.b2TimeStep;
-   
-   use namespace b2internal;
+   import flash.Boot;
    
    public class b2LineJoint extends b2Joint
    {
       
-      b2internal var m_localAnchor1:b2Vec2 = new b2Vec2();
+      public var m_upperTranslation:Number;
       
-      b2internal var m_localAnchor2:b2Vec2 = new b2Vec2();
+      public var m_s2:Number;
       
-      b2internal var m_localXAxis1:b2Vec2 = new b2Vec2();
+      public var m_s1:Number;
       
-      private var m_localYAxis1:b2Vec2 = new b2Vec2();
+      public var m_perp:b2Vec2;
       
-      private var m_axis:b2Vec2 = new b2Vec2();
+      public var m_motorSpeed:Number;
       
-      private var m_perp:b2Vec2 = new b2Vec2();
+      public var m_motorMass:Number;
       
-      private var m_s1:Number;
+      public var m_motorImpulse:Number;
       
-      private var m_s2:Number;
+      public var m_maxMotorForce:Number;
       
-      private var m_a1:Number;
+      public var m_lowerTranslation:Number;
       
-      private var m_a2:Number;
+      public var m_localYAxis1:b2Vec2;
       
-      private var m_K:b2Mat22 = new b2Mat22();
+      public var m_localXAxis1:b2Vec2;
       
-      private var m_impulse:b2Vec2 = new b2Vec2();
+      public var m_localAnchor2:b2Vec2;
       
-      private var m_motorMass:Number;
+      public var m_localAnchor1:b2Vec2;
       
-      private var m_motorImpulse:Number;
+      public var m_limitState:int;
       
-      private var m_lowerTranslation:Number;
+      public var m_impulse:b2Vec2;
       
-      private var m_upperTranslation:Number;
+      public var m_enableMotor:Boolean;
       
-      private var m_maxMotorForce:Number;
+      public var m_enableLimit:Boolean;
       
-      private var m_motorSpeed:Number;
+      public var m_axis:b2Vec2;
       
-      private var m_enableLimit:Boolean;
+      public var m_a2:Number;
       
-      private var m_enableMotor:Boolean;
+      public var m_a1:Number;
       
-      private var m_limitState:int;
+      public var m_K:b2Mat22;
       
-      public function b2LineJoint(def:b2LineJointDef)
+      public function b2LineJoint(def:b2LineJointDef = undefined)
       {
-         var _loc2_:b2Mat22 = null;
-         var _loc3_:Number = NaN;
-         var _loc4_:Number = NaN;
-         super(def);
-         this.m_localAnchor1.SetV(def.localAnchorA);
-         this.m_localAnchor2.SetV(def.localAnchorB);
-         this.m_localXAxis1.SetV(def.localAxisA);
-         this.m_localYAxis1.x = -this.m_localXAxis1.y;
-         this.m_localYAxis1.y = this.m_localXAxis1.x;
-         this.m_impulse.SetZero();
-         this.m_motorMass = 0;
-         this.m_motorImpulse = 0;
-         this.m_lowerTranslation = def.lowerTranslation;
-         this.m_upperTranslation = def.upperTranslation;
-         this.m_maxMotorForce = def.maxMotorForce;
-         this.m_motorSpeed = def.motorSpeed;
-         this.m_enableLimit = def.enableLimit;
-         this.m_enableMotor = def.enableMotor;
-         this.m_limitState = b2internal::e_inactiveLimit;
-         this.m_axis.SetZero();
-         this.m_perp.SetZero();
+         if(!Boot.skip_constructor)
+         {
+            super(def);
+            m_localAnchor1 = new b2Vec2();
+            m_localAnchor2 = new b2Vec2();
+            m_localXAxis1 = new b2Vec2();
+            m_localYAxis1 = new b2Vec2();
+            m_axis = new b2Vec2();
+            m_perp = new b2Vec2();
+            m_K = new b2Mat22();
+            m_impulse = new b2Vec2();
+            m_localAnchor1.setV(def.localAnchorA);
+            m_localAnchor2.setV(def.localAnchorB);
+            m_localXAxis1.setV(def.localAxisA);
+            m_localYAxis1.x = -m_localXAxis1.y;
+            m_localYAxis1.y = m_localXAxis1.x;
+            m_impulse.setZero();
+            m_motorMass = 0;
+            m_motorImpulse = 0;
+            m_lowerTranslation = def.lowerTranslation;
+            m_upperTranslation = def.upperTranslation;
+            m_maxMotorForce = def.maxMotorForce;
+            m_motorSpeed = def.motorSpeed;
+            m_enableLimit = def.enableLimit;
+            m_enableMotor = def.enableMotor;
+            m_limitState = 0;
+            m_axis.setZero();
+            m_perp.setZero();
+         }
       }
       
-      override public function GetAnchorA() : b2Vec2
+      override public function solveVelocityConstraints(step:b2TimeStep) : void
       {
-         return m_bodyA.GetWorldPoint(this.m_localAnchor1);
+         SolveVelocityConstraints(step);
       }
       
-      override public function GetAnchorB() : b2Vec2
+      override public function solvePositionConstraints(baumgarte:Number) : Boolean
       {
-         return m_bodyB.GetWorldPoint(this.m_localAnchor2);
+         return SolvePositionConstraints(baumgarte);
       }
       
-      override public function GetReactionForce(inv_dt:Number) : b2Vec2
+      public function setMotorSpeed(speed:Number) : void
       {
-         return new b2Vec2(inv_dt * (this.m_impulse.x * this.m_perp.x + (this.m_motorImpulse + this.m_impulse.y) * this.m_axis.x),inv_dt * (this.m_impulse.x * this.m_perp.y + (this.m_motorImpulse + this.m_impulse.y) * this.m_axis.y));
+         SetMotorSpeed(speed);
+      }
+      
+      public function setMaxMotorForce(force:Number) : void
+      {
+         SetMaxMotorForce(force);
+      }
+      
+      public function setLimits(lower:Number, upper:Number) : void
+      {
+         SetLimits(lower,upper);
+      }
+      
+      public function isMotorEnabled() : Boolean
+      {
+         return IsMotorEnabled();
+      }
+      
+      public function isLimitEnabled() : Boolean
+      {
+         return IsLimitEnabled();
+      }
+      
+      override public function initVelocityConstraints(step:b2TimeStep) : void
+      {
+         InitVelocityConstraints(step);
+      }
+      
+      public function getUpperLimit() : Number
+      {
+         return GetUpperLimit();
+      }
+      
+      override public function getReactionTorque(inv_dt:Number) : Number
+      {
+         return GetReactionTorque(inv_dt);
+      }
+      
+      override public function getReactionForce(inv_dt:Number) : b2Vec2
+      {
+         return GetReactionForce(inv_dt);
+      }
+      
+      public function getMotorSpeed() : Number
+      {
+         return GetMotorSpeed();
+      }
+      
+      public function getMotorForce() : Number
+      {
+         return GetMotorForce();
+      }
+      
+      public function getMaxMotorForce() : Number
+      {
+         return GetMaxMotorForce();
+      }
+      
+      public function getLowerLimit() : Number
+      {
+         return GetLowerLimit();
+      }
+      
+      public function getJointTranslation() : Number
+      {
+         return GetJointTranslation();
+      }
+      
+      public function getJointSpeed() : Number
+      {
+         return GetJointSpeed();
+      }
+      
+      override public function getAnchorB() : b2Vec2
+      {
+         return GetAnchorB();
+      }
+      
+      override public function getAnchorA() : b2Vec2
+      {
+         return GetAnchorA();
+      }
+      
+      public function enableMotor(flag:Boolean) : void
+      {
+         EnableMotor(flag);
+      }
+      
+      public function enableLimit(flag:Boolean) : void
+      {
+         EnableLimit(flag);
+      }
+      
+      override public function SolveVelocityConstraints(step:b2TimeStep) : void
+      {
+         var _loc8_:Number = NaN;
+         var _loc9_:Number = NaN;
+         var _loc10_:Number = NaN;
+         var _loc11_:Number = NaN;
+         var _loc12_:Number = NaN;
+         var _loc13_:Number = NaN;
+         var _loc14_:Number = NaN;
+         var _loc15_:Number = NaN;
+         var _loc16_:* = null as b2Vec2;
+         var _loc17_:* = null as b2Vec2;
+         var _loc2_:b2Body = m_bodyA;
+         var _loc3_:b2Body = m_bodyB;
+         var _loc4_:b2Vec2 = _loc2_.m_linearVelocity;
+         var _loc5_:Number = _loc2_.m_angularVelocity;
+         var _loc6_:b2Vec2 = _loc3_.m_linearVelocity;
+         var _loc7_:Number = _loc3_.m_angularVelocity;
+         if(m_enableMotor && m_limitState != 3)
+         {
+            _loc12_ = m_axis.x * (_loc6_.x - _loc4_.x) + m_axis.y * (_loc6_.y - _loc4_.y) + m_a2 * _loc7_ - m_a1 * _loc5_;
+            _loc13_ = m_motorMass * (m_motorSpeed - _loc12_);
+            _loc14_ = m_motorImpulse;
+            _loc15_ = step.dt * m_maxMotorForce;
+            m_motorImpulse = b2Math.clamp(m_motorImpulse + _loc13_,-_loc15_,_loc15_);
+            _loc13_ = m_motorImpulse - _loc14_;
+            _loc8_ = _loc13_ * m_axis.x;
+            _loc9_ = _loc13_ * m_axis.y;
+            _loc10_ = _loc13_ * m_a1;
+            _loc11_ = _loc13_ * m_a2;
+            _loc4_.x -= m_invMassA * _loc8_;
+            _loc4_.y -= m_invMassA * _loc9_;
+            _loc5_ -= m_invIA * _loc10_;
+            _loc6_.x += m_invMassB * _loc8_;
+            _loc6_.y += m_invMassB * _loc9_;
+            _loc7_ += m_invIB * _loc11_;
+         }
+         _loc12_ = m_perp.x * (_loc6_.x - _loc4_.x) + m_perp.y * (_loc6_.y - _loc4_.y) + m_s2 * _loc7_ - m_s1 * _loc5_;
+         if(m_enableLimit && m_limitState != 0)
+         {
+            _loc13_ = m_axis.x * (_loc6_.x - _loc4_.x) + m_axis.y * (_loc6_.y - _loc4_.y) + m_a2 * _loc7_ - m_a1 * _loc5_;
+            _loc16_ = m_impulse.copy();
+            _loc17_ = m_K.solve(new b2Vec2(),-_loc12_,-_loc13_);
+            m_impulse.add(_loc17_);
+            if(m_limitState == 1)
+            {
+               m_impulse.y = b2Math.max(m_impulse.y,0);
+            }
+            else if(m_limitState == 2)
+            {
+               m_impulse.y = b2Math.min(m_impulse.y,0);
+            }
+            _loc14_ = -_loc12_ - (m_impulse.y - _loc16_.y) * m_K.col2.x;
+            if(m_K.col1.x != 0)
+            {
+               _loc15_ = _loc14_ / m_K.col1.x + _loc16_.x;
+            }
+            else
+            {
+               _loc15_ = _loc16_.x;
+            }
+            m_impulse.x = _loc15_;
+            _loc17_.x = m_impulse.x - _loc16_.x;
+            _loc17_.y = m_impulse.y - _loc16_.y;
+            _loc8_ = _loc17_.x * m_perp.x + _loc17_.y * m_axis.x;
+            _loc9_ = _loc17_.x * m_perp.y + _loc17_.y * m_axis.y;
+            _loc10_ = _loc17_.x * m_s1 + _loc17_.y * m_a1;
+            _loc11_ = _loc17_.x * m_s2 + _loc17_.y * m_a2;
+            _loc4_.x -= m_invMassA * _loc8_;
+            _loc4_.y -= m_invMassA * _loc9_;
+            _loc5_ -= m_invIA * _loc10_;
+            _loc6_.x += m_invMassB * _loc8_;
+            _loc6_.y += m_invMassB * _loc9_;
+            _loc7_ += m_invIB * _loc11_;
+         }
+         else
+         {
+            if(m_K.col1.x != 0)
+            {
+               _loc13_ = -_loc12_ / m_K.col1.x;
+            }
+            else
+            {
+               _loc13_ = 0;
+            }
+            m_impulse.x += _loc13_;
+            _loc8_ = _loc13_ * m_perp.x;
+            _loc9_ = _loc13_ * m_perp.y;
+            _loc10_ = _loc13_ * m_s1;
+            _loc11_ = _loc13_ * m_s2;
+            _loc4_.x -= m_invMassA * _loc8_;
+            _loc4_.y -= m_invMassA * _loc9_;
+            _loc5_ -= m_invIA * _loc10_;
+            _loc6_.x += m_invMassB * _loc8_;
+            _loc6_.y += m_invMassB * _loc9_;
+            _loc7_ += m_invIB * _loc11_;
+         }
+         _loc2_.m_linearVelocity.setV(_loc4_);
+         _loc2_.m_angularVelocity = _loc5_;
+         _loc3_.m_linearVelocity.setV(_loc6_);
+         _loc3_.m_angularVelocity = _loc7_;
+      }
+      
+      override public function SolvePositionConstraints(baumgarte:Number) : Boolean
+      {
+         var _loc10_:Number = NaN;
+         var _loc11_:Number = NaN;
+         var _loc12_:Number = NaN;
+         var _loc13_:Number = NaN;
+         var _loc28_:Number = NaN;
+         var _loc30_:Number = NaN;
+         var _loc31_:Number = NaN;
+         var _loc4_:b2Body = m_bodyA;
+         var _loc5_:b2Body = m_bodyB;
+         var _loc6_:b2Vec2 = _loc4_.m_sweep.c;
+         var _loc7_:Number = _loc4_.m_sweep.a;
+         var _loc8_:b2Vec2 = _loc5_.m_sweep.c;
+         var _loc9_:Number = _loc5_.m_sweep.a;
+         var _loc14_:Number = 0;
+         var _loc15_:Number = 0;
+         var _loc16_:Boolean = false;
+         var _loc17_:Number = 0;
+         var _loc18_:b2Mat22 = b2Mat22.fromAngle(_loc7_);
+         var _loc19_:b2Mat22 = b2Mat22.fromAngle(_loc9_);
+         var _loc20_:b2Mat22 = _loc18_;
+         var _loc21_:Number = m_localAnchor1.x - m_localCenterA.x;
+         var _loc22_:Number = m_localAnchor1.y - m_localCenterA.y;
+         var _loc23_:Number = _loc20_.col1.x * _loc21_ + _loc20_.col2.x * _loc22_;
+         _loc22_ = _loc20_.col1.y * _loc21_ + _loc20_.col2.y * _loc22_;
+         _loc21_ = _loc23_;
+         _loc20_ = _loc19_;
+         var _loc24_:Number = m_localAnchor2.x - m_localCenterB.x;
+         var _loc25_:Number = m_localAnchor2.y - m_localCenterB.y;
+         _loc23_ = _loc20_.col1.x * _loc24_ + _loc20_.col2.x * _loc25_;
+         _loc25_ = _loc20_.col1.y * _loc24_ + _loc20_.col2.y * _loc25_;
+         _loc24_ = _loc23_;
+         var _loc26_:Number = _loc8_.x + _loc24_ - _loc6_.x - _loc21_;
+         var _loc27_:Number = _loc8_.y + _loc25_ - _loc6_.y - _loc22_;
+         if(m_enableLimit)
+         {
+            m_axis = b2Math.mulMV(_loc18_,m_localXAxis1);
+            m_a1 = (_loc26_ + _loc21_) * m_axis.y - (_loc27_ + _loc22_) * m_axis.x;
+            m_a2 = _loc24_ * m_axis.y - _loc25_ * m_axis.x;
+            _loc28_ = m_axis.x * _loc26_ + m_axis.y * _loc27_;
+            if(b2Math.abs(m_upperTranslation - m_lowerTranslation) < 2 * b2Settings.b2_linearSlop)
+            {
+               _loc17_ = b2Math.clamp(_loc28_,-b2Settings.b2_maxLinearCorrection,b2Settings.b2_maxLinearCorrection);
+               _loc14_ = b2Math.abs(_loc28_);
+               _loc16_ = true;
+            }
+            else if(_loc28_ <= m_lowerTranslation)
+            {
+               _loc17_ = b2Math.clamp(_loc28_ - m_lowerTranslation + b2Settings.b2_linearSlop,-b2Settings.b2_maxLinearCorrection,0);
+               _loc14_ = m_lowerTranslation - _loc28_;
+               _loc16_ = true;
+            }
+            else if(_loc28_ >= m_upperTranslation)
+            {
+               _loc17_ = b2Math.clamp(_loc28_ - m_upperTranslation + b2Settings.b2_linearSlop,0,b2Settings.b2_maxLinearCorrection);
+               _loc14_ = _loc28_ - m_upperTranslation;
+               _loc16_ = true;
+            }
+         }
+         m_perp = b2Math.mulMV(_loc18_,m_localYAxis1);
+         m_s1 = (_loc26_ + _loc21_) * m_perp.y - (_loc27_ + _loc22_) * m_perp.x;
+         m_s2 = _loc24_ * m_perp.y - _loc25_ * m_perp.x;
+         var _loc29_:b2Vec2 = new b2Vec2();
+         _loc28_ = m_perp.x * _loc26_ + m_perp.y * _loc27_;
+         _loc14_ = b2Math.max(_loc14_,b2Math.abs(_loc28_));
+         _loc15_ = 0;
+         if(_loc16_)
+         {
+            _loc10_ = m_invMassA;
+            _loc11_ = m_invMassB;
+            _loc12_ = m_invIA;
+            _loc13_ = m_invIB;
+            m_K.col1.x = _loc10_ + _loc11_ + _loc12_ * m_s1 * m_s1 + _loc13_ * m_s2 * m_s2;
+            m_K.col1.y = _loc12_ * m_s1 * m_a1 + _loc13_ * m_s2 * m_a2;
+            m_K.col2.x = m_K.col1.y;
+            m_K.col2.y = _loc10_ + _loc11_ + _loc12_ * m_a1 * m_a1 + _loc13_ * m_a2 * m_a2;
+            m_K.solve(_loc29_,-_loc28_,-_loc17_);
+         }
+         else
+         {
+            _loc10_ = m_invMassA;
+            _loc11_ = m_invMassB;
+            _loc12_ = m_invIA;
+            _loc13_ = m_invIB;
+            _loc30_ = _loc10_ + _loc11_ + _loc12_ * m_s1 * m_s1 + _loc13_ * m_s2 * m_s2;
+            if(_loc30_ != 0)
+            {
+               _loc31_ = -_loc28_ / _loc30_;
+            }
+            else
+            {
+               _loc31_ = 0;
+            }
+            _loc29_.x = _loc31_;
+            _loc29_.y = 0;
+         }
+         _loc30_ = _loc29_.x * m_perp.x + _loc29_.y * m_axis.x;
+         _loc31_ = _loc29_.x * m_perp.y + _loc29_.y * m_axis.y;
+         var _loc32_:Number = _loc29_.x * m_s1 + _loc29_.y * m_a1;
+         var _loc33_:Number = _loc29_.x * m_s2 + _loc29_.y * m_a2;
+         _loc6_.x -= m_invMassA * _loc30_;
+         _loc6_.y -= m_invMassA * _loc31_;
+         _loc7_ -= m_invIA * _loc32_;
+         _loc8_.x += m_invMassB * _loc30_;
+         _loc8_.y += m_invMassB * _loc31_;
+         _loc9_ += m_invIB * _loc33_;
+         _loc4_.m_sweep.a = _loc7_;
+         _loc5_.m_sweep.a = _loc9_;
+         _loc4_.synchronizeTransform();
+         _loc5_.synchronizeTransform();
+         if(_loc14_ <= b2Settings.b2_linearSlop)
+         {
+            return _loc15_ <= b2Settings.b2_angularSlop;
+         }
+         return false;
+      }
+      
+      public function SetMotorSpeed(speed:Number) : void
+      {
+         m_bodyA.setAwake(true);
+         m_bodyB.setAwake(true);
+         m_motorSpeed = speed;
+      }
+      
+      public function SetMaxMotorForce(force:Number) : void
+      {
+         m_bodyA.setAwake(true);
+         m_bodyB.setAwake(true);
+         m_maxMotorForce = force;
+      }
+      
+      public function SetLimits(lower:Number, upper:Number) : void
+      {
+         m_bodyA.setAwake(true);
+         m_bodyB.setAwake(true);
+         m_lowerTranslation = lower;
+         m_upperTranslation = upper;
+      }
+      
+      public function IsMotorEnabled() : Boolean
+      {
+         return m_enableMotor;
+      }
+      
+      public function IsLimitEnabled() : Boolean
+      {
+         return m_enableLimit;
+      }
+      
+      override public function InitVelocityConstraints(step:b2TimeStep) : void
+      {
+         var _loc14_:Number = NaN;
+         var _loc15_:Number = NaN;
+         var _loc16_:Number = NaN;
+         var _loc17_:Number = NaN;
+         var _loc2_:b2Body = m_bodyA;
+         var _loc3_:b2Body = m_bodyB;
+         m_localCenterA.setV(_loc2_.getLocalCenter());
+         m_localCenterB.setV(_loc3_.getLocalCenter());
+         var _loc4_:b2Transform = _loc2_.getTransform();
+         var _loc5_:b2Transform = _loc3_.getTransform();
+         var _loc6_:b2Mat22 = _loc2_.m_xf.R;
+         var _loc7_:Number = m_localAnchor1.x - m_localCenterA.x;
+         var _loc8_:Number = m_localAnchor1.y - m_localCenterA.y;
+         var _loc9_:Number = _loc6_.col1.x * _loc7_ + _loc6_.col2.x * _loc8_;
+         _loc8_ = _loc6_.col1.y * _loc7_ + _loc6_.col2.y * _loc8_;
+         _loc7_ = _loc9_;
+         _loc6_ = _loc3_.m_xf.R;
+         var _loc10_:Number = m_localAnchor2.x - m_localCenterB.x;
+         var _loc11_:Number = m_localAnchor2.y - m_localCenterB.y;
+         _loc9_ = _loc6_.col1.x * _loc10_ + _loc6_.col2.x * _loc11_;
+         _loc11_ = _loc6_.col1.y * _loc10_ + _loc6_.col2.y * _loc11_;
+         _loc10_ = _loc9_;
+         var _loc12_:Number = _loc3_.m_sweep.c.x + _loc10_ - _loc2_.m_sweep.c.x - _loc7_;
+         var _loc13_:Number = _loc3_.m_sweep.c.y + _loc11_ - _loc2_.m_sweep.c.y - _loc8_;
+         m_invMassA = _loc2_.m_invMass;
+         m_invMassB = _loc3_.m_invMass;
+         m_invIA = _loc2_.m_invI;
+         m_invIB = _loc3_.m_invI;
+         m_axis.setV(b2Math.mulMV(_loc4_.R,m_localXAxis1));
+         m_a1 = (_loc12_ + _loc7_) * m_axis.y - (_loc13_ + _loc8_) * m_axis.x;
+         m_a2 = _loc10_ * m_axis.y - _loc11_ * m_axis.x;
+         m_motorMass = m_invMassA + m_invMassB + m_invIA * m_a1 * m_a1 + m_invIB * m_a2 * m_a2;
+         m_motorMass = m_motorMass > Number(Number.MIN_VALUE) ? 1 / m_motorMass : 0;
+         m_perp.setV(b2Math.mulMV(_loc4_.R,m_localYAxis1));
+         m_s1 = (_loc12_ + _loc7_) * m_perp.y - (_loc13_ + _loc8_) * m_perp.x;
+         m_s2 = _loc10_ * m_perp.y - _loc11_ * m_perp.x;
+         _loc14_ = m_invMassA;
+         _loc15_ = m_invMassB;
+         _loc16_ = m_invIA;
+         _loc17_ = m_invIB;
+         m_K.col1.x = _loc14_ + _loc15_ + _loc16_ * m_s1 * m_s1 + _loc17_ * m_s2 * m_s2;
+         m_K.col1.y = _loc16_ * m_s1 * m_a1 + _loc17_ * m_s2 * m_a2;
+         m_K.col2.x = m_K.col1.y;
+         m_K.col2.y = _loc14_ + _loc15_ + _loc16_ * m_a1 * m_a1 + _loc17_ * m_a2 * m_a2;
+         if(m_enableLimit)
+         {
+            _loc14_ = m_axis.x * _loc12_ + m_axis.y * _loc13_;
+            if(b2Math.abs(m_upperTranslation - m_lowerTranslation) < 2 * b2Settings.b2_linearSlop)
+            {
+               m_limitState = 3;
+            }
+            else if(_loc14_ <= m_lowerTranslation)
+            {
+               if(m_limitState != 1)
+               {
+                  m_limitState = 1;
+                  m_impulse.y = 0;
+               }
+            }
+            else if(_loc14_ >= m_upperTranslation)
+            {
+               if(m_limitState != 2)
+               {
+                  m_limitState = 2;
+                  m_impulse.y = 0;
+               }
+            }
+            else
+            {
+               m_limitState = 0;
+               m_impulse.y = 0;
+            }
+         }
+         else
+         {
+            m_limitState = 0;
+         }
+         if(m_enableMotor == false)
+         {
+            m_motorImpulse = 0;
+         }
+         if(step.warmStarting)
+         {
+            m_impulse.x *= step.dtRatio;
+            m_impulse.y *= step.dtRatio;
+            m_motorImpulse *= step.dtRatio;
+            _loc14_ = m_impulse.x * m_perp.x + (m_motorImpulse + m_impulse.y) * m_axis.x;
+            _loc15_ = m_impulse.x * m_perp.y + (m_motorImpulse + m_impulse.y) * m_axis.y;
+            _loc16_ = m_impulse.x * m_s1 + (m_motorImpulse + m_impulse.y) * m_a1;
+            _loc17_ = m_impulse.x * m_s2 + (m_motorImpulse + m_impulse.y) * m_a2;
+            _loc2_.m_linearVelocity.x -= m_invMassA * _loc14_;
+            _loc2_.m_linearVelocity.y -= m_invMassA * _loc15_;
+            _loc2_.m_angularVelocity -= m_invIA * _loc16_;
+            _loc3_.m_linearVelocity.x += m_invMassB * _loc14_;
+            _loc3_.m_linearVelocity.y += m_invMassB * _loc15_;
+            _loc3_.m_angularVelocity += m_invIB * _loc17_;
+         }
+         else
+         {
+            m_impulse.setZero();
+            m_motorImpulse = 0;
+         }
+      }
+      
+      public function GetUpperLimit() : Number
+      {
+         return m_upperTranslation;
       }
       
       override public function GetReactionTorque(inv_dt:Number) : Number
       {
-         return inv_dt * this.m_impulse.y;
+         return inv_dt * m_impulse.y;
+      }
+      
+      override public function GetReactionForce(inv_dt:Number) : b2Vec2
+      {
+         return new b2Vec2(inv_dt * (m_impulse.x * m_perp.x + (m_motorImpulse + m_impulse.y) * m_axis.x),inv_dt * (m_impulse.x * m_perp.y + (m_motorImpulse + m_impulse.y) * m_axis.y));
+      }
+      
+      public function GetMotorSpeed() : Number
+      {
+         return m_motorSpeed;
+      }
+      
+      public function GetMotorForce() : Number
+      {
+         return m_motorImpulse;
+      }
+      
+      public function GetMaxMotorForce() : Number
+      {
+         return m_maxMotorForce;
+      }
+      
+      public function GetLowerLimit() : Number
+      {
+         return m_lowerTranslation;
       }
       
       public function GetJointTranslation() : Number
       {
-         var _loc3_:b2Mat22 = null;
          var _loc1_:b2Body = m_bodyA;
          var _loc2_:b2Body = m_bodyB;
-         var _loc4_:b2Vec2 = _loc1_.GetWorldPoint(this.m_localAnchor1);
-         var _loc5_:b2Vec2 = _loc2_.GetWorldPoint(this.m_localAnchor2);
+         var _loc4_:b2Vec2 = _loc1_.getWorldPoint(m_localAnchor1);
+         var _loc5_:b2Vec2 = _loc2_.getWorldPoint(m_localAnchor2);
          var _loc6_:Number = _loc5_.x - _loc4_.x;
          var _loc7_:Number = _loc5_.y - _loc4_.y;
-         var _loc8_:b2Vec2 = _loc1_.GetWorldVector(this.m_localXAxis1);
+         var _loc8_:b2Vec2 = _loc1_.getWorldVector(m_localXAxis1);
          return _loc8_.x * _loc6_ + _loc8_.y * _loc7_;
       }
       
       public function GetJointSpeed() : Number
       {
-         var _loc3_:b2Mat22 = null;
          var _loc1_:b2Body = m_bodyA;
          var _loc2_:b2Body = m_bodyB;
-         _loc3_ = _loc1_.m_xf.R;
-         var _loc4_:Number = this.m_localAnchor1.x - _loc1_.m_sweep.localCenter.x;
-         var _loc5_:Number = this.m_localAnchor1.y - _loc1_.m_sweep.localCenter.y;
+         var _loc3_:b2Mat22 = _loc1_.m_xf.R;
+         var _loc4_:Number = m_localAnchor1.x - _loc1_.m_sweep.localCenter.x;
+         var _loc5_:Number = m_localAnchor1.y - _loc1_.m_sweep.localCenter.y;
          var _loc6_:Number = _loc3_.col1.x * _loc4_ + _loc3_.col2.x * _loc5_;
          _loc5_ = _loc3_.col1.y * _loc4_ + _loc3_.col2.y * _loc5_;
          _loc4_ = _loc6_;
          _loc3_ = _loc2_.m_xf.R;
-         var _loc7_:Number = this.m_localAnchor2.x - _loc2_.m_sweep.localCenter.x;
-         var _loc8_:Number = this.m_localAnchor2.y - _loc2_.m_sweep.localCenter.y;
+         var _loc7_:Number = m_localAnchor2.x - _loc2_.m_sweep.localCenter.x;
+         var _loc8_:Number = m_localAnchor2.y - _loc2_.m_sweep.localCenter.y;
          _loc6_ = _loc3_.col1.x * _loc7_ + _loc3_.col2.x * _loc8_;
          _loc8_ = _loc3_.col1.y * _loc7_ + _loc3_.col2.y * _loc8_;
          _loc7_ = _loc6_;
@@ -137,7 +620,7 @@ package Box2D.Dynamics.Joints
          var _loc12_:Number = _loc2_.m_sweep.c.y + _loc8_;
          var _loc13_:Number = _loc11_ - _loc9_;
          var _loc14_:Number = _loc12_ - _loc10_;
-         var _loc15_:b2Vec2 = _loc1_.GetWorldVector(this.m_localXAxis1);
+         var _loc15_:b2Vec2 = _loc1_.getWorldVector(m_localXAxis1);
          var _loc16_:b2Vec2 = _loc1_.m_linearVelocity;
          var _loc17_:b2Vec2 = _loc2_.m_linearVelocity;
          var _loc18_:Number = _loc1_.m_angularVelocity;
@@ -145,409 +628,28 @@ package Box2D.Dynamics.Joints
          return _loc13_ * (-_loc18_ * _loc15_.y) + _loc14_ * (_loc18_ * _loc15_.x) + (_loc15_.x * (_loc17_.x + -_loc19_ * _loc8_ - _loc16_.x - -_loc18_ * _loc5_) + _loc15_.y * (_loc17_.y + _loc19_ * _loc7_ - _loc16_.y - _loc18_ * _loc4_));
       }
       
-      public function IsLimitEnabled() : Boolean
+      override public function GetAnchorB() : b2Vec2
       {
-         return this.m_enableLimit;
+         return m_bodyB.getWorldPoint(m_localAnchor2);
       }
       
-      public function EnableLimit(flag:Boolean) : void
+      override public function GetAnchorA() : b2Vec2
       {
-         m_bodyA.SetAwake(true);
-         m_bodyB.SetAwake(true);
-         this.m_enableLimit = flag;
-      }
-      
-      public function GetLowerLimit() : Number
-      {
-         return this.m_lowerTranslation;
-      }
-      
-      public function GetUpperLimit() : Number
-      {
-         return this.m_upperTranslation;
-      }
-      
-      public function SetLimits(lower:Number, upper:Number) : void
-      {
-         m_bodyA.SetAwake(true);
-         m_bodyB.SetAwake(true);
-         this.m_lowerTranslation = lower;
-         this.m_upperTranslation = upper;
-      }
-      
-      public function IsMotorEnabled() : Boolean
-      {
-         return this.m_enableMotor;
+         return m_bodyA.getWorldPoint(m_localAnchor1);
       }
       
       public function EnableMotor(flag:Boolean) : void
       {
-         m_bodyA.SetAwake(true);
-         m_bodyB.SetAwake(true);
-         this.m_enableMotor = flag;
+         m_bodyA.setAwake(true);
+         m_bodyB.setAwake(true);
+         m_enableMotor = flag;
       }
       
-      public function SetMotorSpeed(speed:Number) : void
+      public function EnableLimit(flag:Boolean) : void
       {
-         m_bodyA.SetAwake(true);
-         m_bodyB.SetAwake(true);
-         this.m_motorSpeed = speed;
-      }
-      
-      public function GetMotorSpeed() : Number
-      {
-         return this.m_motorSpeed;
-      }
-      
-      public function SetMaxMotorForce(force:Number) : void
-      {
-         m_bodyA.SetAwake(true);
-         m_bodyB.SetAwake(true);
-         this.m_maxMotorForce = force;
-      }
-      
-      public function GetMaxMotorForce() : Number
-      {
-         return this.m_maxMotorForce;
-      }
-      
-      public function GetMotorForce() : Number
-      {
-         return this.m_motorImpulse;
-      }
-      
-      override b2internal function InitVelocityConstraints(step:b2TimeStep) : void
-      {
-         var _loc4_:b2Mat22 = null;
-         var _loc5_:Number = NaN;
-         var _loc18_:Number = NaN;
-         var _loc19_:Number = NaN;
-         var _loc20_:Number = NaN;
-         var _loc21_:Number = NaN;
-         var _loc22_:Number = NaN;
-         var _loc2_:b2Body = m_bodyA;
-         var _loc3_:b2Body = m_bodyB;
-         m_localCenterA.SetV(_loc2_.GetLocalCenter());
-         m_localCenterB.SetV(_loc3_.GetLocalCenter());
-         var _loc6_:b2Transform = _loc2_.GetTransform();
-         var _loc7_:b2Transform = _loc3_.GetTransform();
-         _loc4_ = _loc2_.m_xf.R;
-         var _loc8_:Number = this.m_localAnchor1.x - m_localCenterA.x;
-         var _loc9_:Number = this.m_localAnchor1.y - m_localCenterA.y;
-         _loc5_ = _loc4_.col1.x * _loc8_ + _loc4_.col2.x * _loc9_;
-         _loc9_ = _loc4_.col1.y * _loc8_ + _loc4_.col2.y * _loc9_;
-         _loc8_ = _loc5_;
-         _loc4_ = _loc3_.m_xf.R;
-         var _loc10_:Number = this.m_localAnchor2.x - m_localCenterB.x;
-         var _loc11_:Number = this.m_localAnchor2.y - m_localCenterB.y;
-         _loc5_ = _loc4_.col1.x * _loc10_ + _loc4_.col2.x * _loc11_;
-         _loc11_ = _loc4_.col1.y * _loc10_ + _loc4_.col2.y * _loc11_;
-         _loc10_ = _loc5_;
-         var _loc12_:Number = _loc3_.m_sweep.c.x + _loc10_ - _loc2_.m_sweep.c.x - _loc8_;
-         var _loc13_:Number = _loc3_.m_sweep.c.y + _loc11_ - _loc2_.m_sweep.c.y - _loc9_;
-         m_invMassA = _loc2_.m_invMass;
-         m_invMassB = _loc3_.m_invMass;
-         m_invIA = _loc2_.m_invI;
-         m_invIB = _loc3_.m_invI;
-         this.m_axis.SetV(b2Math.MulMV(_loc6_.R,this.m_localXAxis1));
-         this.m_a1 = (_loc12_ + _loc8_) * this.m_axis.y - (_loc13_ + _loc9_) * this.m_axis.x;
-         this.m_a2 = _loc10_ * this.m_axis.y - _loc11_ * this.m_axis.x;
-         this.m_motorMass = m_invMassA + m_invMassB + m_invIA * this.m_a1 * this.m_a1 + m_invIB * this.m_a2 * this.m_a2;
-         this.m_motorMass = this.m_motorMass > Number.MIN_VALUE ? 1 / this.m_motorMass : 0;
-         this.m_perp.SetV(b2Math.MulMV(_loc6_.R,this.m_localYAxis1));
-         this.m_s1 = (_loc12_ + _loc8_) * this.m_perp.y - (_loc13_ + _loc9_) * this.m_perp.x;
-         this.m_s2 = _loc10_ * this.m_perp.y - _loc11_ * this.m_perp.x;
-         var _loc14_:Number = m_invMassA;
-         var _loc15_:Number = m_invMassB;
-         var _loc16_:Number = m_invIA;
-         var _loc17_:Number = m_invIB;
-         this.m_K.col1.x = _loc14_ + _loc15_ + _loc16_ * this.m_s1 * this.m_s1 + _loc17_ * this.m_s2 * this.m_s2;
-         this.m_K.col1.y = _loc16_ * this.m_s1 * this.m_a1 + _loc17_ * this.m_s2 * this.m_a2;
-         this.m_K.col2.x = this.m_K.col1.y;
-         this.m_K.col2.y = _loc14_ + _loc15_ + _loc16_ * this.m_a1 * this.m_a1 + _loc17_ * this.m_a2 * this.m_a2;
-         if(this.m_enableLimit)
-         {
-            _loc18_ = this.m_axis.x * _loc12_ + this.m_axis.y * _loc13_;
-            if(b2Math.Abs(this.m_upperTranslation - this.m_lowerTranslation) < 2 * b2Settings.b2_linearSlop)
-            {
-               this.m_limitState = e_equalLimits;
-            }
-            else if(_loc18_ <= this.m_lowerTranslation)
-            {
-               if(this.m_limitState != e_atLowerLimit)
-               {
-                  this.m_limitState = e_atLowerLimit;
-                  this.m_impulse.y = 0;
-               }
-            }
-            else if(_loc18_ >= this.m_upperTranslation)
-            {
-               if(this.m_limitState != e_atUpperLimit)
-               {
-                  this.m_limitState = e_atUpperLimit;
-                  this.m_impulse.y = 0;
-               }
-            }
-            else
-            {
-               this.m_limitState = e_inactiveLimit;
-               this.m_impulse.y = 0;
-            }
-         }
-         else
-         {
-            this.m_limitState = e_inactiveLimit;
-         }
-         if(this.m_enableMotor == false)
-         {
-            this.m_motorImpulse = 0;
-         }
-         if(step.warmStarting)
-         {
-            this.m_impulse.x *= step.dtRatio;
-            this.m_impulse.y *= step.dtRatio;
-            this.m_motorImpulse *= step.dtRatio;
-            _loc19_ = this.m_impulse.x * this.m_perp.x + (this.m_motorImpulse + this.m_impulse.y) * this.m_axis.x;
-            _loc20_ = this.m_impulse.x * this.m_perp.y + (this.m_motorImpulse + this.m_impulse.y) * this.m_axis.y;
-            _loc21_ = this.m_impulse.x * this.m_s1 + (this.m_motorImpulse + this.m_impulse.y) * this.m_a1;
-            _loc22_ = this.m_impulse.x * this.m_s2 + (this.m_motorImpulse + this.m_impulse.y) * this.m_a2;
-            _loc2_.m_linearVelocity.x -= m_invMassA * _loc19_;
-            _loc2_.m_linearVelocity.y -= m_invMassA * _loc20_;
-            _loc2_.m_angularVelocity -= m_invIA * _loc21_;
-            _loc3_.m_linearVelocity.x += m_invMassB * _loc19_;
-            _loc3_.m_linearVelocity.y += m_invMassB * _loc20_;
-            _loc3_.m_angularVelocity += m_invIB * _loc22_;
-         }
-         else
-         {
-            this.m_impulse.SetZero();
-            this.m_motorImpulse = 0;
-         }
-      }
-      
-      override b2internal function SolveVelocityConstraints(step:b2TimeStep) : void
-      {
-         var _loc8_:Number = NaN;
-         var _loc9_:Number = NaN;
-         var _loc10_:Number = NaN;
-         var _loc11_:Number = NaN;
-         var _loc13_:Number = NaN;
-         var _loc14_:Number = NaN;
-         var _loc15_:Number = NaN;
-         var _loc16_:Number = NaN;
-         var _loc17_:Number = NaN;
-         var _loc18_:b2Vec2 = null;
-         var _loc19_:b2Vec2 = null;
-         var _loc20_:Number = NaN;
-         var _loc21_:Number = NaN;
-         var _loc22_:Number = NaN;
-         var _loc2_:b2Body = m_bodyA;
-         var _loc3_:b2Body = m_bodyB;
-         var _loc4_:b2Vec2 = _loc2_.m_linearVelocity;
-         var _loc5_:Number = _loc2_.m_angularVelocity;
-         var _loc6_:b2Vec2 = _loc3_.m_linearVelocity;
-         var _loc7_:Number = _loc3_.m_angularVelocity;
-         if(this.m_enableMotor && this.m_limitState != e_equalLimits)
-         {
-            _loc13_ = this.m_axis.x * (_loc6_.x - _loc4_.x) + this.m_axis.y * (_loc6_.y - _loc4_.y) + this.m_a2 * _loc7_ - this.m_a1 * _loc5_;
-            _loc14_ = this.m_motorMass * (this.m_motorSpeed - _loc13_);
-            _loc15_ = this.m_motorImpulse;
-            _loc16_ = step.dt * this.m_maxMotorForce;
-            this.m_motorImpulse = b2Math.Clamp(this.m_motorImpulse + _loc14_,-_loc16_,_loc16_);
-            _loc14_ = this.m_motorImpulse - _loc15_;
-            _loc8_ = _loc14_ * this.m_axis.x;
-            _loc9_ = _loc14_ * this.m_axis.y;
-            _loc10_ = _loc14_ * this.m_a1;
-            _loc11_ = _loc14_ * this.m_a2;
-            _loc4_.x -= m_invMassA * _loc8_;
-            _loc4_.y -= m_invMassA * _loc9_;
-            _loc5_ -= m_invIA * _loc10_;
-            _loc6_.x += m_invMassB * _loc8_;
-            _loc6_.y += m_invMassB * _loc9_;
-            _loc7_ += m_invIB * _loc11_;
-         }
-         var _loc12_:Number = this.m_perp.x * (_loc6_.x - _loc4_.x) + this.m_perp.y * (_loc6_.y - _loc4_.y) + this.m_s2 * _loc7_ - this.m_s1 * _loc5_;
-         if(this.m_enableLimit && this.m_limitState != e_inactiveLimit)
-         {
-            _loc17_ = this.m_axis.x * (_loc6_.x - _loc4_.x) + this.m_axis.y * (_loc6_.y - _loc4_.y) + this.m_a2 * _loc7_ - this.m_a1 * _loc5_;
-            _loc18_ = this.m_impulse.Copy();
-            _loc19_ = this.m_K.Solve(new b2Vec2(),-_loc12_,-_loc17_);
-            this.m_impulse.Add(_loc19_);
-            if(this.m_limitState == e_atLowerLimit)
-            {
-               this.m_impulse.y = b2Math.Max(this.m_impulse.y,0);
-            }
-            else if(this.m_limitState == e_atUpperLimit)
-            {
-               this.m_impulse.y = b2Math.Min(this.m_impulse.y,0);
-            }
-            _loc20_ = -_loc12_ - (this.m_impulse.y - _loc18_.y) * this.m_K.col2.x;
-            if(this.m_K.col1.x != 0)
-            {
-               _loc21_ = _loc20_ / this.m_K.col1.x + _loc18_.x;
-            }
-            else
-            {
-               _loc21_ = _loc18_.x;
-            }
-            this.m_impulse.x = _loc21_;
-            _loc19_.x = this.m_impulse.x - _loc18_.x;
-            _loc19_.y = this.m_impulse.y - _loc18_.y;
-            _loc8_ = _loc19_.x * this.m_perp.x + _loc19_.y * this.m_axis.x;
-            _loc9_ = _loc19_.x * this.m_perp.y + _loc19_.y * this.m_axis.y;
-            _loc10_ = _loc19_.x * this.m_s1 + _loc19_.y * this.m_a1;
-            _loc11_ = _loc19_.x * this.m_s2 + _loc19_.y * this.m_a2;
-            _loc4_.x -= m_invMassA * _loc8_;
-            _loc4_.y -= m_invMassA * _loc9_;
-            _loc5_ -= m_invIA * _loc10_;
-            _loc6_.x += m_invMassB * _loc8_;
-            _loc6_.y += m_invMassB * _loc9_;
-            _loc7_ += m_invIB * _loc11_;
-         }
-         else
-         {
-            if(this.m_K.col1.x != 0)
-            {
-               _loc22_ = -_loc12_ / this.m_K.col1.x;
-            }
-            else
-            {
-               _loc22_ = 0;
-            }
-            this.m_impulse.x += _loc22_;
-            _loc8_ = _loc22_ * this.m_perp.x;
-            _loc9_ = _loc22_ * this.m_perp.y;
-            _loc10_ = _loc22_ * this.m_s1;
-            _loc11_ = _loc22_ * this.m_s2;
-            _loc4_.x -= m_invMassA * _loc8_;
-            _loc4_.y -= m_invMassA * _loc9_;
-            _loc5_ -= m_invIA * _loc10_;
-            _loc6_.x += m_invMassB * _loc8_;
-            _loc6_.y += m_invMassB * _loc9_;
-            _loc7_ += m_invIB * _loc11_;
-         }
-         _loc2_.m_linearVelocity.SetV(_loc4_);
-         _loc2_.m_angularVelocity = _loc5_;
-         _loc3_.m_linearVelocity.SetV(_loc6_);
-         _loc3_.m_angularVelocity = _loc7_;
-      }
-      
-      override b2internal function SolvePositionConstraints(baumgarte:Number) : Boolean
-      {
-         var _loc2_:Number = NaN;
-         var _loc3_:Number = NaN;
-         var _loc10_:b2Mat22 = null;
-         var _loc11_:Number = NaN;
-         var _loc12_:Number = NaN;
-         var _loc13_:Number = NaN;
-         var _loc14_:Number = NaN;
-         var _loc15_:Number = NaN;
-         var _loc34_:Number = NaN;
-         var _loc35_:Number = NaN;
-         var _loc36_:Number = NaN;
-         var _loc4_:b2Body = m_bodyA;
-         var _loc5_:b2Body = m_bodyB;
-         var _loc6_:b2Vec2 = _loc4_.m_sweep.c;
-         var _loc7_:Number = _loc4_.m_sweep.a;
-         var _loc8_:b2Vec2 = _loc5_.m_sweep.c;
-         var _loc9_:Number = _loc5_.m_sweep.a;
-         var _loc16_:Number = 0;
-         var _loc17_:Number = 0;
-         var _loc18_:Boolean = false;
-         var _loc19_:Number = 0;
-         var _loc20_:b2Mat22 = b2Mat22.FromAngle(_loc7_);
-         var _loc21_:b2Mat22 = b2Mat22.FromAngle(_loc9_);
-         _loc10_ = _loc20_;
-         var _loc22_:Number = this.m_localAnchor1.x - m_localCenterA.x;
-         var _loc23_:Number = this.m_localAnchor1.y - m_localCenterA.y;
-         _loc11_ = _loc10_.col1.x * _loc22_ + _loc10_.col2.x * _loc23_;
-         _loc23_ = _loc10_.col1.y * _loc22_ + _loc10_.col2.y * _loc23_;
-         _loc22_ = _loc11_;
-         _loc10_ = _loc21_;
-         var _loc24_:Number = this.m_localAnchor2.x - m_localCenterB.x;
-         var _loc25_:Number = this.m_localAnchor2.y - m_localCenterB.y;
-         _loc11_ = _loc10_.col1.x * _loc24_ + _loc10_.col2.x * _loc25_;
-         _loc25_ = _loc10_.col1.y * _loc24_ + _loc10_.col2.y * _loc25_;
-         _loc24_ = _loc11_;
-         var _loc26_:Number = _loc8_.x + _loc24_ - _loc6_.x - _loc22_;
-         var _loc27_:Number = _loc8_.y + _loc25_ - _loc6_.y - _loc23_;
-         if(this.m_enableLimit)
-         {
-            this.m_axis = b2Math.MulMV(_loc20_,this.m_localXAxis1);
-            this.m_a1 = (_loc26_ + _loc22_) * this.m_axis.y - (_loc27_ + _loc23_) * this.m_axis.x;
-            this.m_a2 = _loc24_ * this.m_axis.y - _loc25_ * this.m_axis.x;
-            _loc34_ = this.m_axis.x * _loc26_ + this.m_axis.y * _loc27_;
-            if(b2Math.Abs(this.m_upperTranslation - this.m_lowerTranslation) < 2 * b2Settings.b2_linearSlop)
-            {
-               _loc19_ = b2Math.Clamp(_loc34_,-b2Settings.b2_maxLinearCorrection,b2Settings.b2_maxLinearCorrection);
-               _loc16_ = b2Math.Abs(_loc34_);
-               _loc18_ = true;
-            }
-            else if(_loc34_ <= this.m_lowerTranslation)
-            {
-               _loc19_ = b2Math.Clamp(_loc34_ - this.m_lowerTranslation + b2Settings.b2_linearSlop,-b2Settings.b2_maxLinearCorrection,0);
-               _loc16_ = this.m_lowerTranslation - _loc34_;
-               _loc18_ = true;
-            }
-            else if(_loc34_ >= this.m_upperTranslation)
-            {
-               _loc19_ = b2Math.Clamp(_loc34_ - this.m_upperTranslation + b2Settings.b2_linearSlop,0,b2Settings.b2_maxLinearCorrection);
-               _loc16_ = _loc34_ - this.m_upperTranslation;
-               _loc18_ = true;
-            }
-         }
-         this.m_perp = b2Math.MulMV(_loc20_,this.m_localYAxis1);
-         this.m_s1 = (_loc26_ + _loc22_) * this.m_perp.y - (_loc27_ + _loc23_) * this.m_perp.x;
-         this.m_s2 = _loc24_ * this.m_perp.y - _loc25_ * this.m_perp.x;
-         var _loc28_:b2Vec2 = new b2Vec2();
-         var _loc29_:Number = this.m_perp.x * _loc26_ + this.m_perp.y * _loc27_;
-         _loc16_ = b2Math.Max(_loc16_,b2Math.Abs(_loc29_));
-         _loc17_ = 0;
-         if(_loc18_)
-         {
-            _loc12_ = m_invMassA;
-            _loc13_ = m_invMassB;
-            _loc14_ = m_invIA;
-            _loc15_ = m_invIB;
-            this.m_K.col1.x = _loc12_ + _loc13_ + _loc14_ * this.m_s1 * this.m_s1 + _loc15_ * this.m_s2 * this.m_s2;
-            this.m_K.col1.y = _loc14_ * this.m_s1 * this.m_a1 + _loc15_ * this.m_s2 * this.m_a2;
-            this.m_K.col2.x = this.m_K.col1.y;
-            this.m_K.col2.y = _loc12_ + _loc13_ + _loc14_ * this.m_a1 * this.m_a1 + _loc15_ * this.m_a2 * this.m_a2;
-            this.m_K.Solve(_loc28_,-_loc29_,-_loc19_);
-         }
-         else
-         {
-            _loc12_ = m_invMassA;
-            _loc13_ = m_invMassB;
-            _loc14_ = m_invIA;
-            _loc15_ = m_invIB;
-            _loc35_ = _loc12_ + _loc13_ + _loc14_ * this.m_s1 * this.m_s1 + _loc15_ * this.m_s2 * this.m_s2;
-            if(_loc35_ != 0)
-            {
-               _loc36_ = -_loc29_ / _loc35_;
-            }
-            else
-            {
-               _loc36_ = 0;
-            }
-            _loc28_.x = _loc36_;
-            _loc28_.y = 0;
-         }
-         var _loc30_:Number = _loc28_.x * this.m_perp.x + _loc28_.y * this.m_axis.x;
-         var _loc31_:Number = _loc28_.x * this.m_perp.y + _loc28_.y * this.m_axis.y;
-         var _loc32_:Number = _loc28_.x * this.m_s1 + _loc28_.y * this.m_a1;
-         var _loc33_:Number = _loc28_.x * this.m_s2 + _loc28_.y * this.m_a2;
-         _loc6_.x -= m_invMassA * _loc30_;
-         _loc6_.y -= m_invMassA * _loc31_;
-         _loc7_ -= m_invIA * _loc32_;
-         _loc8_.x += m_invMassB * _loc30_;
-         _loc8_.y += m_invMassB * _loc31_;
-         _loc9_ += m_invIB * _loc33_;
-         _loc4_.m_sweep.a = _loc7_;
-         _loc5_.m_sweep.a = _loc9_;
-         _loc4_.SynchronizeTransform();
-         _loc5_.SynchronizeTransform();
-         return _loc16_ <= b2Settings.b2_linearSlop && _loc17_ <= b2Settings.b2_angularSlop;
+         m_bodyA.setAwake(true);
+         m_bodyB.setAwake(true);
+         m_enableLimit = flag;
       }
    }
 }

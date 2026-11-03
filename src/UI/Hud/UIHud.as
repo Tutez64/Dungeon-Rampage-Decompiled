@@ -2,7 +2,6 @@ package UI.Hud
 {
    import Account.BoosterInfo;
    import Account.CurrencyUpdatedAccountEvent;
-   import Account.StoreServicesController;
    import Actor.Buffs.BuffGameObject;
    import Actor.Buffs.BuffHandler;
    import Actor.FloatingMessage;
@@ -10,21 +9,27 @@ package UI.Hud
    import Actor.Player.Input.DungeonBusterControlActivatedEvent;
    import Actor.Revealer;
    import Brain.AssetRepository.AssetLoadingComponent;
+   import Brain.AssetRepository.ImageAsset;
    import Brain.AssetRepository.SwfAsset;
    import Brain.Clock.GameClock;
    import Brain.Event.EventComponent;
+   import Brain.Event.EventListeners;
    import Brain.Logger.Logger;
    import Brain.Render.MovieClipRenderController;
    import Brain.Render.MovieClipRenderer;
+   import Brain.Render.Tweens.TweenHandle;
    import Brain.SceneGraph.SceneGraphComponent;
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
    import Brain.UI.UIProgressBar;
    import Brain.Utils.MemoryTracker;
+   import Brain.Utils.TextUtil;
+   import Brain.Utils.Timers;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
    import Combat.Weapon.ConsumableWeaponGameObject;
    import Combat.Weapon.WeaponGameObject;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.HeroGameObjectOwner;
    import DistributedObjects.NPCGameObject;
    import Events.ActorInvulnerableEvent;
@@ -44,12 +49,16 @@ package UI.Hud
    import GameMasterDictionary.GMStackable;
    import GameMasterDictionary.GMWeaponAesthetic;
    import GameMasterDictionary.GMWeaponItem;
+   import Input.KeyBindings.KeyBindings;
+   import Settings.Model.SettingsModel;
+   import Settings.SettingsPopup;
+   import SteamInput.OnSteamInputButtonReleasedEvent;
    import UI.*;
+   import UI.Hud.StarlingConverted.IGameHud;
    import UI.InfiniteIsland.II_UIExitDungeonPopUp;
    import UI.Inventory.UIWeaponTooltip;
-   import UI.Options.OptionsPanel;
    import UI.Popup.UILootLossPopup;
-   import com.greensock.TweenMax;
+   import flash.display.Bitmap;
    import flash.display.DisplayObject;
    import flash.display.MovieClip;
    import flash.display.Sprite;
@@ -59,9 +68,10 @@ package UI.Hud
    import flash.geom.Point;
    import flash.geom.Vector3D;
    import flash.text.TextField;
+   import flash.utils.Dictionary;
    import flash.utils.Timer;
    
-   public class UIHud
+   public class UIHud implements IGameHud
    {
       
       private static const CONDENSEDHUD_BUFF_ICON_X_STARTPOS:int = 455;
@@ -108,6 +118,8 @@ package UI.Hud
       
       public static const ROYAL_ITEM_BOX_ID:uint = 60006;
       
+      private static const BUSTER_PRESS_TEXT_CONTROLLER_OFFSET_X:Number = -5;
+      
       private static const TEAM_DEFAULT:Vector3D = new Vector3D(45,150);
       
       private static const PROFILE_DEFAULT:Vector3D = new Vector3D(112,95);
@@ -132,6 +144,24 @@ package UI.Hud
       
       private static const CROWD_CONDENSED:Vector3D = new Vector3D(1555,920);
       
+      private static const CONTROLLER_ICON_POSITION_FOR_WEAPON_BUTTONS:Vector3D = new Vector3D(13,-50);
+      
+      private static const CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS:Point = new Point(25,25);
+      
+      private static const CONTROLLER_ICON_POSITION_FOR_CLOSE_BUTTON:Vector3D = new Vector3D(-5,-27);
+      
+      private static const CONTROLLER_GLYPH_SCALE_CLOSE_BUTTON:Point = new Point(25,25);
+      
+      private static const CONTROLLER_ICON_POSITION_FOR_CHAT_SEND_BUTTON:Vector3D = new Vector3D(32,-10);
+      
+      private static const CONTROLLER_ICON_POSITION_FOR_CHAT_LOG_BUTTON:Vector3D = new Vector3D(25,-10);
+      
+      private static const CONTROLLER_GLYPH_SCALE_CHAT_BUTTONS:Point = new Point(20,20);
+      
+      private static const CONTROLLER_ICON_POSITION_FOR_DUNGEON_BUSTER:Vector3D = new Vector3D(8,-8);
+      
+      private static const CONTROLLER_GLYPH_SCALE_DUNGEON_BUSTER:Point = new Point(25,25);
+      
       private var mDBFacade:DBFacade;
       
       private var mHeroOwner:HeroGameObjectOwner;
@@ -148,15 +178,13 @@ package UI.Hud
       
       private var mUIRoot:MovieClip;
       
-      private var mAddCoinButton:UIButton;
-      
-      private var mAddCashButton:UIButton;
-      
       private var mProfileBox:MovieClip;
       
       private var mProfileBulgeTask:Task;
       
       private var mProfileRestScale:Number;
+      
+      private var mBuffDisplayTask:Task;
       
       private var mFloaterTextClass:Class;
       
@@ -210,7 +238,7 @@ package UI.Hud
       
       private var mTeamLootMC:MovieClipRenderController;
       
-      private var mLootTween:TweenMax;
+      private var mLootTween:TweenHandle;
       
       private var mLootTask:Task;
       
@@ -244,13 +272,15 @@ package UI.Hud
       
       private var mBusterGlowMc:MovieClipRenderController;
       
+      private var mBusterPulseMc:MovieClipRenderController;
+      
       private var mXPBonusText:TextField;
       
       private var mCoinBonusText:TextField;
       
-      private var mOptionsButton:UIButton;
+      private var mSettingsPopup:SettingsPopup;
       
-      private var mOptionsPanel:OptionsPanel;
+      private var mSettingsModel:SettingsModel;
       
       private var mStacksHud:UIStacksHud;
       
@@ -268,8 +298,6 @@ package UI.Hud
       
       private var mUIChatLog:UIChatLog;
       
-      private var mSaleLabel:TextField;
-      
       private var mHealthFullRevealer:Revealer;
       
       private var mManaFullRevealer:Revealer;
@@ -283,6 +311,8 @@ package UI.Hud
       private var mPetPortraitNoneRoot:MovieClip;
       
       private var mPetPortrait:PetPortraitUI;
+      
+      private var mPetCarriedAcrossRebuild:NPCGameObject;
       
       private var mFloorLabel:TextField;
       
@@ -318,8 +348,28 @@ package UI.Hud
       
       private var mBuffCooldowns:Vector.<MovieClipRenderer>;
       
+      private var mHudControllerIcons:Vector.<ControllerIconData>;
+      
+      private var mExternalControllerIcons:Vector.<ControllerIconData>;
+      
+      private var mBusterPressTextOriginals:Dictionary;
+      
+      private var mInitControllerIconsLater:Task;
+      
+      private var mControllerIconLoadDelay:int = 1;
+      
+      private var mLootLossPopup:UILootLossPopup;
+      
+      private var mInfiniteExitPopup:II_UIExitDungeonPopUp;
+      
+      private var mSuppressNextExitMenuToggle:Boolean;
+      
       public function UIHud(facade:DBFacade)
       {
+         var settingsModel:SettingsModel;
+         mHudControllerIcons = new Vector.<ControllerIconData>();
+         mExternalControllerIcons = new Vector.<ControllerIconData>();
+         mBusterPressTextOriginals = new Dictionary(true);
          super();
          mDBFacade = facade;
          mRoot = new Sprite();
@@ -327,20 +377,57 @@ package UI.Hud
          mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"UIHud");
          mMaxBusterPoints = 4294967295;
-         mOptionsPanel = new OptionsPanel(mDBFacade);
-         MemoryTracker.track(mOptionsPanel,"OptionsPanel - created in UIHud.UIHud()");
+         settingsModel = mDBFacade.settingsModel;
          mStacksHud = new UIStacksHud(mDBFacade);
          mEventComponent = new EventComponent(mDBFacade);
+         mDBFacade.keyBindings.addChangeListener(onKeyBindingsChanged);
+         mSettingsModel = settingsModel;
+         mSettingsModel.addChangeListener(onSettingChanged);
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_HUD.swf"),function(param1:SwfAsset):void
          {
-            setupUI(param1,parseInt(mDBFacade.dbAccountInfo.getAttribute("optionsHudStyle")));
+            setupUI(param1,uint(settingsModel.getValue("hudStyle")));
          });
-         mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_town.swf"),setupOptions);
          mXpBulgeTask = null;
          mProfileBulgeTask = null;
          mBuffs = new Vector.<BuffGameObject>();
          mBuffIconButtons = new Vector.<UIButton>();
          mBuffCooldowns = new Vector.<MovieClipRenderer>();
+      }
+      
+      private static function setButtonLabel(button:UIButton, text:String) : void
+      {
+         if(button == null || button.label == null)
+         {
+            return;
+         }
+         button.label.text = text;
+      }
+      
+      private static function hideControllerIcon(iconData:ControllerIconData) : void
+      {
+         iconData.mIsHidden = true;
+         if(iconData.mOwner != null && iconData.mControllerGlyph != null && iconData.mOwner.contains(iconData.mControllerGlyph))
+         {
+            iconData.mOwner.removeChild(iconData.mControllerGlyph);
+         }
+      }
+      
+      private static function hideControllerIcons(icons:Vector.<ControllerIconData>) : void
+      {
+         for each(var _loc2_:ControllerIconData in icons)
+         {
+            hideControllerIcon(_loc2_);
+         }
+      }
+      
+      private static function unloadControllerIcons(icons:Vector.<ControllerIconData>) : void
+      {
+         for each(var _loc2_:ControllerIconData in icons)
+         {
+            hideControllerIcon(_loc2_);
+            _loc2_.destroy();
+         }
+         icons.length = 0;
       }
       
       public static function isThisAConsumbleChestId(chestId:int) : Boolean
@@ -352,11 +439,23 @@ package UI.Hud
       {
          this.setupUI(mSwfAsset,event.hudType);
          resetBuffButtonPositions();
+         if(mAssetsLoaded && mHeroOwner != null)
+         {
+            setupStatsForResourceBars();
+         }
       }
       
       public function get chatLogContainer() : MovieClip
       {
          return mUIRoot.chatLogContainer;
+      }
+      
+      public function offScreenPicChange(playerId:int, picType:String) : void
+      {
+         if(mOffScreenPlayerManager)
+         {
+            mOffScreenPlayerManager.handlePicChange(playerId,picType);
+         }
       }
       
       public function get ownedHero() : HeroGameObjectOwner
@@ -367,23 +466,6 @@ package UI.Hud
       public function get swfAsset() : SwfAsset
       {
          return mSwfAsset;
-      }
-      
-      private function setupOptions(swfAsset:SwfAsset) : void
-      {
-         var _loc2_:Class = swfAsset.getClass("options_panel_button");
-         var _loc7_:MovieClip = new _loc2_() as MovieClip;
-         mOptionsButton = new UIButton(mDBFacade,_loc7_);
-         mOptionsButton.releaseCallback = mOptionsPanel.toggleVisible;
-         var _loc4_:Number = mDBFacade.dbConfigManager.getConfigNumber("in_game_options_button_x",1895);
-         var _loc3_:Number = mDBFacade.dbConfigManager.getConfigNumber("in_game_options_button_y",65);
-         var _loc5_:Number = mDBFacade.dbConfigManager.getConfigNumber("in_game_options_button_scale_x",1);
-         var _loc6_:Number = mDBFacade.dbConfigManager.getConfigNumber("in_game_options_button_scale_y",1);
-         _loc7_.x = _loc4_;
-         _loc7_.y = _loc3_;
-         _loc7_.scaleX = _loc5_;
-         _loc7_.scaleY = _loc6_;
-         setOptionsBasedOnHud();
       }
       
       private function setDooberLocations(hudType:uint) : void
@@ -418,6 +500,7 @@ package UI.Hud
       
       private function setupUI(swfAsset:SwfAsset, hudType:uint = 0) : void
       {
+         var cooldownIndex:int;
          var hudClassName:String;
          var hudClass:Class;
          var i:uint;
@@ -427,6 +510,136 @@ package UI.Hud
          {
             mRoot.removeChild(mUIRoot);
          }
+         mPetCarriedAcrossRebuild = mPetPortrait ? mPetPortrait.petNPCGameObject : null;
+         if(mHpBar)
+         {
+            mHpBar.destroy();
+         }
+         mHpBar = null;
+         if(mFlashingHpBar)
+         {
+            mFlashingHpBar.destroy();
+         }
+         mFlashingHpBar = null;
+         if(mManaBar)
+         {
+            mManaBar.destroy();
+         }
+         mManaBar = null;
+         if(mBusterBar)
+         {
+            mBusterBar.destroy();
+         }
+         mBusterBar = null;
+         if(mXpBar)
+         {
+            mXpBar.destroy();
+         }
+         mXpBar = null;
+         if(mPetPortrait)
+         {
+            mPetPortrait.destroy();
+         }
+         mPetPortrait = null;
+         if(mBasicCurrencyUI)
+         {
+            mBasicCurrencyUI.destroy();
+         }
+         mBasicCurrencyUI = null;
+         if(mPremiumCurrencyUI)
+         {
+            mPremiumCurrencyUI.destroy();
+         }
+         mPremiumCurrencyUI = null;
+         if(mXpObject)
+         {
+            mXpObject.destroy();
+         }
+         mXpObject = null;
+         if(mCloseButton)
+         {
+            mCloseButton.destroy();
+         }
+         mCloseButton = null;
+         if(mWeaponZButton)
+         {
+            mWeaponZButton.destroy();
+         }
+         mWeaponZButton = null;
+         if(mWeaponXButton)
+         {
+            mWeaponXButton.destroy();
+         }
+         mWeaponXButton = null;
+         if(mWeaponCButton)
+         {
+            mWeaponCButton.destroy();
+         }
+         mWeaponCButton = null;
+         mWeaponButtons = null;
+         if(mConsumable1Button)
+         {
+            mConsumable1Button.destroy();
+         }
+         mConsumable1Button = null;
+         if(mConsumable2Button)
+         {
+            mConsumable2Button.destroy();
+         }
+         mConsumable2Button = null;
+         mConsumableWeaponButtons = null;
+         if(mDungeonModifer1)
+         {
+            mDungeonModifer1.destroy();
+         }
+         mDungeonModifer1 = null;
+         if(mDungeonModifer2)
+         {
+            mDungeonModifer2.destroy();
+         }
+         mDungeonModifer2 = null;
+         if(mDungeonModifer3)
+         {
+            mDungeonModifer3.destroy();
+         }
+         mDungeonModifer3 = null;
+         if(mDungeonModifer4)
+         {
+            mDungeonModifer4.destroy();
+         }
+         mDungeonModifer4 = null;
+         if(mCooldowns)
+         {
+            cooldownIndex = 0;
+            while(cooldownIndex < mCooldowns.length)
+            {
+               if(mCooldowns[cooldownIndex])
+               {
+                  mCooldowns[cooldownIndex].destroy();
+               }
+               cooldownIndex = cooldownIndex + 1;
+            }
+            mCooldowns = null;
+         }
+         if(mConsumableCooldowns)
+         {
+            cooldownIndex = 0;
+            while(cooldownIndex < mConsumableCooldowns.length)
+            {
+               if(mConsumableCooldowns[cooldownIndex])
+               {
+                  mConsumableCooldowns[cooldownIndex].destroy();
+               }
+               cooldownIndex = cooldownIndex + 1;
+            }
+            mConsumableCooldowns = null;
+         }
+         if(mInitControllerIconsLater)
+         {
+            mInitControllerIconsLater.destroy();
+         }
+         mInitControllerIconsLater = null;
+         destroyTeamLoot();
          mSwfAsset = swfAsset;
          switch(int(hudType))
          {
@@ -446,7 +659,6 @@ package UI.Hud
                mVerticalYClipping = 0;
                Logger.warn("Unable to determine hud with type: " + hudType);
          }
-         setOptionsBasedOnHud();
          setDooberLocations(mHudType);
          mDBFacade.camera.yCilppingFromBottom = mVerticalYClipping;
          mDBFacade.camera.forceRedraw();
@@ -460,32 +672,14 @@ package UI.Hud
             mUIChatLog.destroy();
          }
          mUIChatLog = new UIChatLog(mDBFacade,mUIRoot.chatLogContainer,mUIRoot.UI_chat,mUIRoot.UI_chat.log_btn,mUIRoot.UI_chat.chat_btn);
+         if(mHudType != 1)
+         {
+            mUIChatLog.textSizeModifier = 1.18;
+         }
          mCloseButton = new UIButton(mDBFacade,mUIRoot.close);
          mCloseButton.releaseCallback = function():void
          {
-            var exitPopup:II_UIExitDungeonPopUp;
-            var xpLoss:uint;
-            var lootLossPopup:UILootLossPopup;
-            var closeCallback:Function = function():void
-            {
-               var _loc1_:Object = {};
-               _loc1_.buttonDesc = "UIHud Exit Button Clicked";
-               _loc1_.areaType = "Dungeon";
-               mDBFacade.metrics.log("ButtonClick",_loc1_);
-               mUIChatLog.hideChatLog();
-               mDBFacade.mDistributedObjectManager.mMatchMaker.RequestExit();
-               mDBFacade.dbAccountInfo.dbAccountParams.flushParams();
-            };
-            if(mHeroOwner.distributedDungeonFloor.isInfiniteDungeon)
-            {
-               exitPopup = new II_UIExitDungeonPopUp(mDBFacade,closeCallback,null);
-            }
-            else
-            {
-               xpLoss = mHeroOwner.distributedDungeonFloor.completionXp;
-               lootLossPopup = new UILootLossPopup(mDBFacade,xpLoss,mHeroOwner.distributedDungeonFloor.treasureCollected,closeCallback,null);
-               MemoryTracker.track(lootLossPopup,"UILootLossPopup - created in UIHud.setupUI()");
-            }
+            closeButtonReleaseCallback();
          };
          if(mDBFacade.dbConfigManager.getConfigBoolean("want_pets",true))
          {
@@ -513,33 +707,12 @@ package UI.Hud
          hideBustSign();
          mBasicCurrencyUI = new UIObject(mDBFacade,mUIRoot.UI_currency_coin);
          mBasicCurrencyUI.setRootMovieClipAsBitMap();
-         mBasicCurrencyUI.tooltipDelay = 0.4;
-         mBasicCurrencyUI.tooltip.title_label.text = Locale.getString("COIN_TOOLTIP_TITLE");
-         mBasicCurrencyUI.tooltip.description_label.text = Locale.getString("COIN_TOOLTIP_DESCRIPTION");
          mPremiumCurrencyUI = new UIObject(mDBFacade,mUIRoot.UI_currency_cash);
          mPremiumCurrencyUI.setRootMovieClipAsBitMap();
-         mPremiumCurrencyUI.tooltipDelay = 0.4;
-         mPremiumCurrencyUI.tooltip.title_label.text = Locale.getString("CASH_TOOLTIP_TITLE");
-         mPremiumCurrencyUI.tooltip.description_label.text = Locale.getString("CASH_TOOLTIP_DESCRIPTION");
-         mSaleLabel = mPremiumCurrencyUI.root.label_sale;
-         mSaleLabel.visible = false;
          mBasicCurrencyText = mUIRoot.UI_currency_coin.game_currency_text;
          mBasicCurrencyText.mouseEnabled = false;
          mPremiumCurrencyText = mUIRoot.UI_currency_cash.cash_text;
          mPremiumCurrencyText.mouseEnabled = false;
-         mAddCoinButton = new UIButton(mDBFacade,mUIRoot.UI_currency_coin.coin.add_coin_button);
-         mAddCoinButton.releaseCallback = function():void
-         {
-            StoreServicesController.showCoinPage(mDBFacade);
-         };
-         mAddCoinButton.visible = false;
-         mAddCashButton = new UIButton(mDBFacade,mUIRoot.UI_currency_cash.cash.add_cash_button);
-         mAddCashButton.releaseCallback = function():void
-         {
-            mDBFacade.metrics.log("UIHudAddCash");
-            StoreServicesController.showCashPage(mDBFacade,"inDungeonUIHudAddCash");
-         };
-         mAddCashButton.visible = false;
          if(mDBFacade.dbAccountInfo)
          {
             setCurrency(mDBFacade.dbAccountInfo.basicCurrency,mDBFacade.dbAccountInfo.premiumCurrency);
@@ -583,6 +756,7 @@ package UI.Hud
          mConsumableWeaponButtons = new <UIButton>[mConsumable1Button,mConsumable2Button];
          mConsumable1Button.setRootMovieClipAsBitMap();
          mConsumable2Button.setRootMovieClipAsBitMap();
+         refreshKeyboardLabels();
          mConsumableCooldowns = new Vector.<MovieClipRenderer>();
          mConsumableCooldowns.push(new MovieClipRenderer(mDBFacade,mUIRoot.consumables_01.cooldown));
          mUIRoot.consumables_01.cooldown.visible = false;
@@ -610,39 +784,363 @@ package UI.Hud
          mDungeonModifer4 = new UIButton(mDBFacade,mUIRoot.floor_modifier04);
          mDungeonModifer4.tooltip = mUIRoot.tooltip_modifier04;
          mDungeonModifer4.tooltipPos = tooltipOffsset;
+         if(mDBFacade.steamInputManager.wantsControllerPrompts)
+         {
+            setAllKeyboardIconsVisibility(false);
+         }
+         if(mDBFacade.steamInputManager.isSteamInputReady)
+         {
+            mInitControllerIconsLater = mLogicalWorkComponent.doLater(mControllerIconLoadDelay,initAllControllerIconsTask);
+         }
          if(mHeroOwner)
          {
             this.initializeHud(mHeroOwner);
          }
       }
       
-      private function setOptionsBasedOnHud() : void
+      private function closeButtonReleaseCallback() : void
       {
-         if(mOptionsPanel == null || mOptionsButton == null)
+         var xpLoss:uint;
+         var closeCallback:Function = function():void
+         {
+            var _loc1_:Object = {};
+            _loc1_.buttonDesc = "UIHud Exit Button Clicked";
+            _loc1_.areaType = "Dungeon";
+            mDBFacade.metrics.log("ButtonClick",_loc1_);
+            mUIChatLog.hideChatLog();
+            mInfiniteExitPopup = null;
+            mLootLossPopup = null;
+            mDBFacade.mDistributedObjectManager.mMatchMaker.RequestExit();
+            mDBFacade.dbAccountInfo.dbAccountParams.flushParams();
+         };
+         if(mHeroOwner.distributedDungeonFloor.isInfiniteDungeon)
+         {
+            if(mInfiniteExitPopup == null)
+            {
+               mInfiniteExitPopup = new II_UIExitDungeonPopUp(mDBFacade,closeCallback,null,openSettingsPopup);
+               MemoryTracker.track(mInfiniteExitPopup,"II_UIExitDungeonPopup - created in UIHud.setupUI()");
+            }
+            else
+            {
+               mInfiniteExitPopup.destroy();
+               mInfiniteExitPopup = null;
+            }
+         }
+         else if(mLootLossPopup == null)
+         {
+            xpLoss = mHeroOwner.distributedDungeonFloor.completionXp;
+            mLootLossPopup = new UILootLossPopup(mDBFacade,xpLoss,mHeroOwner.distributedDungeonFloor.treasureCollected,closeCallback,null,openSettingsPopup);
+            MemoryTracker.track(mLootLossPopup,"UILootLossPopup - created in UIHud.setupUI()");
+         }
+         else
+         {
+            mLootLossPopup.destroy();
+            mLootLossPopup = null;
+         }
+      }
+      
+      private function initAllControllerIconsTask(inClock:GameClock) : void
+      {
+         mInitControllerIconsLater = null;
+         initAllControllerIcons();
+      }
+      
+      private function initAllControllerIcons() : void
+      {
+         if(!mDBFacade.steamInputManager.isSteamInputReady)
+         {
+            Logger.warn("Attempted to display Controller Icons but no controllers are connected. Aborting.");
+            return;
+         }
+         unloadControllerIcons(mHudControllerIcons);
+         initControllerIconOn("attack_weapon_1",mWeaponZButton,CONTROLLER_ICON_POSITION_FOR_WEAPON_BUTTONS,CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS);
+         initControllerIconOn("attack_weapon_2",mWeaponXButton,CONTROLLER_ICON_POSITION_FOR_WEAPON_BUTTONS,CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS);
+         initControllerIconOn("attack_weapon_3",mWeaponCButton,CONTROLLER_ICON_POSITION_FOR_WEAPON_BUTTONS,CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS);
+         initControllerIconOn("use_consumable_one",mConsumable1Button,CONTROLLER_ICON_POSITION_FOR_WEAPON_BUTTONS,CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS);
+         initControllerIconOn("use_consumable_two",mConsumable2Button,CONTROLLER_ICON_POSITION_FOR_WEAPON_BUTTONS,CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS);
+         initControllerIconOn("use_dungeon_buster",mDungeonBusterButton,CONTROLLER_ICON_POSITION_FOR_DUNGEON_BUSTER,CONTROLLER_GLYPH_SCALE_DUNGEON_BUSTER);
+         initControllerIconOn("toggle_menu",mCloseButton,CONTROLLER_ICON_POSITION_FOR_CLOSE_BUTTON,CONTROLLER_GLYPH_SCALE_CLOSE_BUTTON);
+         initControllerIconOn("toggle_chat_log",mUIChatLog ? mUIChatLog.chatLogButton : null,CONTROLLER_ICON_POSITION_FOR_CHAT_LOG_BUTTON,CONTROLLER_GLYPH_SCALE_CHAT_BUTTONS);
+         if(mDBFacade.steamInputManager.usesSteamOnScreenKeyboard)
+         {
+            initControllerIconOn("open_chat_keyboard",mUIChatLog ? mUIChatLog.chatSendButton : null,CONTROLLER_ICON_POSITION_FOR_CHAT_SEND_BUTTON,CONTROLLER_GLYPH_SCALE_CHAT_BUTTONS);
+         }
+      }
+      
+      private function onSettingChanged(id:String) : void
+      {
+         if(id != "numbersOnBars")
          {
             return;
          }
-         var _loc2_:Point = new Point(0,0);
-         var _loc1_:Point = new Point(1,1);
-         switch(int(mHudType))
+         if(mAssetsLoaded && mHeroOwner != null)
          {
-            case 0:
-               _loc2_ = new Point(1875,100);
-               _loc1_ = new Point(0.9,0.9);
-               break;
-            case 1:
-               _loc2_ = new Point(1875,100);
-               _loc1_ = new Point(0.9,0.9);
-               break;
-            default:
-               _loc2_ = new Point(1875,100);
-               _loc1_ = new Point(0.9,0.9);
-               Logger.warn("Unable to determine hud with type: " + mHudType);
+            setupStatsForResourceBars();
          }
-         mOptionsButton.root.x = _loc2_.x;
-         mOptionsButton.root.y = _loc2_.y;
-         mOptionsButton.root.scaleX = _loc1_.x;
-         mOptionsButton.root.scaleY = _loc1_.y;
+      }
+      
+      private function onKeyBindingsChanged(action:String) : void
+      {
+         refreshKeyboardLabels();
+      }
+      
+      private function refreshKeyboardLabels() : void
+      {
+         var _loc2_:KeyBindings = mDBFacade != null ? mDBFacade.keyBindings : null;
+         if(_loc2_ == null || mUIRoot == null)
+         {
+            return;
+         }
+         setButtonLabel(mWeaponZButton,_loc2_.displayNameFor("attackWeapon1"));
+         setButtonLabel(mWeaponXButton,_loc2_.displayNameFor("attackWeapon2"));
+         setButtonLabel(mWeaponCButton,_loc2_.displayNameFor("attackWeapon3"));
+         setButtonLabel(mConsumable1Button,_loc2_.displayNameFor("useConsumable1"));
+         setButtonLabel(mConsumable2Button,_loc2_.displayNameFor("useConsumable2"));
+         if(mDungeonBusterButton == null || mDBFacade.steamInputManager.hasGlyphForAction("use_dungeon_buster"))
+         {
+            return;
+         }
+         var _loc1_:String = Locale.getString("PRESS_BUSTER_BUTTON_KEYBOARD") + _loc2_.displayNameFor("useDungeonBuster");
+         TextUtil.setText(mUIRoot.UI_buster_active.buster_activated.up.db_pressbutton_text,_loc1_);
+         TextUtil.setText(mUIRoot.UI_buster_active.buster_activated.over.mc.db_pressbutton_text,_loc1_);
+      }
+      
+      private function initControllerIconOn(inActionName:String, inButton:UIButton, iconPosition:Vector3D, iconScale:Point) : void
+      {
+         if(inButton == null || inButton.root == null)
+         {
+            return;
+         }
+         addControllerIcon(mHudControllerIcons,inActionName,inButton.root,iconPosition,iconScale);
+      }
+      
+      private function setAllKeyboardIconsVisibility(isVisible:Boolean) : void
+      {
+         mWeaponZButton.label.visible = keepsKeyboardLabel(isVisible,"attack_weapon_1");
+         mWeaponXButton.label.visible = keepsKeyboardLabel(isVisible,"attack_weapon_2");
+         mWeaponCButton.label.visible = keepsKeyboardLabel(isVisible,"attack_weapon_3");
+         mConsumable1Button.label.visible = keepsKeyboardLabel(isVisible,"use_consumable_one");
+         mConsumable2Button.label.visible = keepsKeyboardLabel(isVisible,"use_consumable_two");
+         if(mUIChatLog)
+         {
+            mUIChatLog.setChatPromptVisible(isVisible);
+         }
+         setBusterPressText(keepsKeyboardLabel(isVisible,"use_dungeon_buster"));
+      }
+      
+      private function keepsKeyboardLabel(isVisible:Boolean, actionName:String) : Boolean
+      {
+         return isVisible || !mDBFacade.steamInputManager.hasGlyphForAction(actionName);
+      }
+      
+      private function setBusterPressText(isKeyboard:Boolean) : void
+      {
+         var _loc2_:Object = null;
+         if(mUIRoot == null || mUIRoot.UI_buster_active == null)
+         {
+            return;
+         }
+         var _loc4_:MovieClip = mUIRoot.UI_buster_active.buster_activated;
+         if(_loc4_ == null)
+         {
+            return;
+         }
+         for each(var _loc3_:TextField in [_loc4_.up.db_pressbutton_text,_loc4_.over.mc.db_pressbutton_text])
+         {
+            if(_loc3_ != null)
+            {
+               _loc2_ = mBusterPressTextOriginals[_loc3_];
+               if(_loc2_ == null)
+               {
+                  _loc2_ = {
+                     "text":_loc3_.text,
+                     "x":_loc3_.x
+                  };
+                  mBusterPressTextOriginals[_loc3_] = _loc2_;
+               }
+               if(isKeyboard)
+               {
+                  _loc3_.x = _loc2_.x;
+                  TextUtil.setText(_loc3_,_loc2_.text);
+               }
+               else
+               {
+                  _loc3_.x = _loc2_.x + -5;
+                  Locale.setText(_loc3_,"PRESS_BUSTER_BUTTON_CONTROLLER");
+               }
+            }
+         }
+         if(isKeyboard)
+         {
+            refreshKeyboardLabels();
+         }
+      }
+      
+      public function initControllerIcon(inActionName:String, inOwner:MovieClip, iconPosition:Vector3D, iconScale:Point) : void
+      {
+         addControllerIcon(mExternalControllerIcons,inActionName,inOwner,iconPosition,iconScale);
+      }
+      
+      public function removeControllerIcons(inOwner:MovieClip) : void
+      {
+         var _loc2_:int = 0;
+         var _loc3_:ControllerIconData = null;
+         _loc2_ = mExternalControllerIcons.length - 1;
+         while(_loc2_ >= 0)
+         {
+            _loc3_ = mExternalControllerIcons[_loc2_];
+            if(_loc3_.mOwner == inOwner)
+            {
+               hideControllerIcon(_loc3_);
+               _loc3_.destroy();
+               mExternalControllerIcons.removeAt(_loc2_);
+            }
+            _loc2_--;
+         }
+      }
+      
+      private function addControllerIcon(icons:Vector.<ControllerIconData>, inActionName:String, inOwner:MovieClip, iconPosition:Vector3D, iconScale:Point) : void
+      {
+         if(inOwner == null)
+         {
+            return;
+         }
+         var _loc7_:ControllerIconData = null;
+         for each(var _loc6_:ControllerIconData in icons)
+         {
+            if(_loc6_.mActionName == inActionName && _loc6_.mOwner == inOwner)
+            {
+               _loc7_ = _loc6_;
+               break;
+            }
+         }
+         if(_loc7_ == null)
+         {
+            _loc7_ = new ControllerIconData(null,inOwner,false);
+            _loc7_.mActionName = inActionName;
+            icons.push(_loc7_);
+         }
+         _loc7_.mPosition = iconPosition;
+         _loc7_.mScale = iconScale;
+         if(!mDBFacade.steamInputManager.isSteamInputReady)
+         {
+            _loc7_.mIsHidden = true;
+            return;
+         }
+         showControllerIcon(_loc7_);
+      }
+      
+      private function showControllerIcon(iconData:ControllerIconData) : void
+      {
+         var glyphFilePath:String;
+         iconData.mIsHidden = false;
+         glyphFilePath = mDBFacade.steamInputManager.getGlyphFilePathForAction(iconData.mActionName);
+         if(glyphFilePath == "error1" || glyphFilePath == "")
+         {
+            glyphFilePath = null;
+         }
+         if(glyphFilePath == iconData.mGlyphFilePath)
+         {
+            if(iconData.mControllerGlyph != null && !iconData.mOwner.contains(iconData.mControllerGlyph))
+            {
+               iconData.mOwner.addChild(iconData.mControllerGlyph);
+            }
+            return;
+         }
+         if(iconData.mControllerGlyph != null && iconData.mOwner.contains(iconData.mControllerGlyph))
+         {
+            iconData.mOwner.removeChild(iconData.mControllerGlyph);
+         }
+         iconData.mControllerGlyph = null;
+         iconData.mGlyphFilePath = glyphFilePath;
+         if(glyphFilePath == null)
+         {
+            Logger.warnch("Input","UIHud: no controller glyph for action \'" + iconData.mActionName + "\'");
+            return;
+         }
+         mAssetLoadingComponent.getImageAsset(glyphFilePath,function(param1:ImageAsset):void
+         {
+            if(iconData.mOwner == null || iconData.mGlyphFilePath != glyphFilePath || iconData.mControllerGlyph != null)
+            {
+               return;
+            }
+            var _loc2_:Bitmap = new Bitmap(param1.image.bitmapData,param1.image.pixelSnapping,param1.image.smoothing);
+            _loc2_.x = iconData.mPosition.x;
+            _loc2_.y = iconData.mPosition.y;
+            _loc2_.width = iconData.mScale.x;
+            _loc2_.height = iconData.mScale.y;
+            iconData.mControllerGlyph = _loc2_;
+            if(!iconData.mIsHidden)
+            {
+               iconData.mOwner.addChild(_loc2_);
+            }
+         });
+      }
+      
+      private function refreshControllerIcons(icons:Vector.<ControllerIconData>) : void
+      {
+         for each(var _loc2_:ControllerIconData in icons)
+         {
+            showControllerIcon(_loc2_);
+         }
+      }
+      
+      private function hideAndUnloadControllerIcons() : void
+      {
+         unloadControllerIcons(mHudControllerIcons);
+         unloadControllerIcons(mExternalControllerIcons);
+      }
+      
+      private function syncControllerPrompts() : void
+      {
+         if(mDBFacade.steamInputManager.isSteamInputReady)
+         {
+            initAllControllerIcons();
+            refreshControllerIcons(mExternalControllerIcons);
+         }
+         else
+         {
+            hideControllerIcons(mHudControllerIcons);
+            hideControllerIcons(mExternalControllerIcons);
+         }
+         setAllKeyboardIconsVisibility(!mDBFacade.steamInputManager.wantsControllerPrompts);
+      }
+      
+      private function openSettingsPopup() : void
+      {
+         if(mSettingsPopup || mDBFacade == null)
+         {
+            return;
+         }
+         mSettingsPopup = new SettingsPopup(mDBFacade,onSettingsPopupClosed);
+         MemoryTracker.track(mSettingsPopup,"SettingsPopup - created in UIHud.openSettingsPopup()");
+      }
+      
+      private function toggleSettingsPopup() : void
+      {
+         if(!mSettingsPopup)
+         {
+            openSettingsPopup();
+         }
+         else if(SettingsPopup.isTopMenu(mDBFacade))
+         {
+            mSettingsPopup.destroy();
+            mSettingsPopup = null;
+         }
+      }
+      
+      private function onSteamInputButtonReleased(event:OnSteamInputButtonReleasedEvent) : void
+      {
+         if(event.actionName == "menu_options" && mSettingsPopup)
+         {
+            toggleSettingsPopup();
+         }
+      }
+      
+      private function onSettingsPopupClosed() : void
+      {
+         mSettingsPopup = null;
+         mSuppressNextExitMenuToggle = mDBFacade.inputManager.check(27);
       }
       
       private function mouseOverXpListener(e:Event) : void
@@ -720,8 +1218,8 @@ package UI.Hud
          var _loc2_:int = mDBFacade.dbAccountInfo.inventoryInfo.timeTillNextBoosterExpire();
          if(_loc2_ >= 0)
          {
-            mBoosterTimer = new Timer(_loc2_,0);
-            mBoosterTimer.addEventListener("timer",handleBoosterTimeUp);
+            mBoosterTimer = Timers.create(_loc2_,0,"UIHud.mBoosterTimer");
+            EventListeners.add(mBoosterTimer,"timer",handleBoosterTimeUp);
             mBoosterTimer.start();
          }
       }
@@ -738,12 +1236,12 @@ package UI.Hud
          if(mDBFacade.accountBonus.isXPBonusActive)
          {
             mXPBonusText.visible = true;
-            mXPBonusText.text = mDBFacade.accountBonus.xpBonusText;
+            TextUtil.setText(mXPBonusText,mDBFacade.accountBonus.xpBonusText);
          }
          else if(_loc2_ != null && _loc2_.BuffInfo.Exp > 1)
          {
             mXPBonusText.visible = true;
-            mXPBonusText.text = _loc2_.BuffInfo.Exp + Locale.getString("BOOSTER_XP");
+            TextUtil.setText(mXPBonusText,_loc2_.BuffInfo.Exp + Locale.getString("BOOSTER_XP"));
          }
          else
          {
@@ -757,12 +1255,12 @@ package UI.Hud
          if(mDBFacade.accountBonus.isCoinBonusActive)
          {
             mCoinBonusText.visible = true;
-            mCoinBonusText.text = mDBFacade.accountBonus.coinBonusText;
+            TextUtil.setText(mCoinBonusText,mDBFacade.accountBonus.coinBonusText);
          }
          else if(_loc2_ != null && _loc2_.BuffInfo.Gold > 1)
          {
             mCoinBonusText.visible = true;
-            mCoinBonusText.text = _loc2_.BuffInfo.Gold + Locale.getString("BOOSTER_GOLD");
+            TextUtil.setText(mCoinBonusText,_loc2_.BuffInfo.Gold + Locale.getString("BOOSTER_GOLD"));
          }
          else
          {
@@ -802,6 +1300,10 @@ package UI.Hud
       {
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_town.swf"),function(param1:SwfAsset):void
          {
+            if(!button.root)
+            {
+               return;
+            }
             var _loc2_:Class = num == 0 ? param1.getClass("DR_weapon_tooltip_z") : param1.getClass("DR_weapon_tooltip");
             var _loc4_:UIWeaponTooltip = new UIWeaponTooltip(mDBFacade,_loc2_);
             button.tooltip = _loc4_;
@@ -812,8 +1314,33 @@ package UI.Hud
          });
       }
       
+      private function destroyTeamLoot() : void
+      {
+         if(mLootTween)
+         {
+            mDBFacade.mTween.killTween(mLootTween);
+            mLootTween = null;
+         }
+         if(mLootTask)
+         {
+            mLootTask.destroy();
+            mLootTask = null;
+         }
+         if(mTeamLootMC)
+         {
+            mTeamLootMC.clip.visible = false;
+            if(mTeamLootMC.clip.parent)
+            {
+               mTeamLootMC.clip.parent.removeChild(mTeamLootMC.clip);
+            }
+            mTeamLootMC.destroy();
+            mTeamLootMC = null;
+         }
+      }
+      
       public function openTeamLoot(chestId:uint) : void
       {
+         destroyTeamLoot();
          var _loc4_:String = "";
          switch(int(chestId) - 60001)
          {
@@ -839,15 +1366,15 @@ package UI.Hud
          var _loc2_:MovieClip = new _loc3_() as MovieClip;
          mTeamLootMC = new MovieClipRenderController(mDBFacade,_loc2_);
          mUIRoot.addChild(mTeamLootMC.clip);
-         mTeamLootMC.clip.scaleX = mTeamLootMC.clip.scaleY = 1.8;
+         mTeamLootMC.clip.scaleX = mTeamLootMC.clip.scaleY = DBGlobal.UI_16_TO_9_PORT_OBJECT_SCALE;
          mTeamLootMC.clip.x = -550;
          mTeamLootMC.clip.y = -150;
          if(mLootTween)
          {
-            mLootTween.kill();
+            mDBFacade.mTween.killTween(mLootTween);
          }
          mTeamLootMC.play(0,true);
-         mLootTween = TweenMax.to(mTeamLootMC.clip,0.5,{"x":-550});
+         mLootTween = mDBFacade.mTween.tweenMaxTo(mTeamLootMC.clip,0.5,{"x":-550});
          if(mLootTask)
          {
             mLootTask.destroy();
@@ -857,8 +1384,17 @@ package UI.Hud
       
       public function closeTeamLoot(gameClock:GameClock = null) : void
       {
-         var cleanupFunc:Function = function():void
+         var cleanupFunc:Function;
+         if(!mTeamLootMC)
          {
+            return;
+         }
+         cleanupFunc = function():void
+         {
+            if(!mTeamLootMC)
+            {
+               return;
+            }
             mTeamLootMC.stop();
             mTeamLootMC.clip.visible = false;
          };
@@ -866,11 +1402,12 @@ package UI.Hud
          {
             mLootTask.destroy();
          }
+         mLootTask = null;
          if(mLootTween)
          {
-            mLootTween.kill();
+            mDBFacade.mTween.killTween(mLootTween);
          }
-         mLootTween = TweenMax.to(mTeamLootMC.clip,0.5,{
+         mLootTween = mDBFacade.mTween.tweenMaxTo(mTeamLootMC.clip,0.5,{
             "x":-250,
             "onComplete":cleanupFunc
          });
@@ -878,14 +1415,94 @@ package UI.Hud
       
       public function detachHero() : void
       {
+         var _loc1_:int = 0;
          hide();
          hideBustSign();
-         mOffScreenPlayerManager.destroy();
+         if(mOffScreenPlayerManager)
+         {
+            mOffScreenPlayerManager.destroy();
+         }
          mOffScreenPlayerManager = null;
          mHeroOwner = null;
+         if(mUIChatLog)
+         {
+            mUIChatLog.heroOwner = null;
+         }
          mEventComponent.removeAllListeners();
-         mUIRoot.UI_XP.removeEventListener("mouseOver",mouseOverXpListener);
-         mUIRoot.UI_XP.removeEventListener("mouseOut",mouseOutXpListener);
+         EventListeners.remove(mUIRoot.UI_XP,"mouseOver",mouseOverXpListener);
+         EventListeners.remove(mUIRoot.UI_XP,"mouseOut",mouseOutXpListener);
+         if(mProfileBox)
+         {
+            EventListeners.remove(mProfileBox,"mouseOver",mouseOverProfileBox);
+            EventListeners.remove(mProfileBox,"mouseOut",mouseOutProfileBox);
+         }
+         if(mBuffDisplayTask)
+         {
+            mBuffDisplayTask.destroy();
+         }
+         mBuffDisplayTask = null;
+         if(mBuffs)
+         {
+            mBuffs.splice(0,mBuffs.length);
+         }
+         if(mBuffIconButtons)
+         {
+            _loc1_ = 0;
+            while(_loc1_ < mBuffIconButtons.length)
+            {
+               if(mBuffIconButtons[_loc1_])
+               {
+                  mBuffIconButtons[_loc1_].destroy();
+               }
+               _loc1_++;
+            }
+            mBuffIconButtons.splice(0,mBuffIconButtons.length);
+         }
+         if(mBuffCooldowns)
+         {
+            _loc1_ = 0;
+            while(_loc1_ < mBuffCooldowns.length)
+            {
+               if(mBuffCooldowns[_loc1_])
+               {
+                  mBuffCooldowns[_loc1_].destroy();
+               }
+               _loc1_++;
+            }
+            mBuffCooldowns.splice(0,mBuffCooldowns.length);
+         }
+         if(mBoosterTimer)
+         {
+            mBoosterTimer.stop();
+            EventListeners.remove(mBoosterTimer,"timer",handleBoosterTimeUp);
+            mBoosterTimer = null;
+         }
+         if(mDungeonBusterButton)
+         {
+            mDungeonBusterButton.destroy();
+         }
+         mDungeonBusterButton = null;
+         if(mBusterGlowMc)
+         {
+            mBusterGlowMc.destroy();
+         }
+         mBusterGlowMc = null;
+         if(mBusterPulseMc)
+         {
+            mBusterPulseMc.destroy();
+         }
+         mBusterPulseMc = null;
+         if(mLootLossPopup)
+         {
+            mLootLossPopup.destroy();
+         }
+         mLootLossPopup = null;
+         if(mInfiniteExitPopup)
+         {
+            mInfiniteExitPopup.destroy();
+         }
+         mInfiniteExitPopup = null;
+         destroyTeamLoot();
       }
       
       public function initializeHud(heroOwner:HeroGameObjectOwner) : void
@@ -911,14 +1528,24 @@ package UI.Hud
             setXp(mHeroOwner.experiencePoints);
             bulgeXpBar();
             bulgeProfileBox();
-            setBusterPoints(mHeroOwner.dungeonBusterPoints);
             this.addListeners();
+            if(mBoosterTimer != null)
+            {
+               mBoosterTimer.stop();
+               mBoosterTimer.removeEventListener("timer",handleBoosterTimeUp);
+               mBoosterTimer = null;
+            }
             boosterTime = mDBFacade.dbAccountInfo.inventoryInfo.timeTillNextBoosterExpire();
             if(boosterTime >= 0)
             {
-               mBoosterTimer = new Timer(boosterTime,0);
-               mBoosterTimer.addEventListener("timer",handleBoosterTimeUp);
+               mBoosterTimer = Timers.create(boosterTime,0,"UIHud.mBoosterTimer");
+               EventListeners.add(mBoosterTimer,"timer",handleBoosterTimeUp);
                mBoosterTimer.start();
+            }
+            if(mOffScreenPlayerManager)
+            {
+               mOffScreenPlayerManager.destroy();
+               mOffScreenPlayerManager = null;
             }
             mOffScreenPlayerManager = new UIOffScreenPlayerManager(mDBFacade,mUIRoot,mHeroOwner);
             equippedWeapons = new Vector.<WeaponGameObject>();
@@ -959,6 +1586,10 @@ package UI.Hud
                });
             }
             mStacksHud.setupStacksUI();
+            if(mDungeonBusterButton)
+            {
+               mDungeonBusterButton.destroy();
+            }
             mDungeonBusterButton = new UIButton(mDBFacade,mUIRoot.UI_buster_active.buster_activated);
             mDungeonBusterButton.releaseCallback = handleBusterBarClickEvent;
             mBusterLabel = mUIRoot.UI_buster_active.buster_activated.up.name_mc.name_label;
@@ -966,9 +1597,24 @@ package UI.Hud
             busterConstant = mHeroOwner.gMHero.DBuster1;
             busterAttack = mDBFacade.gameMaster.attackByConstant.itemFor(busterConstant);
             busterName = busterAttack ? GameMasterLocale.getGameMasterSubString("ATTACK_BUSTER_NAME",busterAttack.Constant) : "BUSTER!";
-            mBusterLabel.text = mBusterLabelOver.text = busterName.toUpperCase();
+            TextUtil.setText(mBusterLabel,busterName.toUpperCase());
+            TextUtil.setText(mBusterLabelOver,busterName.toUpperCase());
+            if(mBusterGlowMc)
+            {
+               mBusterGlowMc.destroy();
+            }
             mBusterGlowMc = new MovieClipRenderController(mDBFacade,mUIRoot.UI_buster_glow);
-            mUIRoot.UI_buster_glow.buster_text.buster_text_label.name_label.text = busterName.toUpperCase();
+            if(mBusterPulseMc)
+            {
+               mBusterPulseMc.destroy();
+            }
+            mBusterPulseMc = new MovieClipRenderController(mDBFacade,mUIRoot.UI_buster.buster_activated_glow);
+            if(mUIRoot.UI_buster.buster_activated_glow.visible)
+            {
+               mBusterPulseMc.play(0,true);
+            }
+            TextUtil.setText(mUIRoot.UI_buster_glow.buster_text.buster_text_label.name_label,busterName.toUpperCase());
+            refreshKeyboardLabels();
             if(mDBFacade.dbAccountInfo)
             {
                setCurrency(mDBFacade.dbAccountInfo.basicCurrency,mDBFacade.dbAccountInfo.premiumCurrency);
@@ -979,20 +1625,24 @@ package UI.Hud
             setCurrentFloorLabel();
             setDungeonModifiers();
             mUIChatLog.heroOwner = mHeroOwner;
-            mLogicalWorkComponent.doEveryFrame(updateBuffDisplay);
+            if(mBuffDisplayTask)
+            {
+               mBuffDisplayTask.destroy();
+            }
+            mBuffDisplayTask = mLogicalWorkComponent.doEveryFrame(updateBuffDisplay);
             setupStatsForResourceBars();
          }
       }
       
       private function setCurrentFloorLabel() : void
       {
-         mFloorLabel.text = Locale.getString("UI_HUD_FLOOR_LABEL") + mHeroOwner.distributedDungeonFloor.getCurrentFloorNum().toString();
+         TextUtil.setText(mFloorLabel,Locale.getString("UI_HUD_FLOOR_LABEL") + mHeroOwner.distributedDungeonFloor.getCurrentFloorNum().toString());
       }
       
       private function setDungeonModifiers() : void
       {
          var _loc1_:UIButton = null;
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          mDungeonModifer1.visible = false;
          mDungeonModifer2.visible = false;
          mDungeonModifer3.visible = false;
@@ -1021,10 +1671,14 @@ package UI.Hud
       
       private function setupModifiers(dungeonModButton:UIButton, gmDungeonModifier:DungeonModifierHelper) : void
       {
-         dungeonModButton.tooltip.title_label.text = GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_NAME",gmDungeonModifier.GMDungeonMod.Constant);
-         dungeonModButton.tooltip.description_label.text = GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_DESCRIPTION",gmDungeonModifier.GMDungeonMod.Constant);
+         TextUtil.setText(dungeonModButton.tooltip.title_label,GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_NAME",gmDungeonModifier.GMDungeonMod.Constant));
+         TextUtil.setText(dungeonModButton.tooltip.description_label,GameMasterLocale.getGameMasterSubString("DUNGEON_MODIFIER_DESCRIPTION",gmDungeonModifier.GMDungeonMod.Constant));
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(gmDungeonModifier.GMDungeonMod.IconFilepath),function(param1:SwfAsset):void
          {
+            if(!dungeonModButton.root)
+            {
+               return;
+            }
             var _loc2_:Class = param1.getClass(gmDungeonModifier.GMDungeonMod.IconName);
             if(_loc2_ == null)
             {
@@ -1047,13 +1701,17 @@ package UI.Hud
          {
             _loc1_ = mPetPortrait.petNPCGameObject;
          }
+         else
+         {
+            _loc1_ = mPetCarriedAcrossRebuild;
+         }
+         mPetCarriedAcrossRebuild = null;
          registerPet(_loc1_);
       }
       
       public function show() : void
       {
          mSceneGraphComponent.addChild(mRoot,50);
-         mSceneGraphComponent.addChild(mOptionsButton.root,50);
          mStacksHud.show();
          mDBFacade.camera.yCilppingFromBottom = mVerticalYClipping;
          initializePetPortraits();
@@ -1062,10 +1720,13 @@ package UI.Hud
       public function hide() : void
       {
          mSceneGraphComponent.removeChild(mRoot);
-         mSceneGraphComponent.removeChild(mOptionsButton.root);
          mDBFacade.camera.yCilppingFromBottom = 0;
          mDBFacade.camera.forceRedraw();
-         mOptionsPanel.hide();
+         if(mSettingsPopup)
+         {
+            mSettingsPopup.destroy();
+            mSettingsPopup = null;
+         }
          mStacksHud.hide();
          if(mUIChatLog)
          {
@@ -1075,8 +1736,9 @@ package UI.Hud
          if(mPetPortrait)
          {
             mPetPortrait.destroy();
-            mPetPortrait = null;
          }
+         mPetPortrait = null;
+         mPetCarriedAcrossRebuild = null;
       }
       
       public function showStacks() : void
@@ -1169,18 +1831,23 @@ package UI.Hud
                   var rarity:GMRarity = param3;
                   return function(param1:SwfAsset):void
                   {
+                     var weaponClass:Class;
                      var bgColoredExists:Boolean;
                      var bgSwfPath:String;
                      var bgIconName:String;
                      var swfAsset:SwfAsset = param1;
-                     var weaponClass:Class = swfAsset.getClass(weaponAesthetic.IconName);
+                     if(!weaponButton.root)
+                     {
+                        return;
+                     }
+                     weaponClass = swfAsset.getClass(weaponAesthetic.IconName);
                      if(weaponClass == null)
                      {
                         return;
                      }
                      weapon = new weaponClass();
                      weapon.name = "weaponIcon";
-                     weapon.scaleX = weapon.scaleY = 60 / 100;
+                     weapon.scaleX = weapon.scaleY = 60 / DBGlobal.WEAPON_ICON_NATIVE_SIZE;
                      weaponButton.root.graphic.addChildAt(weapon,0);
                      bgColoredExists = rarity.HasColoredBackground;
                      bgSwfPath = rarity.BackgroundSwf;
@@ -1190,6 +1857,10 @@ package UI.Hud
                         mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(bgSwfPath),function(param1:SwfAsset):void
                         {
                            var _loc3_:MovieClip = null;
+                           if(!weaponButton.root)
+                           {
+                              return;
+                           }
                            var _loc2_:Class = param1.getClass(bgIconName);
                            if(_loc2_)
                            {
@@ -1236,7 +1907,7 @@ package UI.Hud
                button.root.weaponIndex = i;
                button.root.quantity.visible = true;
                button.root.textx.visible = true;
-               button.root.quantity.text = consumableWeaponGameObject.getConsumableCount().toString();
+               TextUtil.setText(button.root.quantity,consumableWeaponGameObject.getConsumableCount().toString());
                switch(int(i))
                {
                   case 0:
@@ -1246,7 +1917,7 @@ package UI.Hud
                      tooltip = mUIRoot.consumable_tooltip02;
                }
                button.tooltip = tooltip;
-               button.tooltip.description_label.text = GameMasterLocale.getGameMasterSubString("STACKABLE_DESCRIPTION",consumableWeaponGameObject.getGMStackable().Constant);
+               TextUtil.setText(button.tooltip.description_label,GameMasterLocale.getGameMasterSubString("STACKABLE_DESCRIPTION",consumableWeaponGameObject.getGMStackable().Constant));
                tooltip.visible = true;
                button.setTooltipToBeParentedToStage();
                button.tooltipPos = new Point(button.root.x,button.root.y);
@@ -1260,6 +1931,10 @@ package UI.Hud
                   var gmStackable:GMStackable = param2;
                   return function(param1:SwfAsset):void
                   {
+                     if(!weaponButton.root)
+                     {
+                        return;
+                     }
                      var _loc2_:Class = param1.getClass(gmStackable.IconName);
                      if(_loc2_ == null)
                      {
@@ -1267,7 +1942,7 @@ package UI.Hud
                      }
                      weapon = new _loc2_();
                      weapon.name = "weaponIcon";
-                     weapon.scaleX = weapon.scaleY = 60 / 100;
+                     weapon.scaleX = weapon.scaleY = 60 / DBGlobal.WEAPON_ICON_NATIVE_SIZE;
                      weaponButton.root.graphic.addChildAt(weapon,0);
                   };
                };
@@ -1316,10 +1991,23 @@ package UI.Hud
             }
          });
          mEventComponent.addListener("UI_HUD_CHANGE_EVENT",switchHudEvent);
-         mProfileBox.addEventListener("mouseOver",mouseOverProfileBox);
-         mProfileBox.addEventListener("mouseOut",mouseOutProfileBox);
-         mUIRoot.UI_XP.addEventListener("mouseOver",mouseOverXpListener);
-         mUIRoot.UI_XP.addEventListener("mouseOut",mouseOutXpListener);
+         mEventComponent.addListener("OnSteamInputGlyphsChanged",onSteamInputGlyphsChanged);
+         mEventComponent.addListener("ControllerConnectionChangedEvent",onControllerConnectionChanged);
+         mEventComponent.addListener("OnSteamInputButtonReleasedEvent",onSteamInputButtonReleased);
+         EventListeners.add(mProfileBox,"mouseOver",mouseOverProfileBox);
+         EventListeners.add(mProfileBox,"mouseOut",mouseOutProfileBox);
+         EventListeners.add(mUIRoot.UI_XP,"mouseOver",mouseOverXpListener);
+         EventListeners.add(mUIRoot.UI_XP,"mouseOut",mouseOutXpListener);
+         setAllKeyboardIconsVisibility(!mDBFacade.steamInputManager.wantsControllerPrompts);
+         if(mDBFacade.steamInputManager.isSteamInputReady && mInitControllerIconsLater == null)
+         {
+            mInitControllerIconsLater = mLogicalWorkComponent.doLater(mControllerIconLoadDelay,initAllControllerIconsTask);
+         }
+      }
+      
+      private function onControllerConnectionChanged(inEvent:Event) : void
+      {
+         syncControllerPrompts();
       }
       
       private function mouseOutProfileBox(e:Event) : void
@@ -1409,7 +2097,7 @@ package UI.Hud
          var _loc3_:Number = current / max;
          mHpBar.value = _loc3_;
          mFlashingHpBar.value = _loc3_;
-         mHpText.text = current.toString() + " / " + max.toString();
+         TextUtil.setText(mHpText,current.toString() + " / " + max.toString());
       }
       
       public function setMana(current:uint, max:uint) : void
@@ -1419,7 +2107,7 @@ package UI.Hud
             return;
          }
          mManaBar.value = current / max;
-         mManaText.text = current.toString() + " / " + max.toString();
+         TextUtil.setText(mManaText,current.toString() + " / " + max.toString());
       }
       
       private function spawnBusterFloater(delta:int, offset:Number) : void
@@ -1455,8 +2143,8 @@ package UI.Hud
          {
             return;
          }
-         mBasicCurrencyText.text = basicCurrency.toString();
-         mPremiumCurrencyText.text = premiumCurrency.toString();
+         TextUtil.setText(mBasicCurrencyText,basicCurrency.toString());
+         TextUtil.setText(mPremiumCurrencyText,premiumCurrency.toString());
       }
       
       private function spawnCoinFloater(delta:int) : void
@@ -1474,7 +2162,7 @@ package UI.Hud
          {
             spawnCoinFloater(_loc2_);
          }
-         mBasicCurrencyText.text = basicCurrency.toString();
+         TextUtil.setText(mBasicCurrencyText,basicCurrency.toString());
          mBasicCurrency = basicCurrency;
       }
       
@@ -1493,7 +2181,7 @@ package UI.Hud
          {
             spawnCashFloater(_loc2_);
          }
-         mPremiumCurrencyText.text = premiumCurrency.toString();
+         TextUtil.setText(mPremiumCurrencyText,premiumCurrency.toString());
          mPremiumCurrency = premiumCurrency;
       }
       
@@ -1509,13 +2197,13 @@ package UI.Hud
          }
          var _loc5_:uint = mHeroOwner.level;
          var _loc4_:uint = xp;
-         var _loc2_:uint = uint(mHeroOwner.gMHero.getLevelIndex(xp));
+         var _loc2_:uint = uint(mHeroOwner.gMHero.getLevelIndex(xp,mHeroOwner.ascensionLevel));
          var _loc7_:uint = uint(_loc2_ > 0 ? mHeroOwner.gMHero.getExpFromIndex(_loc2_ - 1) : 0);
          var _loc6_:uint = mHeroOwner.gMHero.getExpFromIndex(_loc2_);
-         mLevelText.text = _loc5_.toString();
+         TextUtil.setText(mLevelText,_loc5_.toString());
          var _loc3_:Number = (_loc4_ - _loc7_) / (_loc6_ - _loc7_);
          mXpBar.value = _loc3_;
-         mXpText.text = _loc4_.toString() + " / " + _loc6_.toString();
+         TextUtil.setText(mXpText,_loc4_.toString() + " / " + _loc6_.toString());
          spawnXpFloater(xp - mXpValue,_loc3_ * 100);
          mXpValue = xp;
          if(!mXpGotInitialUpdate)
@@ -1588,41 +2276,62 @@ package UI.Hud
       {
          var _loc2_:int = 0;
          var _loc1_:UIButton = null;
+         if(mDBFacade != null && mDBFacade.keyBindings != null)
+         {
+            mDBFacade.keyBindings.removeChangeListener(onKeyBindingsChanged);
+         }
+         if(mSettingsModel != null)
+         {
+            mSettingsModel.removeChangeListener(onSettingChanged);
+            mSettingsModel = null;
+         }
          if(mProfileBox)
          {
-            mProfileBox.removeEventListener("mouseOver",mouseOverProfileBox);
-            mProfileBox.removeEventListener("mouseOut",mouseOutProfileBox);
+            EventListeners.remove(mProfileBox,"mouseOver",mouseOverProfileBox);
+            EventListeners.remove(mProfileBox,"mouseOut",mouseOutProfileBox);
          }
-         mBuffs.splice(0,mBuffs.length);
-         mBuffs = null;
-         _loc2_ = 0;
-         while(_loc2_ < mBuffIconButtons.length)
+         if(mBuffs)
          {
-            if(mBuffIconButtons[_loc2_])
-            {
-               mBuffIconButtons[_loc2_].destroy();
-            }
-            _loc2_++;
+            mBuffs.splice(0,mBuffs.length);
+            mBuffs = null;
          }
-         mBuffIconButtons = null;
-         _loc2_ = 0;
-         while(_loc2_ < mBuffCooldowns.length)
+         if(mBuffIconButtons)
          {
-            if(mBuffCooldowns[_loc2_])
+            _loc2_ = 0;
+            while(_loc2_ < mBuffIconButtons.length)
             {
-               mBuffCooldowns[_loc2_].destroy();
+               if(mBuffIconButtons[_loc2_])
+               {
+                  mBuffIconButtons[_loc2_].destroy();
+               }
+               _loc2_++;
             }
-            _loc2_++;
+            mBuffIconButtons = null;
          }
-         mBuffCooldowns = null;
+         if(mBuffCooldowns)
+         {
+            _loc2_ = 0;
+            while(_loc2_ < mBuffCooldowns.length)
+            {
+               if(mBuffCooldowns[_loc2_])
+               {
+                  mBuffCooldowns[_loc2_].destroy();
+               }
+               _loc2_++;
+            }
+            mBuffCooldowns = null;
+         }
          if(mBoosterTimer != null)
          {
             mBoosterTimer.stop();
             mBoosterTimer = null;
          }
          mDBFacade = null;
-         mOptionsPanel.destroy();
-         mOptionsPanel = null;
+         if(mSettingsPopup)
+         {
+            mSettingsPopup.destroy();
+            mSettingsPopup = null;
+         }
          mStacksHud.destroy();
          mStacksHud = null;
          if(mOffScreenPlayerManager)
@@ -1641,21 +2350,21 @@ package UI.Hud
          mHeroOwner = null;
          mRoot = null;
          mUIRoot = null;
-         if(mAddCoinButton)
+         if(mInitControllerIconsLater)
          {
-            mAddCoinButton.destroy();
+            mInitControllerIconsLater.destroy();
          }
-         mAddCoinButton = null;
-         if(mAddCashButton)
-         {
-            mAddCashButton.destroy();
-         }
-         mAddCashButton = null;
+         mInitControllerIconsLater = null;
          if(mProfileBulgeTask)
          {
             mProfileBulgeTask.destroy();
          }
          mProfileBulgeTask = null;
+         if(mBuffDisplayTask)
+         {
+            mBuffDisplayTask.destroy();
+         }
+         mBuffDisplayTask = null;
          if(mHpBar)
          {
             mHpBar.destroy();
@@ -1731,16 +2440,16 @@ package UI.Hud
             mBusterGlowMc.destroy();
          }
          mBusterGlowMc = null;
-         if(mOptionsButton)
+         if(mBusterPulseMc)
          {
-            mOptionsButton.destroy();
+            mBusterPulseMc.destroy();
          }
-         mOptionsButton = null;
-         if(mOptionsPanel)
+         mBusterPulseMc = null;
+         if(mSettingsPopup)
          {
-            mOptionsPanel.destroy();
+            mSettingsPopup.destroy();
          }
-         mOptionsPanel = null;
+         mSettingsPopup = null;
          if(mStacksHud)
          {
             mStacksHud.destroy();
@@ -1760,6 +2469,7 @@ package UI.Hud
          {
             mPetPortrait.destroy();
          }
+         mPetPortrait = null;
          for each(_loc1_ in mWeaponButtons)
          {
             if(_loc1_)
@@ -1776,7 +2486,7 @@ package UI.Hud
             }
             _loc1_ = null;
          }
-         mSaleLabel = null;
+         hideAndUnloadControllerIcons();
          mProfileBox = null;
          mFloaterTextClass = null;
          mHpText = null;
@@ -1794,6 +2504,16 @@ package UI.Hud
          mBusterLabel = null;
          mBusterLabelOver = null;
          mSwfAsset = null;
+         if(mLootLossPopup)
+         {
+            mLootLossPopup.destroy();
+         }
+         mLootLossPopup = null;
+         if(mInfiniteExitPopup)
+         {
+            mInfiniteExitPopup.destroy();
+         }
+         mInfiniteExitPopup = null;
       }
       
       public function get offScreenPlayerManager() : UIOffScreenPlayerManager
@@ -1809,6 +2529,10 @@ package UI.Hud
             mUIRoot.UI_buster_glow.visible = false;
             mUIRoot.UI_buster_active.visible = true;
             mUIRoot.UI_buster.buster_activated_glow.visible = true;
+            if(mBusterPulseMc && !mBusterPulseMc.isPlaying)
+            {
+               mBusterPulseMc.play(0,true);
+            }
          });
       }
       
@@ -1817,6 +2541,10 @@ package UI.Hud
          mUIRoot.UI_buster_glow.visible = false;
          mUIRoot.UI_buster_active.visible = false;
          mUIRoot.UI_buster.buster_activated_glow.visible = false;
+         if(mBusterPulseMc)
+         {
+            mBusterPulseMc.stop();
+         }
       }
       
       public function handleBusterBarClickEvent() : void
@@ -1844,7 +2572,7 @@ package UI.Hud
       public function showNotEnoughMana() : void
       {
          mUIRoot.UI_center_message.visible = true;
-         mUIRoot.UI_center_message.text = Locale.getString("NOT_ENOUGH_MANA");
+         Locale.setText(mUIRoot.UI_center_message,"NOT_ENOUGH_MANA");
       }
       
       public function get chatLog() : UIChatLog
@@ -1870,13 +2598,13 @@ package UI.Hud
          mCooldowns[currentWeaponIndex].stop();
          mCooldowns[currentWeaponIndex].clip.visible = false;
          mWeaponButtons[currentWeaponIndex].root.graphic.alpha = 1;
-         TweenMax.to(mWeaponButtons[currentWeaponIndex].root.graphic,0.25,{
+         mDBFacade.mTween.tweenMaxTo(mWeaponButtons[currentWeaponIndex].root.graphic,0.25,{
             "scaleX":1.25,
             "scaleY":1.25,
             "tint":16777215,
             "onComplete":function():void
             {
-               TweenMax.to(mWeaponButtons[currentWeaponIndex].root.graphic,0.25,{
+               mDBFacade.mTween.tweenMaxTo(mWeaponButtons[currentWeaponIndex].root.graphic,0.25,{
                   "scaleX":1,
                   "scaleY":1,
                   "removeTint":true
@@ -1898,13 +2626,13 @@ package UI.Hud
          mConsumableCooldowns[currentWeaponIndex].stop();
          mConsumableCooldowns[currentWeaponIndex].clip.visible = false;
          mConsumableWeaponButtons[currentWeaponIndex].root.graphic.alpha = 1;
-         TweenMax.to(mConsumableWeaponButtons[currentWeaponIndex].root.graphic,0.25,{
+         mDBFacade.mTween.tweenMaxTo(mConsumableWeaponButtons[currentWeaponIndex].root.graphic,0.25,{
             "scaleX":1.25,
             "scaleY":1.25,
             "tint":16777215,
             "onComplete":function():void
             {
-               TweenMax.to(mConsumableWeaponButtons[currentWeaponIndex].root.graphic,0.25,{
+               mDBFacade.mTween.tweenMaxTo(mConsumableWeaponButtons[currentWeaponIndex].root.graphic,0.25,{
                   "scaleX":1,
                   "scaleY":1,
                   "removeTint":true
@@ -1915,7 +2643,7 @@ package UI.Hud
       
       public function decrementConsumableCount(slot:uint) : void
       {
-         mConsumableWeaponButtons[slot].root.quantity.text = (int(mConsumableWeaponButtons[slot].root.quantity.text) - 1).toString();
+         TextUtil.setText(mConsumableWeaponButtons[slot].root.quantity,String(int(mConsumableWeaponButtons[slot].root.quantity.text) - 1));
       }
       
       public function totalConsumableCountReached(slot:uint) : void
@@ -1929,7 +2657,7 @@ package UI.Hud
          if(mUIRoot.UI_center_message.visible == false)
          {
             mUIRoot.UI_center_message.visible = true;
-            mUIRoot.UI_center_message.text = Locale.getString(localeTextName);
+            Locale.setText(mUIRoot.UI_center_message,localeTextName);
             mLogicalWorkComponent.doLater(0.35,function():void
             {
                mUIRoot.UI_center_message.visible = false;
@@ -1937,7 +2665,7 @@ package UI.Hud
          }
          else
          {
-            mUIRoot.UI_center_message.text = Locale.getString(localeTextName);
+            Locale.setText(mUIRoot.UI_center_message,localeTextName);
          }
       }
       
@@ -1975,6 +2703,10 @@ package UI.Hud
       {
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(buffGO.buffData.IconSwf),function(param1:SwfAsset):void
          {
+            if(buffGO.isDestroyed)
+            {
+               return;
+            }
             var _loc6_:Class = param1.getClass(buffGO.buffData.IconName);
             var _loc5_:MovieClip = new _loc6_() as MovieClip;
             var _loc2_:Class = mSwfAsset.getClass("buff_cooldown_icon");
@@ -1986,12 +2718,12 @@ package UI.Hud
             mRoot.addChild(_loc4_);
             var _loc3_:UIButton = new UIButton(mDBFacade,_loc4_);
             _loc3_.tooltip = _loc4_.tooltip;
-            _loc4_.tooltip.title_label.text = GameMasterLocale.getGameMasterSubString("BUFF_NAME",buffGO.buffData.Constant);
-            _loc4_.tooltip.description_label.text = GameMasterLocale.getGameMasterSubString("BUFF_DESCRIPTION",buffGO.buffData.Constant) + buffGO.buffData.getStacksDescription(buffGO.instanceCount);
+            TextUtil.setText(_loc4_.tooltip.title_label,GameMasterLocale.getGameMasterSubString("BUFF_NAME",buffGO.buffData.Constant));
+            TextUtil.setText(_loc4_.tooltip.description_label,GameMasterLocale.getGameMasterSubString("BUFF_DESCRIPTION",buffGO.buffData.Constant) + buffGO.buffData.getStacksDescription(buffGO.instanceCount));
             mBuffIconButtons.push(_loc3_);
             mBuffs.push(buffGO);
             mBuffCooldowns.push(_loc7_);
-            _loc4_.quantity.text = buffGO.instanceCount;
+            TextUtil.setText(_loc4_.quantity,String(buffGO.instanceCount));
             resetBuffButtonPositions();
             startBuffCooldown(mBuffIconButtons.length - 1,buffGO.buffData.Duration);
          });
@@ -2034,8 +2766,8 @@ package UI.Hud
             _loc2_ = mBuffs[_loc3_];
             if(_loc2_ == updatedBuffGO)
             {
-               mBuffIconButtons[_loc3_].root.quantity.text = _loc2_.instanceCount;
-               mBuffIconButtons[_loc3_].root.tooltip.description_label.text = GameMasterLocale.getGameMasterSubString("BUFF_DESCRIPTION",_loc2_.buffData.Constant) + _loc2_.buffData.getStacksDescription(_loc2_.instanceCount);
+               TextUtil.setText(mBuffIconButtons[_loc3_].root.quantity,String(_loc2_.instanceCount));
+               TextUtil.setText(mBuffIconButtons[_loc3_].root.tooltip.description_label,GameMasterLocale.getGameMasterSubString("BUFF_DESCRIPTION",_loc2_.buffData.Constant) + _loc2_.buffData.getStacksDescription(_loc2_.instanceCount));
                startBuffCooldown(_loc3_,_loc2_.buffData.Duration);
                return;
             }
@@ -2066,6 +2798,57 @@ package UI.Hud
       public function refreshHUD() : void
       {
          this.setupUI(mSwfAsset,mHudType);
+      }
+      
+      private function onSteamInputGlyphsChanged(event:Event) : void
+      {
+         if(mDBFacade.steamInputManager.isSteamInputReady)
+         {
+            syncControllerPrompts();
+         }
+      }
+      
+      public function handleMenuButtonPressed(index:uint) : void
+      {
+         if(index == 0)
+         {
+            if(mSuppressNextExitMenuToggle)
+            {
+               mSuppressNextExitMenuToggle = false;
+               return;
+            }
+            if(mSettingsPopup)
+            {
+               return;
+            }
+            closeButtonReleaseCallback();
+         }
+         else if(index == 1)
+         {
+            toggleSettingsPopup();
+         }
+         else if(index == 2)
+         {
+            mUIChatLog.tryToggleChatLog();
+         }
+         else if(index == 3)
+         {
+            if(mDBFacade.steamInputManager.usesSteamOnScreenKeyboard)
+            {
+               mUIChatLog.focusChatInput();
+            }
+         }
+      }
+      
+      public function clearExitMenu() : void
+      {
+         mLootLossPopup = null;
+         mInfiniteExitPopup = null;
+      }
+      
+      public function suppressNextExitMenuToggle() : void
+      {
+         mSuppressNextExitMenuToggle = mDBFacade.inputManager.check(27) || mDBFacade.steamInputManager.pressedAction("menu_cancel");
       }
    }
 }

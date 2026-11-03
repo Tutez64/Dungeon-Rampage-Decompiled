@@ -13,17 +13,20 @@ package SteamAchievements
       
       private var mStoreStatsThreshold:int;
       
-      public function SteamStats(inAPIName:String, inType:int, inUpdateThreshold:int = 1)
+      private var mMaxValue:int;
+      
+      public function SteamStats(inAPIName:String, inType:int, inUpdateThreshold:int = 1, inMaxValue:int = 2000000000)
       {
          super();
          mAPIName = inAPIName;
          mStatType = inType;
          mStoreStatsThreshold = inUpdateThreshold;
+         mMaxValue = inMaxValue;
       }
       
-      public static function steamStatFactory(inAPIName:String, inSteamStatsType:int, inUpdateThreshold:int) : SteamStats
+      public static function steamStatFactory(inAPIName:String, inSteamStatsType:int, inUpdateThreshold:int, inMaxValue:int = 2000000000) : SteamStats
       {
-         return new SteamStats(inAPIName,inSteamStatsType,inUpdateThreshold);
+         return new SteamStats(inAPIName,inSteamStatsType,inUpdateThreshold,inMaxValue);
       }
       
       public function get APIName() : String
@@ -46,14 +49,22 @@ package SteamAchievements
          return mStoreStatsThreshold;
       }
       
-      public function setClientIntValue(inClientIntValue:int) : void
+      public function setClientIntValue(inClientIntValue:Number) : void
       {
-         mClientIntValue = inClientIntValue;
+         if(inClientIntValue < 0 || inClientIntValue % 1 != 0)
+         {
+            return;
+         }
+         mClientIntValue = Math.min(mMaxValue,inClientIntValue);
       }
       
-      public function increaseClientIntValue(inClientIntValue:int) : void
+      public function increaseClientIntValue(inClientIntValue:Number) : void
       {
-         mClientIntValue += inClientIntValue;
+         if(inClientIntValue < 0 || inClientIntValue % 1 != 0)
+         {
+            return;
+         }
+         setClientIntValue(mClientIntValue + inClientIntValue);
       }
    }
 }

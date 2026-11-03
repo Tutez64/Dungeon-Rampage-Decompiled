@@ -4,10 +4,10 @@ package UI.Hud
    import Brain.Event.EventComponent;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
+   import Collections.Map;
    import Facade.DBFacade;
    import StateMachine.MainStateMachine.DungeonTutorial;
    import flash.events.Event;
-   import org.as3commons.collections.Map;
    
    public class UITutorialController
    {
@@ -41,13 +41,13 @@ package UI.Hud
          });
       }
       
-      public function queueTutorial(type:String) : void
+      public function queueTutorial(tutorialType:String) : void
       {
-         if(mTutorialEventMap.itemFor(type))
+         if(mTutorialEventMap.itemFor(tutorialType))
          {
             return;
          }
-         switch(type)
+         switch(tutorialType)
          {
             case "COOLDOWN_TUTORIAL":
                mTutorialsCallbackQueue.push(startCooldownTutorial);
@@ -76,7 +76,7 @@ package UI.Hud
             case "SUPER_WEAK_TUTORIAL":
                mTutorialsCallbackQueue.push(startSuperWeakTutorial);
          }
-         mTutorialEventMap.add(type,1);
+         mTutorialEventMap.add(tutorialType,1);
          if(!mTutorialTask)
          {
             mTutorialTask = mLogicalWorkComponent.doEverySeconds(1,checkTutorials);
@@ -181,7 +181,7 @@ package UI.Hud
       
       public function flushTutorialQueue() : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc1_:Function = null;
          if(mTutorialTask)
          {

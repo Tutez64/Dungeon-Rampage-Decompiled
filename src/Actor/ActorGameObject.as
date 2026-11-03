@@ -15,6 +15,7 @@ package Actor
    import Combat.Weapon.WeaponGameObject;
    import DBGlobals.DBGlobal;
    import DistributedObjects.DistributedDungeonFloor;
+   import DistributedObjects.HeroGameObjectOwner;
    import Dungeon.Tile;
    import Events.HpEvent;
    import Facade.DBFacade;
@@ -26,9 +27,11 @@ package Actor
    import GeneratedCode.AttackChoreography;
    import GeneratedCode.CombatResult;
    import GeneratedCode.WeaponDetails;
+   import SteamInput.RumbleEffect;
    import flash.display.DisplayObject;
    import flash.geom.Point;
    import flash.geom.Vector3D;
+   import flash.utils.getTimer;
    
    public class ActorGameObject extends FloorObject
    {
@@ -43,13 +46,19 @@ package Actor
       
       private static const TELEPORT:String = "TELEPORT";
       
-      public static const ATTEMPT_REVIVE_INSTANT_TIMELINE_NAME:String = "TM_ATTEMPT_REVIVE_INSTANT";
-      
       public static const ATTEMPT_REVIVE_LONG_TIMELINE_NAME:String = "TM_ATTEMPT_REVIVE_LONG";
       
       protected static const ATTEMPT_REVIVE_LONG_ATTACK_ID:uint = 910900;
       
-      protected static const ATTEMPT_REVIVE_INSTANT_ATTACK_ID:uint = 910901;
+      private static const RUMBLE_MIN_DAMAGE_SCALE:Number = 0.2;
+      
+      private static const RUMBLE_MAX_DAMAGE_SCALE:Number = 2;
+      
+      private static const RUMBLE_FULL_DAMAGE_FRACTION:Number = 0.8;
+      
+      private static const PERSISTENT_HIDE_OFFSTAGE_GRACE_MS:int = 2000;
+      
+      private static const RUN_HOLD_MS:int = 200;
       
       protected var mScreenName:String = "";
       
@@ -109,6 +118,10 @@ package Actor
       
       protected var mAFK:Boolean;
       
+      private var mPersistentHideAt:int = -1;
+      
+      protected var mForceFlash:Boolean = false;
+      
       private var mIsBlocking:Boolean = false;
       
       private var mMaximumDotForBlock:Number = -1.1;
@@ -118,6 +131,10 @@ package Actor
       protected var mAttemptReviveScript:AttackTimeline;
       
       private var mCanBeKnockedBack:Boolean = true;
+      
+      private var mLastMovingTime:Number = -Infinity;
+      
+      private var mOneShotHoldUntil:int = 0;
       
       public function ActorGameObject(dbFacade:DBFacade, remoteId:uint = 0)
       {
@@ -137,6 +154,11 @@ package Actor
       }
       
       public function get isOwner() : Boolean
+      {
+         return false;
+      }
+      
+      public function get belongsToRemotePlayer() : Boolean
       {
          return false;
       }
@@ -196,31 +218,26 @@ package Actor
       
       override public function init() : void
       {
-         var _loc2_:String = null;
          super.init();
          this.createNavCollisions(this.actorData.constant);
          mMouseEventHandler.Init();
          setupWeapons();
          initializeToFirstValidWeapon();
-         determineState();
-         var _loc3_:String = this.actorData.gMActor.TeleportInTimeline;
-         var _loc1_:String = this.actorData.gMActor.TeleportOutTimeline;
-         if(_loc3_ && _loc1_)
+         if(mTile && mTile.isOnStage)
          {
-            mTeleportInTimeline = mDBFacade.timelineFactory.createScriptTimeline(_loc3_,this,mDistributedDungeonFloor);
+            mActorView.addToStage();
+         }
+         determineState();
+         var _loc2_:String = this.actorData.gMActor.TeleportInTimeline;
+         var _loc1_:String = this.actorData.gMActor.TeleportOutTimeline;
+         if(_loc2_ && _loc1_)
+         {
+            mTeleportInTimeline = mDBFacade.timelineFactory.createScriptTimeline(_loc2_,this,mDistributedDungeonFloor);
             mTeleportOutTimeline = mDBFacade.timelineFactory.createScriptTimeline(_loc1_,this,mDistributedDungeonFloor);
          }
          if(!mAttemptReviveScript)
          {
-            if(mDBFacade.dbConfigManager.getConfigBoolean("use_long_revive",true))
-            {
-               _loc2_ = "TM_ATTEMPT_REVIVE_LONG";
-            }
-            else
-            {
-               _loc2_ = "TM_ATTEMPT_REVIVE_INSTANT";
-            }
-            mAttemptReviveScript = mDBFacade.timelineFactory.createAttackTimeline(_loc2_,null,this,mDistributedDungeonFloor);
+            mAttemptReviveScript = mDBFacade.timelineFactory.createAttackTimeline("TM_ATTEMPT_REVIVE_LONG",null,this,mDistributedDungeonFloor);
          }
       }
       
@@ -354,7 +371,7 @@ package Actor
       
       protected function move() : void
       {
-         mMovementController.move(this.position,this.heading);
+         mMovementController.move(mPosition,this.heading);
       }
       
       public function getHeadingAsVector(degreesOffset:Number = 0) : Vector3D
@@ -429,6 +446,11 @@ package Actor
             mTeleportOutTimeline.destroy();
             mTeleportOutTimeline = null;
          }
+         if(mAttemptReviveScript)
+         {
+            mAttemptReviveScript.destroy();
+            mAttemptReviveScript = null;
+         }
          mPosition = null;
          mMovementController.destroy();
          mMovementController = null;
@@ -495,6 +517,10 @@ package Actor
          mHitPoints = val;
          mActorView.setHp(mHitPoints,this.maxHitPoints);
          mFacade.eventManager.dispatchEvent(new HpEvent("HpEvent_HP_UPDATE",id,mHitPoints,this.maxHitPoints));
+         if(mHitPoints == 0 && this.actorData != null && this.isProp)
+         {
+            removeNavColliders();
+         }
       }
       
       public function get hitPoints() : uint
@@ -558,13 +584,44 @@ package Actor
             {
                this.actorView.receiveDamage(combatResult,_loc2_);
                receiveDamage(combatResult);
+               playCombatRumble(combatResult);
             }
          }
       }
       
+      private function playCombatRumble(combatResult:CombatResult) : void
+      {
+         var _loc2_:RumbleEffect = null;
+         var _loc3_:uint = HeroGameObjectOwner.currentHeroOwnerId;
+         if(this.id == _loc3_)
+         {
+            _loc2_ = RumbleEffect.PLAYER_TAKING_DAMAGE.scaled(takingDamageRumbleScale(combatResult.damage));
+            mDBFacade.steamInputManager.playRumble(_loc2_);
+         }
+         else if(combatResult.attacker == _loc3_)
+         {
+            mDBFacade.steamInputManager.playRumble(RumbleEffect.PLAYER_DEALING_DAMAGE);
+         }
+      }
+      
+      private function takingDamageRumbleScale(damage:int) : Number
+      {
+         var _loc2_:Number = this.maxHitPoints;
+         if(_loc2_ <= 0 || damage <= 0)
+         {
+            return 0.2;
+         }
+         var _loc3_:Number = damage / _loc2_ / 0.8;
+         if(_loc3_ > 1)
+         {
+            _loc3_ = 1;
+         }
+         return 0.2 + (2 - 0.2) * _loc3_;
+      }
+      
       public function get canSuffer() : Boolean
       {
-         return !this.hasAbility(1);
+         return !this.hasAbility(DBGlobal.ABILITY_SUFFER_IMMUNITY);
       }
       
       public function get canBeKnockedBack() : Boolean
@@ -584,7 +641,7 @@ package Actor
             mMouseEventHandler.sendGotHitEvent();
          }
          var _loc2_:Number = 1;
-         if(combatResult.knockback == 1 && canBeKnockedBack)
+         if(combatResult.knockback == 1 && canBeKnockedBack && (!isProp || canSuffer))
          {
             if(!mSufferKnockBackTimeline)
             {
@@ -725,7 +782,7 @@ package Actor
       protected function initializeToFirstValidWeapon() : void
       {
          var _loc1_:WeaponGameObject = null;
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          if(mWeapons.length > 0)
          {
             _loc2_ = 0;
@@ -762,7 +819,7 @@ package Actor
       
       public function localToGlobal(point:Point) : Point
       {
-         return this.view.root.localToGlobal(point);
+         return mDBFacade.designLocalToGlobal(this.view.root,point);
       }
       
       public function globalToLocal(point:Point) : Point
@@ -850,14 +907,14 @@ package Actor
       
       protected function refreshStatVector() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          _loc1_ = 5;
          var _loc4_:Number = Number(mTeam == 5 ? mLevel : Math.pow(mLevel,1.5));
          var _loc3_:StatVector = StatVector.add(mActorData.baseValues,StatVector.multiplyScalar(mActorData.levelValues,_loc4_));
          var _loc2_:StatVector = StatVector.add(StatVector.multiply(_loc3_,mDBFacade.gameMaster.stat_BonusMultiplier),mDBFacade.gameMaster.stat_bias);
-         _loc2_.values[0] = mActorData.hp + _loc2_.values[0];
-         _loc2_.values[1] = mActorData.mp + _loc2_.values[1];
-         _loc2_.values[13] = mActorData.gMActor.BaseMove + _loc2_.values[13];
+         _loc2_.values[DBGlobal.HP_BOOST] = mActorData.hp + _loc2_.values[DBGlobal.HP_BOOST];
+         _loc2_.values[DBGlobal.MP_BOOST] = mActorData.mp + _loc2_.values[DBGlobal.MP_BOOST];
+         _loc2_.values[DBGlobal.MOVEMENT] = mActorData.gMActor.BaseMove + _loc2_.values[DBGlobal.MOVEMENT];
          stats = _loc2_;
       }
       
@@ -869,7 +926,7 @@ package Actor
          _loc1_.categoryBits |= DBGlobal.b2dMaskForTeam(team);
          if(!this.isNavigable)
          {
-            _loc1_.maskBits |= 1;
+            _loc1_.maskBits |= DBGlobal.B2D_ENVIRONMENT_MASK;
             _loc1_.maskBits |= DBGlobal.b2dMaskForAllTeamsBut(team);
             if(this.actorData.gMActor.CollideWithTeam || this.isOwner)
             {
@@ -878,7 +935,7 @@ package Actor
          }
          if(actorData.gMActor.Species != "TRAP")
          {
-            _loc1_.maskBits |= 2;
+            _loc1_.maskBits |= DBGlobal.B2D_COMBAT_MASK;
          }
          return _loc1_;
       }
@@ -908,6 +965,12 @@ package Actor
       
       public function stopRunIdleMonitoring() : void
       {
+         if(mDBFacade.featureFlags.getFlagValue("smooth-run-and-direction-states") && !isOwner && getTimer() - mLastMovingTime < 200 && mActorView && mActorView.velocity.lengthSquared == 0 && mActorView.hasAnim("idle"))
+         {
+            mActorView.playAnim("idle");
+         }
+         mLastMovingTime = -Infinity;
+         mOneShotHoldUntil = 0;
          if(mRunIdleMonitorTask)
          {
             mRunIdleMonitorTask.destroy();
@@ -915,14 +978,96 @@ package Actor
          }
       }
       
+      public function holdOneShotUntilMoving(seconds:Number) : void
+      {
+         mOneShotHoldUntil = seconds > 0 ? getTimer() + int(seconds * 1000) : 0;
+      }
+      
       private function runIdleMonitor(gameClock:GameClock) : void
       {
-         if(mActorView.velocity.lengthSquared == 0)
+         if(hasAbandonedPersistentHide)
          {
+            healAbandonedPersistentHide();
+         }
+         var _loc2_:ActorRenderer = mActorView.bodyAnimRenderer;
+         if(_loc2_ != null && _loc2_.isCulled)
+         {
+            if(mActorView.velocity.lengthSquared != 0)
+            {
+               mLastMovingTime = getTimer();
+            }
+            return;
+         }
+         updateRunIdleAnim();
+      }
+      
+      public function refreshRunIdleAnim() : void
+      {
+         if(mRunIdleMonitorTask)
+         {
+            updateRunIdleAnim();
+         }
+      }
+      
+      public function notePersistentHide() : void
+      {
+         mPersistentHideAt = getTimer();
+      }
+      
+      public function cancelPersistentHideWatch() : void
+      {
+         mPersistentHideAt = -1;
+      }
+      
+      public function get persistentHidePending() : Boolean
+      {
+         return mPersistentHideAt >= 0;
+      }
+      
+      public function get hasAbandonedPersistentHide() : Boolean
+      {
+         return mPersistentHideAt >= 0 && getTimer() - mPersistentHideAt >= 2000;
+      }
+      
+      public function healAbandonedPersistentHide() : void
+      {
+         mPersistentHideAt = -1;
+         if(mHitPoints != 0 && mActorView != null && mActorView.root != null)
+         {
+            mActorView.root.visible = true;
+         }
+      }
+      
+      private function updateRunIdleAnim() : void
+      {
+         if(this.actorData == null || this.actorData.gMActor == null)
+         {
+            return;
+         }
+         if(this.actorData.gMActor.CharType == "PROP")
+         {
+            return;
+         }
+         if(mOneShotHoldUntil != 0)
+         {
+            if(getTimer() < mOneShotHoldUntil && mActorView.velocity.lengthSquared == 0)
+            {
+               return;
+            }
+            mOneShotHoldUntil = 0;
+         }
+         if(mActorView.velocity.lengthSquared == 0 || !mActorView.hasAnim("run"))
+         {
+            if(mDBFacade.featureFlags.getFlagValue("smooth-run-and-direction-states") && !isOwner && getTimer() - mLastMovingTime < 200 && mActorView.hasAnim("run"))
+            {
+               mActorView.playAnim("run");
+               return;
+            }
             mActorView.playAnim("idle");
          }
          else
          {
+            mLastMovingTime = getTimer();
             mActorView.playAnim("run");
          }
       }
@@ -931,6 +1076,16 @@ package Actor
       {
          this.mAFK = flag != 0;
          mActorView.AFK = this.mAFK;
+      }
+      
+      public function get forceFlash() : Boolean
+      {
+         return mForceFlash;
+      }
+      
+      public function set forceFlash(value:Boolean) : void
+      {
+         mForceFlash = value;
       }
       
       public function get isBlocking() : Boolean

@@ -5,9 +5,9 @@ package Brain.Event
    import Brain.Logger.Logger;
    import Brain.Utils.MemoryTracker;
    import Brain.Utils.Receipt;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import flash.events.Event;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class EventComponent extends Component
    {
@@ -26,7 +26,7 @@ package Brain.Event
          var _loc3_:Boolean = mRegisteredListeners.add(eventName,callback);
          if(_loc3_)
          {
-            mFacade.eventManager.addEventListener(eventName,callback);
+            EventListeners.add(mFacade.eventManager,eventName,callback);
             _loc4_ = new Receipt(removeListener);
             MemoryTracker.track(_loc4_,"Receipt - EventComponent listener: " + eventName,"brain");
             return _loc4_;
@@ -42,7 +42,7 @@ package Brain.Event
          {
             return;
          }
-         mFacade.eventManager.removeEventListener(eventName,_loc2_);
+         EventListeners.remove(mFacade.eventManager,eventName,_loc2_);
       }
       
       public function dispatchEvent(eventObj:Event) : void
@@ -66,7 +66,7 @@ package Brain.Event
          {
             _loc3_ = _loc1_.next();
             _loc2_ = _loc1_.key;
-            mFacade.eventManager.removeEventListener(_loc2_,_loc3_);
+            EventListeners.remove(mFacade.eventManager,_loc2_,_loc3_);
          }
          mRegisteredListeners.clear();
       }

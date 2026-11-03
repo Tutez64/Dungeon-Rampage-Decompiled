@@ -11,9 +11,9 @@ package Events
       
       private var mActorId:uint;
       
-      public function ActorLifetimeEvent(type:String, actorId:uint, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function ActorLifetimeEvent(actorLifetimeEventType:String, actorId:uint, bubbles:Boolean = false, cancelable:Boolean = false)
       {
-         super(type,bubbles,cancelable);
+         super(actorLifetimeEventType,bubbles,cancelable);
          mActorId = actorId;
       }
       

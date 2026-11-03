@@ -1,56 +1,65 @@
 package Box2D.Dynamics.Joints
 {
    import Box2D.Common.Math.b2Vec2;
-   import Box2D.Common.b2internal;
    import Box2D.Dynamics.b2Body;
-   
-   use namespace b2internal;
+   import flash.Boot;
    
    public class b2PrismaticJointDef extends b2JointDef
    {
       
-      public var localAnchorA:b2Vec2 = new b2Vec2();
-      
-      public var localAnchorB:b2Vec2 = new b2Vec2();
-      
-      public var localAxisA:b2Vec2 = new b2Vec2();
+      public var upperTranslation:Number;
       
       public var referenceAngle:Number;
       
-      public var enableLimit:Boolean;
-      
-      public var lowerTranslation:Number;
-      
-      public var upperTranslation:Number;
-      
-      public var enableMotor:Boolean;
+      public var motorSpeed:Number;
       
       public var maxMotorForce:Number;
       
-      public var motorSpeed:Number;
+      public var lowerTranslation:Number;
+      
+      public var localAxisA:b2Vec2;
+      
+      public var localAnchorB:b2Vec2;
+      
+      public var localAnchorA:b2Vec2;
+      
+      public var enableMotor:Boolean;
+      
+      public var enableLimit:Boolean;
       
       public function b2PrismaticJointDef()
       {
-         super();
-         type = b2Joint.e_prismaticJoint;
-         this.localAxisA.Set(1,0);
-         this.referenceAngle = 0;
-         this.enableLimit = false;
-         this.lowerTranslation = 0;
-         this.upperTranslation = 0;
-         this.enableMotor = false;
-         this.maxMotorForce = 0;
-         this.motorSpeed = 0;
+         if(!Boot.skip_constructor)
+         {
+            super();
+            localAnchorA = new b2Vec2();
+            localAnchorB = new b2Vec2();
+            localAxisA = new b2Vec2();
+            type = 2;
+            localAxisA.set(1,0);
+            referenceAngle = 0;
+            enableLimit = false;
+            lowerTranslation = 0;
+            upperTranslation = 0;
+            enableMotor = false;
+            maxMotorForce = 0;
+            motorSpeed = 0;
+         }
+      }
+      
+      public function initialize(bA:b2Body, bB:b2Body, anchor:b2Vec2, axis:b2Vec2) : void
+      {
+         Initialize(bA,bB,anchor,axis);
       }
       
       public function Initialize(bA:b2Body, bB:b2Body, anchor:b2Vec2, axis:b2Vec2) : void
       {
          bodyA = bA;
          bodyB = bB;
-         this.localAnchorA = bodyA.GetLocalPoint(anchor);
-         this.localAnchorB = bodyB.GetLocalPoint(anchor);
-         this.localAxisA = bodyA.GetLocalVector(axis);
-         this.referenceAngle = bodyB.GetAngle() - bodyA.GetAngle();
+         localAnchorA = bodyA.getLocalPoint(anchor);
+         localAnchorB = bodyB.getLocalPoint(anchor);
+         localAxisA = bodyA.getLocalVector(axis);
+         referenceAngle = bodyB.getAngle() - bodyA.getAngle();
       }
    }
 }

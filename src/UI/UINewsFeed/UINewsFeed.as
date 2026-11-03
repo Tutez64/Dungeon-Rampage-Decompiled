@@ -5,6 +5,7 @@ package UI.UINewsFeed
    import Brain.AssetRepository.SwfAsset;
    import Brain.Clock.GameClock;
    import Brain.SceneGraph.SceneGraphComponent;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Events.ChatLogEvent;
    import Events.FriendStatusEvent;
@@ -12,11 +13,12 @@ package UI.UINewsFeed
    import Events.GenericNewsFeedEvent;
    import Facade.DBFacade;
    import Facade.Locale;
+   import UI.Portrait.PlayerPortraitView;
+   import UI.Portrait.PlayerPortraits;
    import UI.UIChatLog;
-   import com.greensock.TweenMax;
-   import flash.display.DisplayObject;
    import flash.display.MovieClip;
    import flash.events.Event;
+   import flash.geom.Rectangle;
    import flash.text.TextField;
    import flash.text.TextFormat;
    
@@ -39,6 +41,8 @@ package UI.UINewsFeed
       
       public static const FEED_HANGING_OFF_THE_EDGE_OFFSET:Number = 13;
       
+      private var mPortraits:PlayerPortraits = new PlayerPortraits();
+      
       private var mDBFacade:DBFacade;
       
       private var mAssetLoadingComponent:AssetLoadingComponent;
@@ -54,6 +58,8 @@ package UI.UINewsFeed
       private var mLabelY:Number;
       
       private var mIcon:MovieClip;
+      
+      private var mTopShift:Number = 0;
       
       private var mFriendEvent:FriendStatusEvent;
       
@@ -115,18 +121,27 @@ package UI.UINewsFeed
          mLabel = mRoot.label;
          mLabelY = mLabel.y;
          mIcon = mRoot.icon;
+         var _loc2_:Number = TextUtil.scaleToFloor(Number(mLabel.defaultTextFormat.size),1.82);
+         var _loc1_:Rectangle = mRoot.getBounds(mRoot);
+         mTopShift = (_loc1_.height - _loc1_.top) * (_loc2_ - 1);
+         mRoot.scaleX = mRoot.scaleY = _loc2_;
+      }
+      
+      public function get topShift() : Number
+      {
+         return mTopShift;
       }
       
       public function lerpIntoScreen() : void
       {
          mRoot.visible = true;
-         TweenMax.to(mRoot,0.25,{"x":mRoot.x - mRoot.width / 2 + 13});
+         mDBFacade.mTween.tweenMaxTo(mRoot,0.25,{"x":mRoot.x - mRoot.width / 2 + 13});
          mLogicalWorkComponent.doLater(5,lerpOutOfScreen);
       }
       
       public function lerpOutOfScreen(gameClock:GameClock) : void
       {
-         TweenMax.to(mRoot,0.25,{"x":mRoot.x + mRoot.width});
+         mDBFacade.mTween.tweenMaxTo(mRoot,0.25,{"x":mRoot.x + mRoot.width});
          mLogicalWorkComponent.doLater(0.25,mFinishedCallback);
       }
       
@@ -149,9 +164,8 @@ package UI.UINewsFeed
             return;
          }
          var _loc1_:String = _loc2_.name;
-         mLabel.text = _loc1_;
-         var _loc3_:DisplayObject = _loc2_.clonePic();
-         mIcon.addChild(_loc3_);
+         TextUtil.setText(mLabel,_loc1_);
+         var _loc3_:PlayerPortraitView = mPortraits.showFriend(mIcon,mDBFacade,_loc2_);
          _loc3_.x -= 25;
          _loc3_.y -= 25;
       }
@@ -182,7 +196,7 @@ package UI.UINewsFeed
             _loc2_ += Locale.getString("NEWS_FEED_FRIEND_OFFLINE");
             _loc1_ = UIChatLog.FRIEND_STATUS_OFFLINE_TYPE;
          }
-         mLabel.text = mLabel.text.concat(_loc2_);
+         TextUtil.setText(mLabel,mLabel.text.concat(_loc2_));
          mDBFacade.eventManager.dispatchEvent(new ChatLogEvent("CHAT_LOG_EVENT",mLabel.text.toLocaleUpperCase(),_loc1_));
          adjustLabelHeight();
       }
@@ -201,7 +215,7 @@ package UI.UINewsFeed
             _loc2_ += Locale.getString("NEWS_FEED_PLAYER_LEFT_DUNGEON");
             _loc1_ = UIChatLog.LEFT_DUNGEON_TYPE;
          }
-         mLabel.text = mLabel.text.concat(_loc2_);
+         TextUtil.setText(mLabel,mLabel.text.concat(_loc2_));
          mDBFacade.eventManager.dispatchEvent(new ChatLogEvent("CHAT_LOG_EVENT",mLabel.text.toLocaleUpperCase(),_loc1_));
          adjustLabelHeight();
       }
@@ -213,6 +227,7 @@ package UI.UINewsFeed
       
       private function prepareFriendSummaryMessageFeed() : void
       {
+         var _loc2_:MovieClip = null;
          if(!mFriendSummaryFeedMessageEvent)
          {
             mIsValid = false;
@@ -222,18 +237,31 @@ package UI.UINewsFeed
          _loc1_.color = FriendSummaryNewsFeedEvent.FRIEND_NAME_HIGHLIGHT_COLOR;
          if(mFriendSummaryFeedMessageEvent.isFriendNameInFront)
          {
-            mLabel.text = mFriendSummaryFeedMessageEvent.friendName + mFriendSummaryFeedMessageEvent.message;
+            TextUtil.setText(mLabel,mFriendSummaryFeedMessageEvent.friendName + mFriendSummaryFeedMessageEvent.message);
             colorizeMessage(_loc1_,0,mFriendSummaryFeedMessageEvent.friendName.length);
          }
          else
          {
-            mLabel.text = mFriendSummaryFeedMessageEvent.message + mFriendSummaryFeedMessageEvent.friendName;
+            TextUtil.setText(mLabel,mFriendSummaryFeedMessageEvent.message + mFriendSummaryFeedMessageEvent.friendName);
             colorizeMessage(_loc1_,mFriendSummaryFeedMessageEvent.message.length,mFriendSummaryFeedMessageEvent.message.length + mFriendSummaryFeedMessageEvent.friendName.length);
          }
          adjustLabelHeight();
-         var _loc2_:MovieClip = mFriendSummaryFeedMessageEvent.pic;
-         _loc2_.scaleX = _loc2_.scaleY = 0.75;
-         mIcon.addChild(_loc2_);
+         if(mFriendSummaryFeedMessageEvent.hasPortrait)
+         {
+            _loc2_ = mPortraits.show(mIcon,mDBFacade,mFriendSummaryFeedMessageEvent.skinId,65,mFriendSummaryFeedMessageEvent.steamAvatarUrl);
+         }
+         else
+         {
+            _loc2_ = mFriendSummaryFeedMessageEvent.pic;
+            if(_loc2_)
+            {
+               mIcon.addChild(_loc2_);
+            }
+         }
+         if(_loc2_)
+         {
+            _loc2_.scaleX = _loc2_.scaleY = 0.75;
+         }
       }
       
       private function prepareGenericMessageFeed() : void
@@ -245,7 +273,7 @@ package UI.UINewsFeed
             mIsValid = false;
             return;
          }
-         mLabel.text = mGenericFeedMessageEvent.message;
+         TextUtil.setText(mLabel,mGenericFeedMessageEvent.message);
          adjustLabelHeight();
          picLocation = mGenericFeedMessageEvent.picLocation;
          picClassName = mGenericFeedMessageEvent.picClassName;
@@ -273,6 +301,7 @@ package UI.UINewsFeed
       
       public function destroy() : void
       {
+         mPortraits.destroy();
          if(mSceneGraphComponent.contains(mRoot,50))
          {
             mSceneGraphComponent.removeChild(mRoot);

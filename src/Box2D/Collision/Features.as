@@ -1,69 +1,78 @@
 package Box2D.Collision
 {
-   import Box2D.Common.b2internal;
-   
-   use namespace b2internal;
+   import flash.Boot;
    
    public class Features
    {
       
-      b2internal var _referenceEdge:int;
+      public var _referenceEdge:int;
       
-      b2internal var _incidentEdge:int;
+      public var _m_id:b2ContactID;
       
-      b2internal var _incidentVertex:int;
+      public var _incidentVertex:int;
       
-      b2internal var _flip:int;
+      public var _incidentEdge:int;
       
-      b2internal var _m_id:b2ContactID;
+      public var _flip:int;
       
       public function Features()
       {
-         super();
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         _flip = 0;
+         _incidentVertex = 0;
+         _incidentEdge = 0;
+         _referenceEdge = 0;
       }
       
-      public function get referenceEdge() : int
+      public function set_referenceEdge(value:int) : int
       {
-         return this._referenceEdge;
+         _referenceEdge = value;
+         _m_id._key = _m_id._key & -256 | _referenceEdge & 0xFF;
+         return value;
       }
       
-      public function set referenceEdge(value:int) : void
+      public function set_incidentVertex(value:int) : int
       {
-         this._referenceEdge = value;
-         this._m_id._key = this._m_id._key & 0xFFFFFF00 | this._referenceEdge & 0xFF;
+         _incidentVertex = value;
+         _m_id._key = _m_id._key & -16711681 | _incidentVertex << 16 & 0xFF0000;
+         return value;
       }
       
-      public function get incidentEdge() : int
+      public function set_incidentEdge(value:int) : int
       {
-         return this._incidentEdge;
+         _incidentEdge = value;
+         _m_id._key = _m_id._key & -65281 | _incidentEdge << 8 & 0xFF00;
+         return value;
       }
       
-      public function set incidentEdge(value:int) : void
+      public function set_flip(value:int) : int
       {
-         this._incidentEdge = value;
-         this._m_id._key = this._m_id._key & 0xFFFF00FF | this._incidentEdge << 8 & 0xFF00;
+         _flip = value;
+         _m_id._key = _m_id._key & 0xFFFFFF | _flip << 24 & -16777216;
+         return value;
       }
       
-      public function get incidentVertex() : int
+      public function get_referenceEdge() : int
       {
-         return this._incidentVertex;
+         return _referenceEdge;
       }
       
-      public function set incidentVertex(value:int) : void
+      public function get_incidentVertex() : int
       {
-         this._incidentVertex = value;
-         this._m_id._key = this._m_id._key & 0xFF00FFFF | this._incidentVertex << 16 & 0xFF0000;
+         return _incidentVertex;
       }
       
-      public function get flip() : int
+      public function get_incidentEdge() : int
       {
-         return this._flip;
+         return _incidentEdge;
       }
       
-      public function set flip(value:int) : void
+      public function get_flip() : int
       {
-         this._flip = value;
-         this._m_id._key = this._m_id._key & 0xFFFFFF | this._flip << 24 & 0xFF000000;
+         return _flip;
       }
    }
 }

@@ -3,8 +3,8 @@ package Brain.Render
    import Brain.Clock.GameClock;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
+   import Collections.Map;
    import flash.display.MovieClip;
-   import org.as3commons.collections.Map;
    
    public class MovieClipRandomRenderer extends MovieClipRenderer
    {
@@ -61,7 +61,7 @@ package Brain.Render
       override protected function determineFrames(clip:MovieClip) : void
       {
          var _loc2_:RandomLabelObject = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          if(clip.currentLabels.length > 0)
          {
             _loc3_ = 1;

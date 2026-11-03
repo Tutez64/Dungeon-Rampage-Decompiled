@@ -15,15 +15,19 @@ package UI.Inventory
    import Brain.Logger.Logger;
    import Brain.SceneGraph.SceneGraphComponent;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
    import Brain.UI.UIRadioButton;
    import Brain.Utils.MemoryTracker;
    import Brain.WorkLoop.LogicalWorkComponent;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import DBGlobals.DBGlobal;
    import DistributedObjects.DistributedDungeonSummary;
    import Facade.DBFacade;
    import Facade.Locale;
    import GameMasterDictionary.GMChest;
    import GameMasterDictionary.GMHero;
+   import GameMasterDictionary.GMInventoryBase;
    import GameMasterDictionary.GMNpc;
    import GameMasterDictionary.GMOffer;
    import GameMasterDictionary.GMOfferDetail;
@@ -37,19 +41,14 @@ package UI.Inventory
    import UI.Hud.UIHud;
    import UI.Inventory.Chests.ChestInfoCard;
    import UI.Popup.DBUIOneButtonPopup;
-   import UI.Popup.DBUITwoButtonPopup;
    import UI.UIPagingPanel;
    import UI.UITownTweens;
    import flash.display.MovieClip;
    import flash.display.Sprite;
    import flash.events.Event;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class UIInventory
    {
-      
-      private static const BUY_KEY_POPUP_SWF_PATH:String = "Resources/Art2D/UI/db_UI_score_report.swf";
       
       private static const SELECTED_TAB_SCALE:Number = 1.15;
       
@@ -67,7 +66,7 @@ package UI.Inventory
       
       public static const EQUIPPABLE_NEVER:uint = 3;
       
-      private static const CATEGORY_ARRAY:Array = new Array("WEAPON","POWERUP","PET","STUFF");
+      private static const CATEGORY_ARRAY:Array = [GMInventoryBase.WEAPON_CATEGORY,GMInventoryBase.POWERUP_CATEGORY,GMInventoryBase.PET_CATEGORY,GMInventoryBase.STUFF_CATEGORY];
       
       private var mDBFacade:DBFacade;
       
@@ -93,6 +92,8 @@ package UI.Inventory
       
       private var mCurrentTab:String;
       
+      private var mNextTab:String;
+      
       private var mWantPets:Boolean = false;
       
       private var mItems:Vector.<UIInventoryItem>;
@@ -106,6 +107,8 @@ package UI.Inventory
       private var mInfoCard:ItemInfoCard;
       
       private var mDungeonSummary:DistributedDungeonSummary;
+      
+      private var mDungeonSummaryInitialFocusSet:Boolean;
       
       private var mNewItemIds:Array;
       
@@ -125,13 +128,17 @@ package UI.Inventory
       
       private var mSelectedItemInfo:InventoryBaseInfo;
       
+      private var mSelectedItemNavigationSource:UIObject;
+      
+      private var mBoosterNavigationItem:UIInventoryItem;
+      
       private var mSelectedAvatar:uint;
       
       private var mSceneGraphComponent:SceneGraphComponent;
       
       private var mChestCard:ChestInfoCard;
       
-      private var mAbandonChestPopUp:DBUITwoButtonPopup;
+      private var mAbandonChestPopUp:UIAbandonChestPopup;
       
       private var mChestOpenFullPopUp:DBUIOneButtonPopup;
       
@@ -147,12 +154,23 @@ package UI.Inventory
       
       private var mBoosterCard:BoosterInfoCard;
       
-      public function UIInventory(dbFacade:DBFacade, townHeader:TownHeader = null, dungeonSummary:DistributedDungeonSummary = null)
+      private var mWeaponTabButton:UIRadioButton;
+      
+      private var mPotionsTabButton:UIRadioButton;
+      
+      private var mPetsTabButton:UIRadioButton;
+      
+      private var mStuffTabButton:UIRadioButton;
+      
+      private var mIsActiveCallback:Function;
+      
+      public function UIInventory(dbFacade:DBFacade, townHeader:TownHeader = null, dungeonSummary:DistributedDungeonSummary = null, isActiveCallback:Function = null)
       {
          super();
          mDBFacade = dbFacade;
          mTownHeader = townHeader;
          mDungeonSummary = dungeonSummary;
+         mIsActiveCallback = isActiveCallback;
          mRevealedItemType = 0;
          mRevealedItemOfferId = 0;
          mRoot = new Sprite();
@@ -207,19 +225,19 @@ package UI.Inventory
          mInventoryRoot.pet_picker.visible = false;
          mInventoryRoot.potion_picker.visible = false;
          mInventoryRoot.stuff_picker.visible = false;
-         mHeroWithEquipPicker = new HeroWithEquipPicker(mDBFacade,mInventoryRoot.weapon_picker,_loc3_,_loc4_,heroSelected,itemSelected,getSelectedAvatar,setSelectedAvatar,refresh,true);
-         mStacksWithEquipPicker = new StacksWithEquipPicker(mDBFacade,mInventoryRoot.potion_picker,_loc3_,_loc4_,itemSelected,refresh,true,getSelectedAvatar,setSelectedAvatar);
+         mHeroWithEquipPicker = new HeroWithEquipPicker(mDBFacade,mInventoryRoot.weapon_picker,_loc3_,_loc4_,heroSelected,itemSelected,getSelectedAvatar,setSelectedAvatar,refresh,true,true,mIsActiveCallback);
+         mStacksWithEquipPicker = new StacksWithEquipPicker(mDBFacade,mInventoryRoot.potion_picker,_loc3_,_loc4_,itemSelected,refresh,true,getSelectedAvatar,setSelectedAvatar,mIsActiveCallback);
          if(mWantPets)
          {
-            mPetsWithEquipPicker = new PetsWithEquipPicker(mDBFacade,mInventoryRoot.pet_picker,_loc3_,_loc4_,itemSelected,getSelectedAvatar,setSelectedAvatar,refresh,true);
+            mPetsWithEquipPicker = new PetsWithEquipPicker(mDBFacade,mInventoryRoot.pet_picker,_loc3_,_loc4_,itemSelected,getSelectedAvatar,setSelectedAvatar,refresh,true,mIsActiveCallback);
          }
-         mStuffWithEquipPicker = new StuffWithEquipPicker(mDBFacade,mInventoryRoot.stuff_picker,_loc4_,getSelectedAvatar,setSelectedAvatar);
+         mStuffWithEquipPicker = new StuffWithEquipPicker(mDBFacade,mInventoryRoot.stuff_picker,_loc4_,getSelectedAvatar,setSelectedAvatar,mIsActiveCallback);
          mInventoryRoot.close.visible = false;
          var _loc5_:MovieClip = mInventoryRoot.treasure;
          if(mDungeonSummary)
          {
             mDungeonRewardPanel = new DungeonRewardPanel(mDBFacade,_loc5_,mDungeonSummary,itemSelected);
-            _loc5_.label.text = Locale.getString("LOOT");
+            Locale.setText(_loc5_.label,"LOOT");
          }
          else
          {
@@ -232,7 +250,10 @@ package UI.Inventory
       
       private function accountInfoUpdated(evt:Event) : void
       {
-         refresh(false);
+         if(mIsActiveCallback == null || mIsActiveCallback())
+         {
+            refresh(false);
+         }
       }
       
       public function hide() : void
@@ -279,8 +300,8 @@ package UI.Inventory
       {
          var _loc7_:InventoryBaseInfo = null;
          var _loc6_:ItemInfo = null;
-         var _loc3_:* = 0;
-         var _loc4_:* = 0;
+         var _loc3_:uint = 0;
+         var _loc4_:uint = 0;
          var _loc5_:DBInventoryInfo = mDBFacade.dbAccountInfo.inventoryInfo;
          var _loc2_:AvatarInfo = _loc5_.getAvatarInfoForHeroType(gmHero.Id);
          _loc4_ = 0;
@@ -299,7 +320,7 @@ package UI.Inventory
                {
                   _loc3_ = 3;
                }
-               else if(_loc2_.level < _loc6_.requiredLevel)
+               else if(_loc2_.levelForWeaponComparison < _loc6_.requiredLevel)
                {
                   _loc3_ = 2;
                }
@@ -342,12 +363,8 @@ package UI.Inventory
                         mNewPetIds.splice(_loc1_,1);
                      }
                   }
-                  if(mDBFacade.steamAchievementsManager)
-                  {
-                     mDBFacade.steamAchievementsManager.setAchievement("SELL_AN_ITEM");
-                     mDBFacade.steamAchievementsManager.addToStatInt("SELL_ITEM_STAT",1);
-                  }
                   refresh();
+                  focusFirstInventoryItem();
                });
             }
             mSelectedItemInfo = null;
@@ -388,36 +405,40 @@ package UI.Inventory
             mChestCard.destroy();
             mChestCard = null;
          }
-         mChestCard = new ChestInfoCard(mDBFacade,mSceneGraphComponent,root.inv_chests,abandonChest,openChest,abandonChestDS,openChestDS,keepChestDS);
+         mChestCard = new ChestInfoCard(mDBFacade,mSceneGraphComponent,root.inv_chests,abandonChest,openChest,abandonChestDS,openChestDS,keepChestDS,mIsActiveCallback);
          if(mConsumableChestCard)
          {
             mConsumableChestCard.destroy();
             mConsumableChestCard = null;
          }
-         mConsumableChestCard = new ChestInfoCard(mDBFacade,mSceneGraphComponent,root.inv_consumable,abandonChest,openChest,abandonChestDS,openChestDS,keepChestDS);
+         mConsumableChestCard = new ChestInfoCard(mDBFacade,mSceneGraphComponent,root.inv_consumable,abandonChest,openChest,abandonChestDS,openChestDS,keepChestDS,mIsActiveCallback);
          if(mBoosterCard)
          {
             mBoosterCard.destroy();
             mBoosterCard = null;
          }
-         mBoosterCard = new BoosterInfoCard(mDBFacade,mSceneGraphComponent,root.booster_card);
+         mBoosterCard = new BoosterInfoCard(mDBFacade,mSceneGraphComponent,root.booster_card,focusAfterBoosterActivation);
          group = "UIInventoryTabGroup";
-         mTabButtons.add("WEAPON",new UIRadioButton(mDBFacade,mInventoryRoot.grid_widget.tab_weapons,group));
-         mInventoryRoot.grid_widget.tab_weapons.label.text = Locale.getString("TAB_LOOT");
-         mTabButtons.add("POWERUP",new UIRadioButton(mDBFacade,mInventoryRoot.grid_widget.tab_potions,group));
-         mInventoryRoot.grid_widget.tab_potions.label.text = Locale.getString("TAB_POWERUPS");
+         mWeaponTabButton = new UIRadioButton(mDBFacade,mInventoryRoot.grid_widget.tab_weapons,group);
+         mPotionsTabButton = new UIRadioButton(mDBFacade,mInventoryRoot.grid_widget.tab_potions,group);
+         mPetsTabButton = new UIRadioButton(mDBFacade,mInventoryRoot.grid_widget.tab_pets,group);
+         mStuffTabButton = new UIRadioButton(mDBFacade,mInventoryRoot.grid_widget.tab_stuff,group);
+         mTabButtons.add(GMInventoryBase.WEAPON_CATEGORY,mWeaponTabButton);
+         Locale.setText(mInventoryRoot.grid_widget.tab_weapons.label,"TAB_LOOT");
+         mTabButtons.add(GMInventoryBase.POWERUP_CATEGORY,mPotionsTabButton);
+         Locale.setText(mInventoryRoot.grid_widget.tab_potions.label,"TAB_POWERUPS");
          if(mWantPets)
          {
-            mTabButtons.add("PET",new UIRadioButton(mDBFacade,mInventoryRoot.grid_widget.tab_pets,group));
-            mInventoryRoot.grid_widget.tab_pets.label.text = Locale.getString("TAB_PETS");
+            mTabButtons.add(GMInventoryBase.PET_CATEGORY,mPetsTabButton);
+            Locale.setText(mInventoryRoot.grid_widget.tab_pets.label,"TAB_PETS");
          }
-         mTabButtons.add("STUFF",new UIRadioButton(mDBFacade,mInventoryRoot.grid_widget.tab_stuff,group));
-         mInventoryRoot.grid_widget.tab_stuff.label.text = Locale.getString("TAB_STUFF");
+         mTabButtons.add(GMInventoryBase.STUFF_CATEGORY,mStuffTabButton);
+         Locale.setText(mInventoryRoot.grid_widget.tab_stuff.label,"TAB_STUFF");
          iter = mTabButtons.iterator() as IMapIterator;
          while(iter.hasNext())
          {
             tabButton = iter.next();
-            tabButton.root.new_label.text = Locale.getString("INV_NEW");
+            Locale.setText(tabButton.root.new_label,"INV_NEW");
             tabButton.root.new_label.visible = this.categoryHasAnyNewItems(iter.key);
             tabButton.root.category = iter.key;
             tabButton.releaseCallbackThis = function(param1:UIButton):void
@@ -461,7 +482,7 @@ package UI.Inventory
          }
          mAddStorageButton = new UIButton(mDBFacade,mInventoryRoot.grid_widget.add_storage_button);
          mAddStorageButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
-         mAddStorageButton.label.text = Locale.getString("INV_ADD_STORAGE");
+         Locale.setText(mAddStorageButton.label,"INV_ADD_STORAGE");
          mAddStorageButton.releaseCallback = function():void
          {
             StoreServicesController.showStoragePage(mDBFacade);
@@ -476,7 +497,7 @@ package UI.Inventory
       private function abandonChest(chestInfo:ChestInfo) : void
       {
          var index:int;
-         mAbandonChestPopUp = new DBUITwoButtonPopup(mDBFacade,Locale.getString("ABANDON_CHEST_POPUP_TITLE"),Locale.getString("ABANDON_CHEST_POPUP_DESC"),Locale.getString("ABANDON_CHEST_POPUP_CANCEL"),closeAbandonChestPopUp,Locale.getString("ABANDON_CHEST_POPUP_CONFIRM"),function():void
+         mAbandonChestPopUp = new UIAbandonChestPopup(mDBFacade,closeAbandonChestPopUp,function():void
          {
             mDBFacade.metrics.log("ChestAbandoned",{
                "chestId":chestInfo.gmChestInfo.Id,
@@ -485,8 +506,8 @@ package UI.Inventory
             });
             mDBFacade.dbAccountInfo.inventoryInfo.dropChest(chestInfo.databaseId,dropChestSuccessfullCallback,abandonChestFailedPopUp);
             closeAbandonChestPopUp();
-         },false,null);
-         MemoryTracker.track(mAbandonChestPopUp,"DBUITwoButtonPopup - created in UIInventory.abandonChest()");
+         });
+         MemoryTracker.track(mAbandonChestPopUp,"UIAbandonChestPopup - created in UIInventory.abandonChest()");
          index = mNewChestIds.indexOf(chestInfo.databaseId);
          if(index != -1)
          {
@@ -503,22 +524,23 @@ package UI.Inventory
       {
          removeChestFromInventory(chestInstanceId);
          refresh(true);
+         focusFirstInventoryItem();
       }
       
       private function returnFromOpenFullPopUp() : void
       {
          if(mChestOpenFullPopUp)
          {
-            mSceneGraphComponent.removeChild(mChestOpenFullPopUp.root);
+            mChestOpenFullPopUp.destroy();
             mChestOpenFullPopUp = null;
          }
       }
       
       private function openChest(chestInfo:ChestInfo) : void
       {
-         var _loc4_:* = 0;
-         var _loc6_:* = 0;
-         var _loc2_:* = 0;
+         var _loc4_:uint = 0;
+         var _loc6_:uint = 0;
+         var _loc2_:uint = 0;
          var _loc3_:ChestInfoCard = mChestCard;
          if(UIHud.isThisAConsumbleChestId(chestInfo.gmChestInfo.Id))
          {
@@ -541,7 +563,7 @@ package UI.Inventory
          }
          else
          {
-            mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_score_report.swf"),_loc3_.showBuyKeysPopUp);
+            _loc3_.showBuyKeysPopUp();
          }
          var _loc5_:int = mNewChestIds.indexOf(chestInfo.databaseId);
          if(_loc5_ != -1)
@@ -560,13 +582,38 @@ package UI.Inventory
          refresh();
       }
       
-      private function closeRevealPopUp(itemType:uint, itemOfferId:uint, updateInventory:Boolean) : void
+      private function closeRevealPopUp(itemType:uint, itemOfferId:uint, keptItem:Boolean) : void
       {
          mRevealedItemType = itemType;
          mRevealedItemOfferId = itemOfferId;
          mConsumableChestCard.closeChestRevealPopUp();
          mChestCard.closeChestRevealPopUp();
          refresh();
+         focusAfterChestReveal(itemType,keptItem);
+      }
+      
+      private function focusAfterChestReveal(itemType:uint, keptItem:Boolean) : void
+      {
+         var _loc4_:UIObject = null;
+         if(keptItem && itemType == 1)
+         {
+            for each(var _loc3_:UIInventoryItem in mItems)
+            {
+               if(_loc3_.info == mSelectedItemInfo && _loc3_.canBeFocused())
+               {
+                  _loc4_ = _loc3_;
+                  break;
+               }
+            }
+         }
+         if(_loc4_ == null)
+         {
+            _loc4_ = getFirstFocusableInventoryItem();
+         }
+         if(_loc4_ != null)
+         {
+            mDBFacade.menuNavigationController.setFocusedUiObject(_loc4_);
+         }
       }
       
       private function updateRevealLoot(chestInstanceId:uint, details:*) : void
@@ -578,7 +625,7 @@ package UI.Inventory
       
       private function abandonChestDS(chestInfo:ChestInfo) : void
       {
-         mAbandonChestPopUp = new DBUITwoButtonPopup(mDBFacade,Locale.getString("ABANDON_CHEST_POPUP_TITLE"),Locale.getString("ABANDON_CHEST_POPUP_DESC"),Locale.getString("ABANDON_CHEST_POPUP_CANCEL"),closeAbandonChestPopUp,Locale.getString("ABANDON_CHEST_POPUP_CONFIRM"),function():void
+         mAbandonChestPopUp = new UIAbandonChestPopup(mDBFacade,closeAbandonChestPopUp,function():void
          {
             mDBFacade.metrics.log("ChestAbandoned",{
                "chestId":chestInfo.gmChestInfo.Id,
@@ -587,16 +634,17 @@ package UI.Inventory
             });
             var _loc1_:uint = mDungeonSummary.findSlotForChest(chestInfo.gmChestInfo);
             mDungeonSummary.abandonChestFromInventory(_loc1_);
+            focusFirstInventoryItem();
             closeAbandonChestPopUp();
-         },false,null);
-         MemoryTracker.track(mAbandonChestPopUp,"DBUITwoButtonPopup - created in UIInventory.abandonChestDS()");
+         });
+         MemoryTracker.track(mAbandonChestPopUp,"UIAbandonChestPopup - created in UIInventory.abandonChestDS()");
       }
       
       private function openChestDS(chestInfo:ChestInfo) : void
       {
          if(mDungeonSummary && !mDBFacade.dbAccountInfo.inventoryInfo.isThereEmptySpaceInWeaponStorage())
          {
-            mChestOpenFullPopUp = new DBUIOneButtonPopup(mDBFacade,Locale.getString("STORAGE_FULL"),Locale.getString("CLEAR_INVENTORY"),Locale.getString("RETURN"),returnFromOpenFullPopUp,true,returnFromOpenFullPopUp);
+            mChestOpenFullPopUp = new DBUIOneButtonPopup(mDBFacade,"POPUP_STORAGE_FULL",Locale.getString("STORAGE_FULL"),Locale.getString("CLEAR_INVENTORY"),Locale.getString("RETURN"),returnFromOpenFullPopUp,true,returnFromOpenFullPopUp);
             MemoryTracker.track(mChestOpenFullPopUp,"DBUIOneButtonPopup - created in UIInventory.openChestDS()");
             mSceneGraphComponent.addChild(mChestOpenFullPopUp.root,105);
             return;
@@ -608,7 +656,7 @@ package UI.Inventory
       {
          if(mDungeonSummary && !mDBFacade.dbAccountInfo.inventoryInfo.isThereEmptySpaceInWeaponStorage())
          {
-            mChestOpenFullPopUp = new DBUIOneButtonPopup(mDBFacade,Locale.getString("STORAGE_FULL"),Locale.getString("CLEAR_INVENTORY"),Locale.getString("RETURN"),returnFromOpenFullPopUp,true,returnFromOpenFullPopUp);
+            mChestOpenFullPopUp = new DBUIOneButtonPopup(mDBFacade,"POPUP_STORAGE_FULL",Locale.getString("STORAGE_FULL"),Locale.getString("CLEAR_INVENTORY"),Locale.getString("RETURN"),returnFromOpenFullPopUp,true,returnFromOpenFullPopUp);
             MemoryTracker.track(mChestOpenFullPopUp,"DBUIOneButtonPopup - created in UIInventory.keepChestDS()");
             mSceneGraphComponent.addChild(mChestOpenFullPopUp.root,105);
             return;
@@ -632,7 +680,7 @@ package UI.Inventory
       
       private function removeChestFromInventory(chestInstanceId:uint) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          _loc2_ = 0;
          while(_loc2_ < mDBFacade.dbAccountInfo.inventoryInfo.chests.length)
          {
@@ -680,7 +728,7 @@ package UI.Inventory
             {
                UITownTweens.rightPanelTweenSequence(mInventoryRoot.grid_widget,mDBFacade);
             });
-            if(mCurrentTab != "WEAPON")
+            if(mCurrentTab != GMInventoryBase.WEAPON_CATEGORY)
             {
                return;
             }
@@ -695,7 +743,7 @@ package UI.Inventory
       private function buildCategories() : void
       {
          var _loc7_:String = null;
-         var _loc9_:* = undefined;
+         var _loc9_:Vector.<InventoryBaseInfo> = undefined;
          var _loc10_:InventoryBaseInfo = null;
          var _loc5_:IMapIterator = null;
          mCategorizedItems = new Map();
@@ -736,7 +784,7 @@ package UI.Inventory
          {
             if(_loc2_.gmChestInfo)
             {
-               _loc7_ = "WEAPON";
+               _loc7_ = GMInventoryBase.WEAPON_CATEGORY;
                _loc9_ = mCategorizedItems.itemFor(_loc7_);
                if(_loc9_ == null)
                {
@@ -825,14 +873,14 @@ package UI.Inventory
       private function sortCategories() : void
       {
          var _loc2_:String = null;
-         var _loc3_:* = undefined;
+         var _loc3_:Vector.<InventoryBaseInfo> = undefined;
          var _loc1_:IMapIterator = mCategorizedItems.iterator() as IMapIterator;
          while(_loc1_.hasNext())
          {
             _loc3_ = _loc1_.next();
             _loc2_ = _loc1_.key;
             var _loc4_:String = _loc2_;
-            if("WEAPON" !== _loc4_)
+            if(GMInventoryBase.WEAPON_CATEGORY !== _loc4_)
             {
                _loc3_.sort(basicSortComparator);
             }
@@ -858,7 +906,6 @@ package UI.Inventory
          if(mTownHeader != null)
          {
             mTownHeader.title = Locale.getString("INVENTORY_HEADER");
-            mTownHeader.refreshKeyPanel();
          }
          mHeroWithEquipPicker.refresh(resync);
          mStacksWithEquipPicker.refresh(resync);
@@ -882,7 +929,7 @@ package UI.Inventory
          });
          if(!currentTabIsValidCategory)
          {
-            mCurrentTab = "WEAPON";
+            mCurrentTab = GMInventoryBase.WEAPON_CATEGORY;
          }
          if(!dontRefreshChestSelection)
          {
@@ -928,8 +975,8 @@ package UI.Inventory
       
       public function jumpToWeaponOffer(info:InventoryBaseInfo) : void
       {
-         var _loc4_:String = "WEAPON";
-         var _loc5_:Vector.<InventoryBaseInfo> = mCategorizedItems.itemFor("WEAPON");
+         var _loc4_:String = GMInventoryBase.WEAPON_CATEGORY;
+         var _loc5_:Vector.<InventoryBaseInfo> = mCategorizedItems.itemFor(GMInventoryBase.WEAPON_CATEGORY);
          var _loc2_:int = _loc5_.indexOf(info);
          if(_loc2_ == -1)
          {
@@ -941,9 +988,9 @@ package UI.Inventory
       
       private function checkIfRevealedWeaponExists() : InventoryBaseInfo
       {
-         var _loc6_:* = null;
+         var _loc6_:InventoryBaseInfo = null;
          var _loc1_:GMWeaponItem = null;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc5_:GMOffer = null;
          var _loc3_:GMStackable = null;
          if(mRevealedItemType == 0)
@@ -952,7 +999,7 @@ package UI.Inventory
          }
          if(mRevealedItemType == 1)
          {
-            mCurrentTab = "WEAPON";
+            mCurrentTab = GMInventoryBase.WEAPON_CATEGORY;
             mRevealedItemOfferId %= 100000;
             _loc1_ = mDBFacade.gameMaster.weaponItemById.itemFor(mRevealedItemOfferId);
             for each(_loc6_ in mCategorizedItems.itemFor(mCurrentTab))
@@ -979,7 +1026,7 @@ package UI.Inventory
             }
             if(_loc3_ != null)
             {
-               mCurrentTab = "POWERUP";
+               mCurrentTab = GMInventoryBase.POWERUP_CATEGORY;
                for each(_loc6_ in mCategorizedItems.itemFor(mCurrentTab))
                {
                   if(_loc6_.gmId == _loc3_.Id)
@@ -1052,10 +1099,10 @@ package UI.Inventory
          var _loc1_:uint = 0;
          switch(mCurrentTab)
          {
-            case "WEAPON":
+            case GMInventoryBase.WEAPON_CATEGORY:
                _loc1_ = mDBFacade.dbAccountInfo.inventoryLimitWeapons;
                break;
-            case "POWERUP":
+            case GMInventoryBase.POWERUP_CATEGORY:
                _loc1_ = mDBFacade.dbAccountInfo.stackableCount;
                if(_loc1_ % 15 != 0)
                {
@@ -1080,12 +1127,13 @@ package UI.Inventory
          var _loc7_:int = 0;
          var _loc4_:int = 0;
          var _loc9_:int = 0;
+         resetItemGridMenuNavigation();
          var _loc10_:Vector.<InventoryBaseInfo> = mCategorizedItems.itemFor(mCurrentTab);
          if(mDungeonRewardPanel)
          {
             mDungeonRewardPanel.hide();
          }
-         if(mCurrentTab == "WEAPON")
+         if(mCurrentTab == GMInventoryBase.WEAPON_CATEGORY)
          {
             mStacksWithEquipPicker.hide();
             if(mWantPets)
@@ -1101,7 +1149,7 @@ package UI.Inventory
                mDungeonRewardPanel.show();
             }
          }
-         else if(mCurrentTab == "POWERUP")
+         else if(mCurrentTab == GMInventoryBase.POWERUP_CATEGORY)
          {
             mHeroWithEquipPicker.hide();
             if(mWantPets)
@@ -1113,7 +1161,7 @@ package UI.Inventory
             mStacksWithEquipPicker.refresh(false);
             mStacksWithEquipPicker.show();
          }
-         else if(mWantPets && mCurrentTab == "PET")
+         else if(mWantPets && mCurrentTab == GMInventoryBase.PET_CATEGORY)
          {
             mHeroWithEquipPicker.hide();
             mStacksWithEquipPicker.hide();
@@ -1122,7 +1170,7 @@ package UI.Inventory
             mPetsWithEquipPicker.refresh(false);
             mPetsWithEquipPicker.show();
          }
-         else if(mWantPets && mCurrentTab == "STUFF")
+         else if(mWantPets && mCurrentTab == GMInventoryBase.STUFF_CATEGORY)
          {
             mHeroWithEquipPicker.hide();
             mStacksWithEquipPicker.hide();
@@ -1213,11 +1261,13 @@ package UI.Inventory
             _loc5_++;
          }
          determineEquippableItems(mHeroWithEquipPicker.currentlySelectedHero);
+         setupNavigationLinks();
       }
       
       private function showTab(category:String, page:uint = 0) : void
       {
          var _loc4_:UIRadioButton = null;
+         setNextTab(category);
          mCurrentTab = category;
          var _loc5_:IMapIterator = mTabButtons.iterator() as IMapIterator;
          while(_loc5_.hasNext())
@@ -1230,9 +1280,9 @@ package UI.Inventory
          _loc4_.enabled = false;
          _loc4_.label.visible = true;
          var _loc3_:uint = this.numPagesInCurrentCategory();
-         page = Math.min(_loc3_,page);
-         mPagination.currentPage = mCurrentPage = page;
+         page = _loc3_ == 0 ? 0 : Math.min(_loc3_ - 1,page);
          mPagination.numPages = _loc3_;
+         mPagination.currentPage = mCurrentPage = page;
          mPagination.visible = _loc3_ > 1;
          displayCategoryPage();
       }
@@ -1241,6 +1291,16 @@ package UI.Inventory
       {
          mCurrentPage = value;
          displayCategoryPage();
+         focusNextPageButton();
+      }
+      
+      private function focusNextPageButton() : void
+      {
+         var _loc1_:UIButton = mPagination.getNextPageButton();
+         if(_loc1_ != null)
+         {
+            mDBFacade.menuNavigationController.setFocusedUiObject(_loc1_);
+         }
       }
       
       public function get infoCard() : ItemInfoCard
@@ -1258,21 +1318,23 @@ package UI.Inventory
          mCurrentTab = category;
       }
       
-      private function itemSelected(info:InventoryBaseInfo) : void
+      private function itemSelected(info:InventoryBaseInfo, navigationSource:UIObject = null) : void
       {
-         var _loc2_:StackableInfo = null;
+         var _loc3_:StackableInfo = null;
+         restoreBoosterItemNavigation();
          mSelectedItemInfo = info;
-         var _loc3_:Boolean = false;
+         mSelectedItemNavigationSource = navigationSource;
+         var _loc4_:Boolean = false;
          if(info is StackableInfo)
          {
-            _loc2_ = info as StackableInfo;
-            if(_loc2_.gmStackable.AccountBooster)
+            _loc3_ = info as StackableInfo;
+            if(_loc3_.gmStackable.AccountBooster)
             {
                populateDetailBoosterCard();
-               _loc3_ = true;
+               _loc4_ = true;
             }
          }
-         if(!_loc3_)
+         if(!_loc4_)
          {
             mBoosterCard.hide();
             if(mSelectedItemInfo.gmChestInfo)
@@ -1310,7 +1372,7 @@ package UI.Inventory
       private function highLightSelectedChestItem() : void
       {
          var _loc2_:UIInventoryItem = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          if(mDungeonRewardPanel)
          {
             mDungeonRewardPanel.clearHighlights();
@@ -1346,9 +1408,9 @@ package UI.Inventory
       private function highLightSelectedAvatarItem() : void
       {
          var _loc2_:GMWeaponItem = null;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc1_:UIInventoryItem = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          if(mDungeonRewardPanel)
          {
             mDungeonRewardPanel.clearHighlights();
@@ -1393,7 +1455,7 @@ package UI.Inventory
          var _loc4_:GMStackable = null;
          var _loc5_:int = 0;
          var _loc2_:UIInventoryItem = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc1_:StackableInfo = mSelectedItemInfo as StackableInfo;
          mStacksWithEquipPicker.deselectEquipment();
          if(mStacksWithEquipPicker.highlightItem(mSelectedItemInfo))
@@ -1430,7 +1492,7 @@ package UI.Inventory
       {
          var _loc1_:GMNpc = null;
          var _loc3_:UIInventoryItem = null;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc2_:PetInfo = mSelectedItemInfo as PetInfo;
          mPetsWithEquipPicker.deselectEquipment();
          if(mPetsWithEquipPicker.highlightItem(mSelectedItemInfo))
@@ -1466,6 +1528,77 @@ package UI.Inventory
          mChestCard.hide();
          mInfoCard.visible = false;
          mBoosterCard.info = mSelectedItemInfo as StackableInfo;
+         setupBoosterCardMenuNavigation();
+      }
+      
+      private function setupBoosterCardMenuNavigation() : void
+      {
+         restoreBoosterItemNavigation();
+         var _loc2_:UIButton = mBoosterCard.visibleActivationButton;
+         if(_loc2_ == null)
+         {
+            return;
+         }
+         _loc2_.clearNavigationAndInteractions();
+         if(mSelectedItemNavigationSource != null && mSelectedItemNavigationSource.canBeFocused())
+         {
+            mSelectedItemNavigationSource.clearUpNavigation();
+            mSelectedItemNavigationSource.upNavigation = _loc2_;
+            _loc2_.downNavigation = mSelectedItemNavigationSource;
+            return;
+         }
+         var _loc1_:UIInventoryItem = getFirstFocusableInventoryItem() as UIInventoryItem;
+         if(_loc1_ == null)
+         {
+            return;
+         }
+         mBoosterNavigationItem = _loc1_;
+         _loc2_.rightNavigation = _loc1_;
+         _loc1_.clearLeftNavigation();
+         _loc1_.leftNavigation = _loc2_;
+      }
+      
+      private function focusAfterBoosterActivation() : void
+      {
+         if(mLogicalWorkComponent == null)
+         {
+            return;
+         }
+         mLogicalWorkComponent.doLater(0,function(param1:GameClock):void
+         {
+            completeBoosterActivationFocus();
+         });
+      }
+      
+      private function completeBoosterActivationFocus() : void
+      {
+         var _loc1_:UIButton = null;
+         if(mBoosterCard != null && mBoosterCard.isShowing())
+         {
+            setupBoosterCardMenuNavigation();
+            _loc1_ = mBoosterCard.visibleActivationButton;
+            if(_loc1_ != null && _loc1_.canBeFocused())
+            {
+               mDBFacade.menuNavigationController.setFocusedUiObject(_loc1_);
+               return;
+            }
+         }
+         focusFirstInventoryItem();
+      }
+      
+      private function restoreBoosterItemNavigation() : void
+      {
+         if(mBoosterNavigationItem == null)
+         {
+            return;
+         }
+         var _loc1_:int = mItems.indexOf(mBoosterNavigationItem);
+         mBoosterNavigationItem.clearLeftNavigation();
+         if(_loc1_ > 0 && _loc1_ % 5 != 0)
+         {
+            mBoosterNavigationItem.leftNavigation = mItems[_loc1_ - 1];
+         }
+         mBoosterNavigationItem = null;
       }
       
       private function populateDetailInfoCard() : void
@@ -1473,40 +1606,64 @@ package UI.Inventory
          mConsumableChestCard.hide();
          mChestCard.hide();
          mInfoCard.info = mSelectedItemInfo;
+         if(mSelectedItemInfo)
+         {
+            setupInfoCardMenuNavigation();
+         }
       }
       
       private function populateDetailChestCard() : void
       {
-         mInfoCard.info = null;
-         if(mSelectedItemInfo == null)
+         var _loc1_:ChestInfo = mSelectedItemInfo as ChestInfo;
+         if(_loc1_ == null)
          {
             mConsumableChestCard.hide();
             mChestCard.hide();
             mChestCard.selectedHeroId = mSelectedAvatar;
             return;
          }
-         if(UIHud.isThisAConsumbleChestId(mSelectedItemInfo.gmId))
+         mInfoCard.info = null;
+         if(UIHud.isThisAConsumbleChestId(_loc1_.gmId))
          {
-            mConsumableChestCard.info = mSelectedItemInfo;
+            mConsumableChestCard.info = _loc1_;
             mChestCard.hide();
             mBoosterCard.hide();
+            setupChestInfoCardMenuNavigation(mConsumableChestCard);
          }
          else
          {
             mChestCard.selectedHeroId = mSelectedAvatar;
-            mChestCard.info = mSelectedItemInfo;
+            mChestCard.info = _loc1_;
             mConsumableChestCard.hide();
             mBoosterCard.hide();
+            setupChestInfoCardMenuNavigation(mChestCard);
          }
+      }
+      
+      private function getSelectedItemPosition() : int
+      {
+         var _loc1_:UIInventoryItem = null;
+         var _loc2_:int = 0;
+         _loc2_ = 0;
+         while(_loc2_ < 15)
+         {
+            _loc1_ = mItems[_loc2_];
+            if(mSelectedItemInfo && _loc1_.info == mSelectedItemInfo)
+            {
+               return _loc2_;
+            }
+            _loc2_++;
+         }
+         return -1;
       }
       
       public function destroy() : void
       {
          var _loc4_:UIRadioButton = null;
          var _loc1_:UIInventoryItem = null;
-         var _loc5_:* = 0;
+         var _loc5_:uint = 0;
          var _loc2_:MovieClip = null;
-         var _loc6_:* = 0;
+         var _loc6_:uint = 0;
          mDBFacade = null;
          if(mLogicalWorkComponent)
          {
@@ -1521,6 +1678,7 @@ package UI.Inventory
          mRoot = null;
          mInventoryRoot = null;
          mSwfAsset = null;
+         resetMenuNavigation();
          mTownHeader = null;
          if(mDungeonRewardPanel)
          {
@@ -1654,6 +1812,345 @@ package UI.Inventory
          if(mDBFacade.dbAccountInfo.activeAvatarInfo.gmHero.Id != _loc1_)
          {
             mDBFacade.dbAccountInfo.changeActiveAvatarRPC(_loc1_);
+         }
+      }
+      
+      private function setNextTab(category:String) : void
+      {
+         if(category == GMInventoryBase.WEAPON_CATEGORY)
+         {
+            mNextTab = GMInventoryBase.POWERUP_CATEGORY;
+         }
+         else if(category == GMInventoryBase.POWERUP_CATEGORY)
+         {
+            mNextTab = mWantPets ? GMInventoryBase.PET_CATEGORY : GMInventoryBase.STUFF_CATEGORY;
+         }
+         else if(category == GMInventoryBase.PET_CATEGORY)
+         {
+            mNextTab = GMInventoryBase.STUFF_CATEGORY;
+         }
+         else if(category == GMInventoryBase.STUFF_CATEGORY)
+         {
+            mNextTab = GMInventoryBase.WEAPON_CATEGORY;
+         }
+      }
+      
+      public function setupCategoryNavigation(ownerLayer:String) : void
+      {
+         mDBFacade.menuNavigationController.setLayerCategoryCallbacks(selectPreviousHero,selectNextHero,ownerLayer);
+         mWeaponTabButton.clearNavigationAndInteractions();
+         mPotionsTabButton.clearNavigationAndInteractions();
+         mPetsTabButton.clearNavigationAndInteractions();
+         mStuffTabButton.clearNavigationAndInteractions();
+         if(mTownHeader != null)
+         {
+            mTownHeader.addCoinButton.clearDownNavigation();
+            mTownHeader.addGemButton.clearDownNavigation();
+            mTownHeader.closeButton.clearDownNavigation();
+            mTownHeader.addCoinButton.downNavigation = mTabButtons.itemFor(mNextTab);
+            mTownHeader.addGemButton.downNavigation = mTabButtons.itemFor(mNextTab);
+            mTownHeader.closeButton.downNavigation = mTabButtons.itemFor(mNextTab);
+            mWeaponTabButton.upNavigation = mTownHeader.addCoinButton;
+            mPotionsTabButton.upNavigation = mTownHeader.addCoinButton;
+            mStuffTabButton.upNavigation = mTownHeader.addCoinButton;
+            if(mWantPets)
+            {
+               mPetsTabButton.upNavigation = mTownHeader.addCoinButton;
+            }
+         }
+         mWeaponTabButton.isToTheLeftOf(mPotionsTabButton);
+         if(mWantPets)
+         {
+            mPotionsTabButton.isToTheLeftOf(mPetsTabButton);
+            mPetsTabButton.isToTheLeftOf(mStuffTabButton);
+            mPetsTabButton.downNavigation = mItems[0];
+         }
+         else
+         {
+            mPotionsTabButton.isToTheLeftOf(mStuffTabButton);
+         }
+         mStuffTabButton.isToTheLeftOf(mWeaponTabButton);
+         mWeaponTabButton.downNavigation = mItems[0];
+         mPotionsTabButton.downNavigation = mItems[0];
+         mStuffTabButton.downNavigation = mItems[0];
+      }
+      
+      private function selectPreviousHero() : void
+      {
+         selectAdjacentHero(-1);
+      }
+      
+      private function selectNextHero() : void
+      {
+         selectAdjacentHero(1);
+      }
+      
+      private function selectAdjacentHero(direction:int) : void
+      {
+         var _loc3_:Vector.<GMHero> = mDBFacade.gameMaster.Heroes;
+         if(_loc3_.length == 0)
+         {
+            return;
+         }
+         var _loc2_:int = int(mSelectedAvatar < _loc3_.length ? mSelectedAvatar : 0);
+         var _loc4_:int = _loc2_;
+         do
+         {
+            _loc4_ = (_loc4_ + direction + _loc3_.length) % _loc3_.length;
+         }
+         while(_loc3_[_loc4_].Hidden && !mDBFacade.dbConfigManager.getConfigBoolean("want_hidden_heroes",false) && _loc4_ != _loc2_);
+         if(_loc4_ == mSelectedAvatar)
+         {
+            return;
+         }
+         mSelectedAvatar = _loc4_;
+         heroSelected(_loc3_[_loc4_],mDBFacade.dbAccountInfo.inventoryInfo.ownsItem(_loc3_[_loc4_].Id));
+      }
+      
+      private function resetMenuNavigation() : void
+      {
+         if(mTownHeader == null)
+         {
+            return;
+         }
+         mTownHeader.addCoinButton.clearDownNavigation();
+         mTownHeader.addGemButton.clearDownNavigation();
+         mTownHeader.closeButton.clearDownNavigation();
+      }
+      
+      private function resetItemGridMenuNavigation() : void
+      {
+         var _loc1_:int = 0;
+         _loc1_ = 0;
+         while(_loc1_ < 15)
+         {
+            mItems[_loc1_].clearNavigationAndInteractions();
+            _loc1_++;
+         }
+      }
+      
+      private function setupNavigationLinks() : void
+      {
+         var _loc4_:int = 0;
+         var _loc1_:int = 0;
+         var _loc2_:UIButton = mPagination.getNextPageButton();
+         var _loc3_:UIObject = getFirstFocusableInventoryItem();
+         mAddStorageButton.clearUpNavigation();
+         mAddStorageButton.clearDownNavigation();
+         mItems[0].clearUpNavigation();
+         mItems[1].clearUpNavigation();
+         mItems[2].clearUpNavigation();
+         mItems[3].clearUpNavigation();
+         mItems[4].clearUpNavigation();
+         mItems[0].upNavigation = mTabButtons.itemFor(mNextTab);
+         mItems[1].upNavigation = mTabButtons.itemFor(mNextTab);
+         mItems[2].upNavigation = mTabButtons.itemFor(mNextTab);
+         mItems[3].upNavigation = mTabButtons.itemFor(mNextTab);
+         mItems[4].upNavigation = mTabButtons.itemFor(mNextTab);
+         resetEquipPickerMenuNavigation();
+         setupCurrentEquipPickerMenuNavigation();
+         _loc4_ = 0;
+         while(_loc4_ < 15)
+         {
+            if(_loc4_ % 5 < 4 && _loc4_ + 1 < 15)
+            {
+               mItems[_loc4_].isToTheLeftOf(mItems[_loc4_ + 1]);
+            }
+            if(_loc4_ + 5 < 15)
+            {
+               mItems[_loc4_].isAbove(mItems[_loc4_ + 5]);
+            }
+            if(_loc4_ >= 10)
+            {
+               mItems[_loc4_].downNavigation = _loc2_ ?? mAddStorageButton;
+               if(_loc2_ != null)
+               {
+                  mItems[_loc4_].downNavigationAdditionalInteraction = createPaginationReturnCallback(mItems[_loc4_]);
+               }
+            }
+            _loc4_++;
+         }
+         if(mPagination.numPages > 1)
+         {
+            _loc1_ = 0;
+            while(_loc1_ < mPagination.numPageButtons)
+            {
+               if(_loc1_ > 0)
+               {
+                  mPagination.getPageButton(_loc1_ - 1).isToTheLeftOf(mPagination.getPageButton(_loc1_));
+               }
+               if(_loc3_ != null)
+               {
+                  mPagination.getPageButton(_loc1_).upNavigation = _loc3_;
+               }
+               mPagination.getPageButton(_loc1_).downNavigation = mAddStorageButton;
+               _loc1_++;
+            }
+            mAddStorageButton.upNavigation = _loc2_;
+         }
+         else
+         {
+            mAddStorageButton.upNavigation = mItems[15 - 1];
+         }
+      }
+      
+      private function getFirstFocusableInventoryItem() : UIObject
+      {
+         for each(var _loc1_:UIInventoryItem in mItems)
+         {
+            if(_loc1_.canBeFocused())
+            {
+               return _loc1_;
+            }
+         }
+         return null;
+      }
+      
+      private function focusFirstInventoryItem() : void
+      {
+         var _loc1_:UIObject = getFirstFocusableInventoryItem();
+         if(_loc1_ == null && mTownHeader != null)
+         {
+            _loc1_ = mTownHeader.closeButton;
+         }
+         if(_loc1_ != null && _loc1_.canBeFocused())
+         {
+            mDBFacade.menuNavigationController.setFocusedUiObject(_loc1_);
+         }
+      }
+      
+      private function resetEquipPickerMenuNavigation() : void
+      {
+         mHeroWithEquipPicker.resetHeroWithEquipPickerMenuNavigation();
+         mStacksWithEquipPicker.resetMenuNavigation();
+         if(mWantPets)
+         {
+            mPetsWithEquipPicker.resetMenuNavigation();
+         }
+         mStuffWithEquipPicker.resetMenuNavigation();
+      }
+      
+      private function setupCurrentEquipPickerMenuNavigation() : void
+      {
+         var _loc1_:UIObject = null;
+         if(mCurrentTab == GMInventoryBase.POWERUP_CATEGORY)
+         {
+            mStacksWithEquipPicker.setupMenuNavigation(mAddStorageButton);
+            _loc1_ = mStacksWithEquipPicker.getFirstUIObject();
+         }
+         else if(mWantPets && mCurrentTab == GMInventoryBase.PET_CATEGORY)
+         {
+            mPetsWithEquipPicker.setupMenuNavigation(mAddStorageButton);
+            _loc1_ = mPetsWithEquipPicker.getFirstUIObject();
+         }
+         else if(mCurrentTab == GMInventoryBase.STUFF_CATEGORY)
+         {
+            mStuffWithEquipPicker.setupMenuNavigation(mAddStorageButton);
+            _loc1_ = mStuffWithEquipPicker.getFirstUIObject();
+         }
+         else
+         {
+            mHeroWithEquipPicker.setupHeroWithEquipPickerMenuNavigation(mAddStorageButton);
+            _loc1_ = mHeroWithEquipPicker.getFirstHeroSlotUIObject();
+         }
+         mAddStorageButton.downNavigation = _loc1_;
+      }
+      
+      private function createPaginationReturnCallback(returnObject:UIObject) : Function
+      {
+         return function():void
+         {
+            setPaginationReturnObject(returnObject);
+         };
+      }
+      
+      private function setPaginationReturnObject(returnObject:UIObject) : void
+      {
+         var _loc3_:uint = 0;
+         var _loc2_:UIButton = null;
+         _loc3_ = 0;
+         while(_loc3_ < mPagination.numPageButtons)
+         {
+            _loc2_ = mPagination.getPageButton(_loc3_);
+            _loc2_.clearUpNavigation();
+            _loc2_.upNavigation = returnObject;
+            _loc3_++;
+         }
+      }
+      
+      private function setupInfoCardMenuNavigation() : void
+      {
+         mItems[0].clearLeftNavigation();
+         mItems[5].clearLeftNavigation();
+         mItems[10].clearLeftNavigation();
+         mInfoCard.mEquipButton.clearRightNavigation();
+         mInfoCard.setupMenuNavigation();
+         if(mSelectedItemNavigationSource != null && mSelectedItemNavigationSource.canBeFocused())
+         {
+            mSelectedItemNavigationSource.clearUpNavigation();
+            mSelectedItemNavigationSource.upNavigation = mInfoCard.mEquipButton;
+            mInfoCard.mEquipButton.downNavigation = mSelectedItemNavigationSource;
+            return;
+         }
+         var _loc1_:int = getSelectedItemPosition();
+         if(_loc1_ != -1)
+         {
+            mInfoCard.mEquipButton.rightNavigation = mItems[_loc1_];
+         }
+         mItems[0].leftNavigation = mInfoCard.mEquipButton;
+         mItems[5].leftNavigation = mInfoCard.mEquipButton;
+         mItems[10].leftNavigation = mInfoCard.mEquipButton;
+      }
+      
+      private function setupChestInfoCardMenuNavigation(chestCard:ChestInfoCard) : void
+      {
+         var _loc3_:UIObject = null;
+         var _loc4_:int = 0;
+         var _loc2_:UIObject = null;
+         mItems[0].clearLeftNavigation();
+         mItems[5].clearLeftNavigation();
+         mItems[10].clearLeftNavigation();
+         var _loc5_:ChestInfo = mSelectedItemInfo as ChestInfo;
+         if(_loc5_.isFromDungeonSummary() && mDungeonRewardPanel != null)
+         {
+            _loc3_ = mDungeonRewardPanel.getNavigationEntry(_loc5_);
+         }
+         else
+         {
+            _loc4_ = getSelectedItemPosition();
+            if(_loc4_ != -1)
+            {
+               _loc3_ = mItems[_loc4_];
+            }
+         }
+         chestCard.setupMenuNavigation(_loc3_);
+         if(_loc5_.isFromDungeonSummary())
+         {
+            _loc2_ = getFirstFocusableInventoryItem();
+            mDungeonRewardPanel.setupChestCardNavigation(chestCard.dungeonSummaryAbandonButton,chestCard.dungeonSummaryKeepButton,_loc5_);
+            if(_loc2_ != null)
+            {
+               chestCard.dungeonSummaryUnlockButton.rightNavigation = _loc2_;
+               _loc2_.clearLeftNavigation();
+               _loc2_.leftNavigation = chestCard.dungeonSummaryUnlockButton;
+            }
+            mItems[5].leftNavigation = chestCard.dungeonSummaryUnlockButton;
+            mItems[10].leftNavigation = chestCard.dungeonSummaryUnlockButton;
+            if(!mDungeonSummaryInitialFocusSet && chestCard.dungeonSummaryUnlockButton.canBeFocused())
+            {
+               mDungeonSummaryInitialFocusSet = true;
+               mDBFacade.menuNavigationController.setFocusedUiObject(chestCard.dungeonSummaryUnlockButton);
+            }
+         }
+         else
+         {
+            mItems[0].leftNavigation = chestCard.menuEntryButton;
+            mItems[5].leftNavigation = chestCard.menuEntryButton;
+            mItems[10].leftNavigation = chestCard.menuEntryButton;
+            if(mDungeonSummary != null && mDungeonRewardPanel != null)
+            {
+               mDungeonRewardPanel.setupInventoryChestNavigation(chestCard.inventoryAbandonButton);
+            }
          }
       }
    }

@@ -24,6 +24,8 @@ package Dungeon
       
       protected var mB2World:b2World;
       
+      private var mSetPositionScratch:b2Vec2 = new b2Vec2();
+      
       public function NavCollider(dbFacade:DBFacade, parentObject:FloorObject, offset:Vector3D, box2DWorld:b2World)
       {
          super();
@@ -103,8 +105,11 @@ package Dungeon
       
       public function set position(val:Vector3D) : void
       {
-         var _loc2_:Vector3D = new Vector3D(val.x + mWorldSpaceOffset.x,val.y + mWorldSpaceOffset.y);
-         mB2Body.SetPosition(convertToB2Vec2(_loc2_));
+         var _loc2_:Number = (val.x + mWorldSpaceOffset.x) / 50;
+         var _loc3_:Number = (val.y + mWorldSpaceOffset.y) / 50;
+         mSetPositionScratch.x = _loc2_;
+         mSetPositionScratch.y = _loc3_;
+         mB2Body.SetPosition(mSetPositionScratch);
       }
       
       public function get position() : Vector3D

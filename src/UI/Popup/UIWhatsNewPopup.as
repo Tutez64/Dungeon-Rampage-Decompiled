@@ -6,6 +6,7 @@ package UI.Popup
    import Brain.Logger.Logger;
    import Brain.UI.UIButton;
    import Brain.Utils.MemoryTracker;
+   import Brain.Utils.TextUtil;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import flash.display.MovieClip;
@@ -27,7 +28,7 @@ package UI.Popup
       
       private var mLoadingPopUp:DBUIPopup;
       
-      private var mImageRetreived:Boolean = false;
+      private var mImageRetrieved:Boolean = false;
       
       private var mUseCurtain:Boolean = true;
       
@@ -46,10 +47,10 @@ package UI.Popup
             };
          }
          mUseCurtain = !showPagination;
-         super(dbFacade,titleText,messageText,mainText,mainCallback,webText,webCallback);
-         if(!mImageRetreived)
+         super(dbFacade,"WHATS_NEW_POPUP",titleText,messageText,mainText,mainCallback,webText,webCallback);
+         if(!mImageRetrieved)
          {
-            mLoadingPopUp = new DBUIPopup(mDBFacade,"LOADING");
+            mLoadingPopUp = new DBUIPopup(mDBFacade,"","LOADING");
             MemoryTracker.track(mLoadingPopUp,"DBUIPopup - created in UIWhatsNewPopup.UIWhatsNewPopup()");
          }
          if(!showPagination)
@@ -62,7 +63,7 @@ package UI.Popup
             mPopup.left_button.visible = false;
             mLeftButton = new UIButton(mDBFacade,mPopup.left_button_news);
             mLeftButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
-            mLeftButton.label.text = mLeftText;
+            TextUtil.setText(mLeftButton.label,mLeftText);
             mLeftButton.releaseCallback = function():void
             {
                close(mLeftCallback);
@@ -110,7 +111,7 @@ package UI.Popup
             mImageLocator.addChild(param1.image);
             param1.image.x = param1.image.width * -0.5;
             param1.image.y = param1.image.height * -0.5;
-            mImageRetreived = true;
+            mImageRetrieved = true;
          },function():void
          {
             if(mLoadingPopUp)

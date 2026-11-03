@@ -1,11 +1,15 @@
 package
 {
+   import Account.SteamAccountInfo;
+   import Brain.AssetRepository.TestResourceLocator;
+   import Brain.Event.EventListeners;
    import Brain.GameEntry;
    import Brain.Logger.Logger;
-   import Brain.MouseScrollPlugin.*;
+   import Brain.Render.Tweens.TweeningProxy;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
-   import com.amanitadesign.steam.SteamEvent;
+   import Util.GameLogOutput;
+   import Util.LaunchWindowOptions;
    import flash.desktop.NativeApplication;
    import flash.events.ErrorEvent;
    import flash.events.Event;
@@ -18,16 +22,18 @@ package
       
       protected var mDBFacade:DBFacade;
       
+      private var mSteamStarted:Boolean = false;
+      
       public function DungeonBustersProject()
       {
          super();
-         stage.scaleMode = "showAll";
+         stage.scaleMode = "noScale";
+         stage.align = "TL";
          stage.quality = "high";
          mDBFacade = new DBFacade();
          mDBFacade.init(this.stage);
-         NativeApplication.nativeApplication.addEventListener("invoke",onInvoke);
-         MouseWheelEnabler.init(this.stage);
-         this.loaderInfo.uncaughtErrorEvents.addEventListener("uncaughtError",function(param1:UncaughtErrorEvent):void
+         EventListeners.add(NativeApplication.nativeApplication,"invoke",onInvoke);
+         EventListeners.add(this.loaderInfo.uncaughtErrorEvents,"uncaughtError",function(param1:UncaughtErrorEvent):void
          {
             var _loc2_:String = null;
             var _loc5_:Error = null;
@@ -63,72 +69,53 @@ package
          });
       }
       
-      public function onInvoke(e:InvokeEvent = null) : void
+      public function onInvoke(e:InvokeEvent) : void
       {
-         NativeApplication.nativeApplication.addEventListener("exiting",onExit);
-         try
+         EventListeners.add(NativeApplication.nativeApplication,"exiting",onExit);
+         if(!mSteamStarted)
          {
-            if(!mDBFacade.mSteamworks.init())
-            {
-               Logger.warn("STEAMWORKS API is NOT available");
-            }
-            else
-            {
-               Logger.info("STEAMWORKS API is available\n");
-               mDBFacade.mSteamworks.addEventListener(SteamEvent.STEAM_RESPONSE,onSteamResponse);
-               mDBFacade.mSteamUserId = mDBFacade.mSteamworks.getUserID();
-               Logger.info("STEAMWORKS User ID: " + mDBFacade.mSteamUserId);
-               mDBFacade.mSteamAppId = mDBFacade.mSteamworks.getAppID();
-               Logger.info("STEAMWORKS App ID: " + mDBFacade.mSteamAppId);
-               mDBFacade.mSteamPersonaName = mDBFacade.mSteamworks.getPersonaName();
-               Logger.info("STEAMWORKS Persona name: " + mDBFacade.mSteamPersonaName);
-               mDBFacade.mSteamworks.getAuthTicketForWebApi();
-            }
+            mSteamStarted = true;
+            SteamAccountInfo.startSteam(mDBFacade);
          }
-         catch(e:Error)
-         {
-            Logger.warn("*** STEAMWORKS ERROR ***");
-            Logger.error(e.message,e);
-         }
+         GameLogOutput.configure(e.arguments);
          processArguments(e.arguments);
-      }
-      
-      private function onSteamResponse(e:SteamEvent) : void
-      {
-         switch(int(e.req_type) - 27)
-         {
-            case 0:
-               Logger.info("[Steam] RESPONSE_OnGetAuthTicketForWebApiResponse: " + e.response);
-               mDBFacade.mSteamWebApiAuthTicket = mDBFacade.mSteamworks.getAuthTicketForWebApiResultHexString();
-               mDBFacade.mSteamAuthTicketHandle = mDBFacade.mSteamworks.getAuthTicketForWebApiResultHandle();
-         }
       }
       
       private function onExit(e:Event) : void
       {
          Logger.info("Exiting application, cleaning up Steam");
          mDBFacade.mSteamworks.dispose();
+         TweeningProxy.shutdown();
+         GameLogOutput.close();
       }
       
       private function processArguments(arguments:Array) : void
       {
          var _loc3_:int = 0;
          var _loc2_:String = null;
+         TestResourceLocator.apply(arguments);
          mDBFacade.featureFlags.loadFeatureFlagValuesFromCli(arguments);
+         LaunchWindowOptions.apply(stage,mDBFacade.featureFlags,arguments);
          var _loc4_:int = 0;
          _loc3_ = 0;
          while(_loc3_ < arguments.length)
          {
             _loc2_ = arguments[_loc3_];
-            if(DBGlobal.endsWith(_loc2_,".json"))
+            if(!(_loc2_ == "--log" || _loc2_.indexOf("--log=") == 0))
             {
-               if(++_loc4_ > 2)
+               if(!(_loc2_ == "--windowed" || _loc2_.indexOf("--windowed=") == 0))
                {
-                  Logger.warn("GBS: Too many JSON files passed in! Only supports two json files, ignoring: " + _loc2_);
-               }
-               else
-               {
-                  mDBFacade.mAdditionalConfigFilesToLoad.push("DBConfiguration/" + _loc2_);
+                  if(DBGlobal.endsWith(_loc2_,".json"))
+                  {
+                     if(++_loc4_ > 3)
+                     {
+                        Logger.warn("GBS: Too many JSON files passed in! Only supports three json files, ignoring: " + _loc2_);
+                     }
+                     else
+                     {
+                        mDBFacade.mAdditionalConfigFilesToLoad.push("DBConfiguration/" + _loc2_);
+                     }
+                  }
                }
             }
             _loc3_++;

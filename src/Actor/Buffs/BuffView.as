@@ -1,15 +1,20 @@
 package Actor.Buffs
 {
+   import Actor.ActorGameObject;
    import Actor.ActorView;
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
    import Brain.Clock.GameClock;
    import Brain.Logger.Logger;
    import Brain.Render.MovieClipRenderController;
+   import Brain.Render.Tweens.TweenHandle;
    import Brain.WorkLoop.LogicalWorkComponent;
+   import DistributedObjects.DistributedDungeonFloor;
+   import Effects.EffectManager;
+   import Effects.EffectView;
    import Facade.DBFacade;
    import Floor.FloorView;
-   import com.greensock.TweenMax;
+   import flash.display.DisplayObject;
    import flash.display.MovieClip;
    
    public class BuffView extends FloorView
@@ -27,7 +32,11 @@ package Actor.Buffs
       
       private var mTintAmount:Number;
       
-      protected var mTween:TweenMax;
+      protected var mTween:TweenHandle;
+      
+      private var mStarlingTintTween:TweenHandle;
+      
+      private var mStarlingTintProxy:Object;
       
       protected var mSortLayer:String;
       
@@ -43,9 +52,17 @@ package Actor.Buffs
       
       private var mLogicalWorkComponent:LogicalWorkComponent;
       
-      private var mHideTween:TweenMax;
+      private var mHideTween:TweenHandle;
       
-      private var mShowTween:TweenMax;
+      private var mShowTween:TweenHandle;
+      
+      private var mEffectManager:EffectManager;
+      
+      private var mManagedEffectId:uint;
+      
+      private var mEffectView:EffectView;
+      
+      private var mTintStarted:Boolean;
       
       public function BuffView(facade:DBFacade, buffGameObject:BuffGameObject, parentView:ActorView, tintColor:Number, tintAmount:Number, scale:Number, scaleStartDelayTime:Number, scaleIncrementTime:Number, scaleIncrementScale:Number)
       {
@@ -62,8 +79,11 @@ package Actor.Buffs
          super(facade,buffGameObject);
          if(buffGameObject.className)
          {
-            mAssetLoadingComponent = new AssetLoadingComponent(mFacade);
-            mAssetLoadingComponent.getSwfAsset(buffGameObject.swfPath,assetLoaded);
+            if(!startManagedBuffEffect())
+            {
+               mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
+               mAssetLoadingComponent.getSwfAsset(buffGameObject.swfPath,assetLoaded);
+            }
          }
          else
          {
@@ -71,29 +91,83 @@ package Actor.Buffs
          }
       }
       
+      private function startManagedBuffEffect() : Boolean
+      {
+         var _loc2_:ActorGameObject = mParentGameObject.actorGameObject;
+         var _loc3_:DistributedDungeonFloor = _loc2_ != null ? _loc2_.distributedDungeonFloor : null;
+         var _loc1_:EffectManager = _loc3_ != null ? _loc3_.effectManager : null;
+         if(_loc1_ == null)
+         {
+            return false;
+         }
+         mEffectManager = _loc1_;
+         mManagedEffectId = _loc1_.playEffect(mParentGameObject.swfPath,mParentGameObject.className,mParentGameObject.position,_loc2_,mSortLayer != "foreground",1,0,0,0,0,true,"sorted",true,1,null,null,"BUFF");
+         mEffectView = _loc1_.managedEffectView(mManagedEffectId);
+         if(mEffectView != null)
+         {
+            mEffectView.artResolvedCallback = onBuffArtResolved;
+            if(mEffectView.isArtLoaded)
+            {
+               onBuffArtResolved();
+            }
+         }
+         checkForScaling();
+         return true;
+      }
+      
+      private function onBuffArtResolved() : void
+      {
+         if(mDBFacade == null || mTintStarted || mTintColor == -1)
+         {
+            return;
+         }
+         mTintStarted = true;
+         var _loc1_:Number = mEffectView.artDurationInSeconds * 0.5;
+         startTintTweens(_loc1_);
+      }
+      
+      private function startTintTweens(halfDuration:Number) : void
+      {
+         mTween = mDBFacade.mTween.tweenFromTo(mParentView.body,halfDuration,{"colorMatrixFilter":{}},{
+            "repeat":-1,
+            "yoyo":true,
+            "colorMatrixFilter":{
+               "colorize":mTintColor,
+               "amount":mTintAmount
+            }
+         });
+         mStarlingTintProxy = {"amount":0};
+         var tintColor:uint = mTintColor;
+         var parentView:ActorView = mParentView;
+         var proxy:Object = mStarlingTintProxy;
+         mStarlingTintTween = mDBFacade.mTween.tweenFromTo(mStarlingTintProxy,halfDuration,{"amount":0},{
+            "repeat":-1,
+            "yoyo":true,
+            "amount":mTintAmount,
+            "onUpdate":function():void
+            {
+               parentView.applyStatusTint(tintColor,proxy.amount);
+            }
+         });
+      }
+      
       private function assetLoaded(swfAsset:SwfAsset) : void
       {
          var _loc2_:Class = swfAsset.getClass(mParentGameObject.className);
-         if(mFacade == null)
+         if(mDBFacade == null)
          {
             return;
          }
          if(_loc2_)
          {
             mBuff = new _loc2_();
-            mMovieClipRenderer = new MovieClipRenderController(mFacade,mBuff,finishedCallback);
+            mMovieClipRenderer = new MovieClipRenderController(mDBFacade,mBuff,finishedCallback);
             mMovieClipRenderer.play(0,true);
             mParentView.buildBuff(mBuff,mSortLayer);
             if(mTintColor != -1)
             {
-               mTween = TweenMax.fromTo(mParentView.body,mMovieClipRenderer.durationInSeconds * 0.5,{"colorMatrixFilter":{}},{
-                  "repeat":-1,
-                  "yoyo":true,
-                  "colorMatrixFilter":{
-                     "colorize":mTintColor,
-                     "amount":mTintAmount
-                  }
-               });
+               mTintStarted = true;
+               startTintTweens(mMovieClipRenderer.durationInSeconds * 0.5);
             }
             checkForScaling();
          }
@@ -130,11 +204,11 @@ package Actor.Buffs
          {
             mParentView.root.scaleX += mScaleUpIncrementScale;
             mParentView.root.scaleY += mScaleUpIncrementScale;
-            TweenMax.to(mParentView.body,mScaleUpIncrementTime / 2,{
+            mDBFacade.mTween.tweenMaxTo(mParentView.body,mScaleUpIncrementTime / 2,{
                "tint":mTintColor,
                "onCompleteListener":function():void
                {
-                  TweenMax.to(mParentView.body,0,{"removeTint":true});
+                  mDBFacade.mTween.tweenMaxTo(mParentView.body,0,{"removeTint":true});
                }
             });
          }
@@ -152,16 +226,26 @@ package Actor.Buffs
       
       override public function destroy() : void
       {
-         if(mFacade == null)
+         if(mDBFacade == null)
          {
             return;
          }
          if(mNewScale)
          {
-            TweenMax.to(mParentView.root,0.3,{
+            mDBFacade.mTween.tweenMaxTo(mParentView.root,0.3,{
                "scaleX":mOriginalScale,
                "scaleY":mOriginalScale
             });
+         }
+         if(mEffectView != null)
+         {
+            mEffectView.artResolvedCallback = null;
+            mEffectView = null;
+         }
+         if(mEffectManager != null)
+         {
+            mEffectManager.endManagedEffect(mManagedEffectId);
+            mEffectManager = null;
          }
          if(mAssetLoadingComponent != null)
          {
@@ -175,20 +259,31 @@ package Actor.Buffs
          }
          if(mTween != null)
          {
-            mTween.complete();
-            mTween.kill();
+            mDBFacade.mTween.completeTween(mTween);
+            mDBFacade.mTween.killTween(mTween);
             mTween = null;
+         }
+         if(mStarlingTintTween != null)
+         {
+            mDBFacade.mTween.completeTween(mStarlingTintTween);
+            mDBFacade.mTween.killTween(mStarlingTintTween);
+            mStarlingTintTween = null;
+            mStarlingTintProxy = null;
+            if(mParentView != null)
+            {
+               mParentView.clearStatusTint();
+            }
          }
          if(mHideTween != null)
          {
-            mHideTween.complete();
-            mHideTween.kill();
+            mDBFacade.mTween.completeTween(mHideTween);
+            mDBFacade.mTween.killTween(mHideTween);
             mHideTween = null;
          }
          if(mShowTween != null)
          {
-            mShowTween.complete();
-            mShowTween.kill();
+            mDBFacade.mTween.completeTween(mShowTween);
+            mDBFacade.mTween.killTween(mShowTween);
             mShowTween = null;
          }
          if(mLogicalWorkComponent)
@@ -207,16 +302,32 @@ package Actor.Buffs
       {
       }
       
-      public function hide(transitionTime:Number) : void
+      private function get fadeTarget() : DisplayObject
       {
          if(mBuff != null)
          {
-            mHideTween = TweenMax.to(mBuff,transitionTime,{
+            return mBuff;
+         }
+         return mEffectView != null ? mEffectView.root : null;
+      }
+      
+      public function hide(transitionTime:Number) : void
+      {
+         var target:DisplayObject;
+         if(mShowTween != null)
+         {
+            mDBFacade.mTween.killTween(mShowTween);
+            mShowTween = null;
+         }
+         target = fadeTarget;
+         if(target != null)
+         {
+            mHideTween = mDBFacade.mTween.tweenMaxTo(target,transitionTime,{
                "alpha":0,
                "onCompleteListener":function():void
                {
-                  mBuff.visible = false;
-                  mBuff.alpha = 1;
+                  target.visible = false;
+                  target.alpha = 1;
                }
             });
          }
@@ -224,9 +335,19 @@ package Actor.Buffs
       
       public function show(transitionTime:Number) : void
       {
-         mBuff.alpha = 0;
-         mBuff.visible = true;
-         mShowTween = TweenMax.to(mBuff,transitionTime,{"alpha":1});
+         if(mHideTween != null)
+         {
+            mDBFacade.mTween.killTween(mHideTween);
+            mHideTween = null;
+         }
+         var _loc2_:DisplayObject = fadeTarget;
+         if(_loc2_ == null)
+         {
+            return;
+         }
+         _loc2_.alpha = 0;
+         _loc2_.visible = true;
+         mShowTween = mDBFacade.mTween.tweenMaxTo(_loc2_,transitionTime,{"alpha":1});
       }
    }
 }

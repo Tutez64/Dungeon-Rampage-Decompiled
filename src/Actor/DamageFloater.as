@@ -1,5 +1,7 @@
 package Actor
 {
+   import Actor.StarlingConvertedOverlay.FloaterStyle;
+   import Actor.StarlingConvertedOverlay.StarlingOverlays;
    import Facade.DBFacade;
    import GameMasterDictionary.GMBuffColorType;
    import flash.display.Bitmap;
@@ -46,7 +48,9 @@ package Actor
       
       private static const WORST_HEX_VALUE:uint = 11613062;
       
-      private static const CRIT_FILTER:GlowFilter = new GlowFilter(16777062,1,0.4,0.4,30,1);
+      private static const CRIT_FILTER:GlowFilter = FloaterStyle.CRIT_GLOW;
+      
+      private static const sStyle:FloaterStyle = new FloaterStyle();
       
       private var mActor:ActorGameObject;
       
@@ -58,50 +62,73 @@ package Actor
       
       private var mType:uint;
       
-      public function DamageFloater(dbFacade:DBFacade, delta:Number, actorGameObject:ActorGameObject, holdDuration:uint, totalDuration:uint, scaleDampening:Number, floatSpeed:Number, finishedCallback:Function, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, blit:Boolean = true, isCriticalHit:Boolean = false, effectiveness:int = 0, type:uint = 0, movementType:String = "DAMAGE_MOVEMENT_TYPE")
+      public function DamageFloater(dbFacade:DBFacade, delta:Number, actorGameObject:ActorGameObject, holdDuration:uint, totalDuration:uint, scaleDampening:Number, floatSpeed:Number, finishedCallback:Function, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, blit:Boolean = true, isCriticalHit:Boolean = false, effectiveness:int = 0, inType:uint = 0, movementType:String = "DAMAGE_MOVEMENT_TYPE")
       {
          mActor = actorGameObject;
          mDBFacade = dbFacade;
-         mType = type;
+         mType = inType;
          setup(isCriticalHit,delta,attackerIsOwner,attackeeIsOwner,blit,effectiveness);
          var _loc16_:DisplayObject = blit ? mBmp : mFloaterText;
          super(_loc16_,dbFacade,holdDuration,totalDuration,scaleDampening,floatSpeed,mFloatDirection,finishedCallback,movementType);
          mDBFacade.sceneGraphManager.addChild(mRoot,30);
       }
       
-      private function showEffectivenessFX(effectiveness:int) : void
+      public static function spawn(dbFacade:DBFacade, delta:Number, actorGameObject:ActorGameObject, holdDuration:uint, totalDuration:uint, scaleDampening:Number, floatSpeed:Number, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, isCriticalHit:Boolean, effectiveness:int, inType:uint, movementType:String) : void
       {
-         var _loc6_:String = null;
-         if(mActor.isHeroType || mActor.effectivenessShown == false)
+         var _loc14_:DisplayObject = null;
+         if(StarlingOverlays.drawsFloaters(dbFacade))
          {
-            mActor.effectivenessShown = true;
-            var _loc3_:String = DBFacade.buildFullDownloadPath("Resources/Art2D/FX/db_fx_library.swf");
+            describe(dbFacade,delta,inType,isCriticalHit,attackerIsOwner,attackeeIsOwner,effectiveness,sStyle);
+            _loc14_ = actorGameObject.view.root;
+            if(StarlingOverlays.get(dbFacade).spawnFloater(sStyle,_loc14_.x,_loc14_.y - 80,holdDuration,totalDuration,scaleDampening,floatSpeed,movementType == "BUFF_DAMAGE_MOVEMENT_TYPE"))
+            {
+               if(effectiveness != 0)
+               {
+                  showEffectivenessFX(actorGameObject,effectiveness);
+               }
+               return;
+            }
+         }
+         if(dbFacade.hud == null || dbFacade.hud.floaterTextClass == null)
+         {
+            return;
+         }
+         new DamageFloater(dbFacade,delta,actorGameObject,holdDuration,totalDuration,scaleDampening,floatSpeed,null,attackerIsOwner,attackeeIsOwner,true,isCriticalHit,effectiveness,inType,movementType);
+      }
+      
+      private static function showEffectivenessFX(actor:ActorGameObject, effectiveness:int) : void
+      {
+         var _loc7_:String = null;
+         if(actor.isHeroType || !actor.effectivenessShown)
+         {
+            actor.effectivenessShown = true;
+            var _loc4_:String = DBFacade.buildFullDownloadPath("Resources/Art2D/FX/db_fx_library.swf");
             switch(effectiveness - -2)
             {
                case 0:
-                  _loc6_ = "db_fx_hit_fail";
+                  _loc7_ = "db_fx_hit_fail";
                   break;
                case 1:
-                  _loc6_ = "db_fx_hit_weak";
+                  _loc7_ = "db_fx_hit_weak";
                   break;
                case 2:
-                  _loc6_ = "db_fx_hit_bang";
+                  _loc7_ = "db_fx_hit_bang";
                   break;
                case 3:
-                  _loc6_ = "db_fx_hit_super";
+                  _loc7_ = "db_fx_hit_super";
                   break;
                case 4:
-                  _loc6_ = "db_fx_hit_sweet";
+                  _loc7_ = "db_fx_hit_sweet";
             }
-            var _loc2_:Vector3D = new Vector3D(mActor.view.root.x,mActor.view.root.y - 80,0);
-            var _loc4_:Number = 1;
-            var _loc5_:Number = 0;
-            mActor.distributedDungeonFloor.effectManager.playEffect(_loc3_,_loc6_,_loc2_,null,false,_loc4_,_loc5_,0,0,0,false,"foreground");
+            var _loc3_:Vector3D = new Vector3D(actor.view.root.x,actor.view.root.y - 80,0);
+            var _loc5_:Number = 1;
+            var _loc6_:Number = 0;
+            actor.distributedDungeonFloor.effectManager.playEffect(_loc4_,_loc7_,_loc3_,null,false,_loc5_,_loc6_,0,0,0,false,"foreground");
             return;
          }
       }
       
-      private function getEffectivenessTextColor(effectiveness:int) : uint
+      private static function getEffectivenessTextColor(effectiveness:int) : uint
       {
          switch(effectiveness - -2)
          {
@@ -120,17 +147,14 @@ package Actor
          }
       }
       
-      private function setup(isCriticalHit:Boolean, delta:Number, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, blit:Boolean, effectiveness:int) : void
+      public static function describe(dbFacade:DBFacade, delta:Number, type:uint, isCriticalHit:Boolean, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, effectiveness:int, style:FloaterStyle) : void
       {
-         var _loc9_:* = 0;
+         var _loc10_:* = 0;
          var _loc15_:String = null;
-         var _loc10_:Vector3D = null;
-         var _loc14_:GMBuffColorType = null;
-         var _loc13_:Rectangle = null;
-         var _loc7_:Matrix = null;
-         mFloaterText = new mDBFacade.hud.floaterTextClass() as MovieClip;
+         var _loc13_:GMBuffColorType = null;
          var _loc11_:Number = 1;
          var _loc12_:Number = 1;
+         var _loc14_:Number = 0;
          if(delta < 0)
          {
             if(attackerIsOwner || attackeeIsOwner)
@@ -154,51 +178,69 @@ package Actor
             }
             if(attackeeIsOwner)
             {
-               _loc9_ = 16711680;
-               switch(int(mType) - 1)
+               _loc10_ = 16711680;
+               switch(int(type) - 1)
                {
                   case 0:
-                     _loc9_ = 65280;
+                     _loc10_ = 65280;
                      break;
                   case 1:
-                     _loc9_ = 9065403;
+                     _loc10_ = 9065403;
                }
             }
             else
             {
-               _loc9_ = uint(isCriticalHit ? 16750848 : getEffectivenessTextColor(effectiveness));
+               _loc10_ = uint(isCriticalHit ? 16750848 : getEffectivenessTextColor(effectiveness));
             }
-            if(mType > 10)
+            if(type > 10)
             {
-               _loc14_ = mDBFacade.gameMaster.buffColorTypeById.itemFor(mType);
-               _loc9_ = _loc14_.ColorHex;
+               _loc13_ = dbFacade.gameMaster.buffColorTypeById.itemFor(type);
+               _loc10_ = _loc13_.ColorHex;
             }
-            _loc10_ = new Vector3D((Math.random() - 0.5) * 0.5,-1,0);
+            _loc14_ = (Math.random() - 0.5) * 0.5;
          }
          else
          {
             _loc15_ = "+" + delta.toString();
-            _loc9_ = 9502608;
+            _loc10_ = 9502608;
             if(attackeeIsOwner)
             {
                _loc11_ = _loc12_ = 1 * 1.1;
-               _loc9_ = 2293538;
-               switch(int(mType) - 2)
+               _loc10_ = 2293538;
+               switch(int(type) - 2)
                {
                   case 0:
-                     _loc9_ = 9065403;
+                     _loc10_ = 9065403;
                }
             }
-            _loc10_ = new Vector3D(0,-1,0);
          }
-         mFloatDirection = _loc10_;
-         mFloatDirection.normalize();
-         var _loc8_:Number = Math.atan2(mFloatDirection.y,mFloatDirection.x) * 180 / 3.141592653589793 + 90;
+         var _loc9_:Number = Math.sqrt(_loc14_ * _loc14_ + 1);
+         style.text = _loc15_;
+         style.color = _loc10_;
+         style.scale = _loc11_;
+         style.directionX = _loc14_ / _loc9_;
+         style.directionY = -1 / _loc9_;
+         style.rotation = Math.atan2(style.directionY,style.directionX) * 180 / 3.141592653589793 + 90;
+         style.crit = isCriticalHit;
+      }
+      
+      private function setup(isCriticalHit:Boolean, delta:Number, attackerIsOwner:Boolean, attackeeIsOwner:Boolean, blit:Boolean, effectiveness:int) : void
+      {
+         var _loc12_:Rectangle = null;
+         var _loc7_:Matrix = null;
+         mFloaterText = new mDBFacade.hud.floaterTextClass() as MovieClip;
+         describe(mDBFacade,delta,mType,isCriticalHit,attackerIsOwner,attackeeIsOwner,effectiveness,sStyle);
+         var _loc13_:String = sStyle.text;
+         var _loc9_:uint = sStyle.color;
+         var _loc10_:Number = sStyle.scale;
+         var _loc11_:Number = sStyle.scale;
+         mFloatDirection = new Vector3D(sStyle.directionX,sStyle.directionY,0);
+         var _loc8_:Number = sStyle.rotation;
          if(effectiveness != 0)
          {
-            this.showEffectivenessFX(effectiveness);
+            showEffectivenessFX(mActor,effectiveness);
          }
-         mFloaterText.label.text = _loc15_;
+         mFloaterText.label.text = _loc13_;
          mFloaterText.label.textColor = _loc9_;
          if(isCriticalHit)
          {
@@ -207,21 +249,21 @@ package Actor
          if(blit)
          {
             mBmpData = new BitmapData(mFloaterText.width,mFloaterText.height,true,0);
-            _loc13_ = mFloaterText.getBounds(mFloaterText);
+            _loc12_ = mFloaterText.getBounds(mFloaterText);
             _loc7_ = new Matrix();
-            _loc7_.translate(-_loc13_.x,-_loc13_.y);
+            _loc7_.translate(-_loc12_.x,-_loc12_.y);
             mBmpData.draw(mFloaterText,_loc7_);
             mBmp = new Bitmap(mBmpData,"auto",true);
-            mBmp.scaleX = _loc11_;
-            mBmp.scaleY = _loc12_;
+            mBmp.scaleX = _loc10_;
+            mBmp.scaleY = _loc11_;
             mBmp.x = mActor.view.root.x - mBmp.width * 0.5;
             mBmp.y = mActor.view.root.y - 80;
             mBmp.rotation = _loc8_;
          }
          else
          {
-            mFloaterText.scaleX = _loc11_;
-            mFloaterText.scaleY = _loc12_;
+            mFloaterText.scaleX = _loc10_;
+            mFloaterText.scaleY = _loc11_;
             mFloaterText.x = mActor.view.root.x + mFloatDirection.x * 100;
             mFloaterText.y = mActor.view.root.y - 80;
             mFloaterText.rotation = _loc8_;

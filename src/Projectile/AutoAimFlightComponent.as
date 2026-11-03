@@ -7,6 +7,7 @@ package Projectile
    import Box2D.Dynamics.b2Fixture;
    import Brain.Utils.GeometryUtil;
    import Combat.CombatGameObject;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.DistributedDungeonFloor;
    import Dungeon.NavCollider;
    import Facade.DBFacade;
@@ -109,11 +110,11 @@ package Projectile
          {
             return true;
          }
-         if(mCurrentTarget.team == 1 && newTarget.team != 1)
+         if(mCurrentTarget.team == DBGlobal.TEAM_ENVIRONMENT && newTarget.team != DBGlobal.TEAM_ENVIRONMENT)
          {
             return true;
          }
-         if(mCurrentTarget.team != 1 && newTarget.team != 1 || mCurrentTarget.team == 1 && newTarget.team == 1)
+         if(mCurrentTarget.team != DBGlobal.TEAM_ENVIRONMENT && newTarget.team != DBGlobal.TEAM_ENVIRONMENT || mCurrentTarget.team == DBGlobal.TEAM_ENVIRONMENT && newTarget.team == DBGlobal.TEAM_ENVIRONMENT)
          {
             _loc2_ = calculateTargetScore(newTarget);
             if(_loc2_ > mBestDotProduct)

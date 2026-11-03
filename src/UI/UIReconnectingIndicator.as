@@ -39,7 +39,7 @@ package UI
          _loc2_.color = 16767370;
          _loc2_.size = 22;
          _loc1_.defaultTextFormat = _loc2_;
-         _loc1_.text = Locale.getString("RECONNECTING");
+         Locale.setText(_loc1_,"RECONNECTING");
          _loc1_.background = true;
          _loc1_.backgroundColor = 0;
          _loc1_.cacheAsBitmap = true;
@@ -56,7 +56,11 @@ package UI
          {
             return;
          }
-         mField.text = Locale.getString("RECONNECTING_DETAIL").replace("#ATTEMPT",attempt).replace("#ELAPSED",int(elapsedMilliseconds / 1000)).replace("#GRACE",int(graceMilliseconds / 1000));
+         Locale.setText(mField,"RECONNECTING_DETAIL",{
+            "ATTEMPT":attempt,
+            "ELAPSED":int(elapsedMilliseconds / 1000),
+            "GRACE":int(graceMilliseconds / 1000)
+         });
          centre();
       }
       

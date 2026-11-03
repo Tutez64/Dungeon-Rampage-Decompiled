@@ -55,7 +55,10 @@ package Brain.WorkLoop
             _loc1_ = _heap[1];
             delete _posLookup[_loc1_];
             _heap[1] = _heap[_count];
-            walkDown(1);
+            if(_count > 1)
+            {
+               walkDown(1);
+            }
             delete _heap[_count];
             _count = _count - 1;
             return _loc1_;
@@ -78,21 +81,32 @@ package Brain.WorkLoop
       
       public function remove(obj:IPrioritizable) : Boolean
       {
-         var _loc2_:int = 0;
-         var _loc3_:* = undefined;
-         if(_count >= 1)
+         var _loc2_:int = int(_posLookup[obj]);
+         if(_loc2_ <= 0 || _loc2_ > _count || _heap[_loc2_] !== obj)
          {
-            _loc2_ = int(_posLookup[obj]);
-            _loc3_ = _heap[_loc2_];
-            delete _posLookup[_loc3_];
-            _heap[_loc2_] = _heap[_count];
-            walkDown(_loc2_);
+            delete _posLookup[obj];
+            return false;
+         }
+         delete _posLookup[obj];
+         if(_loc2_ == _count)
+         {
             delete _heap[_count];
-            delete _posLookup[_count];
             _count = _count - 1;
             return true;
          }
-         return false;
+         _heap[_loc2_] = _heap[_count];
+         _posLookup[_heap[_loc2_]] = _loc2_;
+         if(_loc2_ > 1 && _heap[_loc2_].priority - _heap[_loc2_ >> 1].priority > 0)
+         {
+            walkUp(_loc2_);
+         }
+         else
+         {
+            walkDown(_loc2_);
+         }
+         delete _heap[_count];
+         _count = _count - 1;
+         return true;
       }
       
       public function contains(obj:*) : Boolean

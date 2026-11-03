@@ -3,18 +3,28 @@ package Actor.Player.Input
    import Brain.Logger.Logger;
    import DistributedObjects.HeroGameObjectOwner;
    import Facade.DBFacade;
+   import Input.KeyBindings.InputAction;
+   import Input.KeyBindings.KeyBindings;
    import flash.geom.Vector3D;
    
    public class KeyboardController
    {
       
-      private static const KEYS_TO_ATTACK_INDEX:Array = [0,1,2,3,0,1,2,0];
+      private static const MENU_INDEX_EXIT:int = 0;
       
-      private static const KEYS_TO_CONSUMABLE_INDEX:Array = [0,1];
+      private static const MENU_INDEX_OPEN_OPTIONS_MENU:int = 1;
+      
+      private static const MENU_INDEX_TOGGLE_CHAT_LOG:int = 2;
+      
+      private static const MENU_INDEX_CHAT_INPUT:int = 3;
+      
+      private static const MENU_INDEX_COUNT:int = 4;
       
       protected var mDBFacade:DBFacade;
       
       protected var mHeroOwner:HeroGameObjectOwner;
+      
+      private var mKeyBindings:KeyBindings;
       
       private var mInputVector:Vector3D;
       
@@ -22,15 +32,13 @@ package Actor.Player.Input
       
       private var mInputHeading:Vector3D;
       
-      private var mCombatKeys:Vector.<int>;
-      
       private var mPressedCombatKeysThisFrame:Vector.<int>;
       
       private var mReleasedCombatKeysThisFrame:Vector.<int>;
       
-      private var mConsumableKeys:Vector.<int>;
-      
       private var mReleasedConsumableKeysThisFrame:Vector.<int>;
+      
+      private var mReleasedMenuKeysThisFrame:Vector.<int>;
       
       private var mCombatDisabled:Boolean;
       
@@ -39,15 +47,14 @@ package Actor.Player.Input
          super();
          mDBFacade = dbFacade;
          mHeroOwner = heroOwner;
+         mKeyBindings = dbFacade.keyBindings;
          mMovementVelocity = new Vector3D();
          mInputHeading = new Vector3D();
-         mCombatKeys = new Vector.<int>();
          mPressedCombatKeysThisFrame = new Vector.<int>();
-         mConsumableKeys = new Vector.<int>();
+         mReleasedCombatKeysThisFrame = new Vector.<int>();
          mReleasedConsumableKeysThisFrame = new Vector.<int>();
-         mCombatKeys.push(90,88,67,66,74,75,76,89);
+         mReleasedMenuKeysThisFrame = new Vector.<int>();
          mCombatDisabled = false;
-         mConsumableKeys.push(49,50);
       }
       
       public function perFrameUpCall() : void
@@ -69,19 +76,19 @@ package Actor.Player.Input
       private function getInputDirectionVector() : void
       {
          mInputVector = new Vector3D();
-         if(mDBFacade.inputManager.check(38) || mDBFacade.inputManager.check(87))
+         if(mKeyBindings.isDown("moveUp"))
          {
             mInputVector.y -= 1;
          }
-         if(mDBFacade.inputManager.check(40) || mDBFacade.inputManager.check(83))
+         if(mKeyBindings.isDown("moveDown"))
          {
             mInputVector.y += 1;
          }
-         if(mDBFacade.inputManager.check(39) || mDBFacade.inputManager.check(68))
+         if(mKeyBindings.isDown("moveRight"))
          {
             mInputVector.x += 1;
          }
-         if(mDBFacade.inputManager.check(37) || mDBFacade.inputManager.check(65))
+         if(mKeyBindings.isDown("moveLeft"))
          {
             mInputVector.x -= 1;
          }
@@ -93,37 +100,28 @@ package Actor.Player.Input
          mCombatDisabled = disableCombat;
       }
       
-      public function KeyIndexToAttack(keyIndex:int) : int
-      {
-         return KEYS_TO_ATTACK_INDEX[keyIndex];
-      }
-      
-      public function KeyIndexToConsumable(keyIndex:int) : int
-      {
-         return KEYS_TO_CONSUMABLE_INDEX[keyIndex];
-      }
-      
       protected function checkCombatButtons() : void
       {
          if(!mCombatDisabled)
          {
             mReleasedCombatKeysThisFrame = new Vector.<int>();
             mPressedCombatKeysThisFrame = new Vector.<int>();
-            mCombatKeys.map(checkCombatButton,this);
+            for each(var _loc1_:String in InputAction.ATTACK_SLOTS)
+            {
+               mPressedCombatKeysThisFrame.push(mKeyBindings.isDown(_loc1_));
+               mReleasedCombatKeysThisFrame.push(mKeyBindings.wasReleased(_loc1_));
+            }
          }
          mReleasedConsumableKeysThisFrame = new Vector.<int>();
-         mConsumableKeys.map(checkConsumableButton,this);
-      }
-      
-      private function checkCombatButton(key:int, weaponIndex:uint, combatKeys:Vector.<int>) : void
-      {
-         mPressedCombatKeysThisFrame.push(mDBFacade.inputManager.check(key));
-         mReleasedCombatKeysThisFrame.push(mDBFacade.inputManager.released(key));
-      }
-      
-      private function checkConsumableButton(key:int, consumableIndex:uint, combatKeys:Vector.<int>) : void
-      {
-         mReleasedConsumableKeysThisFrame.push(mDBFacade.inputManager.released(key));
+         for each(var _loc2_:String in InputAction.CONSUMABLE_SLOTS)
+         {
+            mReleasedConsumableKeysThisFrame.push(mKeyBindings.wasReleased(_loc2_));
+         }
+         mReleasedMenuKeysThisFrame = new Vector.<int>(4);
+         mReleasedMenuKeysThisFrame[0] = int(mDBFacade.inputManager.released(27));
+         mReleasedMenuKeysThisFrame[1] = int(mKeyBindings.wasReleased("openOptionsMenu"));
+         mReleasedMenuKeysThisFrame[2] = int(mKeyBindings.wasReleased("toggleChatLog"));
+         mReleasedMenuKeysThisFrame[3] = int(mDBFacade.inputManager.released(13));
       }
       
       public function determineMotion() : void
@@ -159,8 +157,14 @@ package Actor.Player.Input
          return mReleasedConsumableKeysThisFrame;
       }
       
+      public function get releasedMenuKeysThisFrame() : Vector.<int>
+      {
+         return mReleasedMenuKeysThisFrame;
+      }
+      
       public function destroy() : void
       {
+         mKeyBindings = null;
       }
    }
 }

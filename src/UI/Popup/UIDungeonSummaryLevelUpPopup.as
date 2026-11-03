@@ -3,9 +3,9 @@ package UI.Popup
    import Brain.AssetRepository.SwfAsset;
    import Brain.Render.MovieClipRenderController;
    import Brain.UI.UIButton;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.Locale;
-   import GameMasterDictionary.GMFeedPosts;
    import GameMasterDictionary.GMSkin;
    import flash.display.MovieClip;
    
@@ -18,18 +18,20 @@ package UI.Popup
       
       private static const AVATAR_PIC_SCALE:Number = 0.45;
       
+      public static const LEVELS:Vector.<uint> = new <uint>[3,4,5,10,15,20,25,30,40,50,60,70,80,90,100];
+      
       private var mGMSkin:GMSkin;
       
-      private var mLevelUpPost:GMFeedPosts;
+      private var mLevel:uint;
       
       private var mPicClass:Class;
       
-      public function UIDungeonSummaryLevelUpPopup(dbFacade:DBFacade, centerCallback:Function, gmSkin:GMSkin, levelUpPost:GMFeedPosts, avatarClass:Class)
+      public function UIDungeonSummaryLevelUpPopup(dbFacade:DBFacade, centerCallback:Function, gmSkin:GMSkin, level:uint, avatarClass:Class)
       {
          mGMSkin = gmSkin;
-         mLevelUpPost = levelUpPost;
+         mLevel = level;
          mPicClass = avatarClass;
-         super(dbFacade,Locale.getString("INVITE_POPUP_TITLE"),Locale.getString("INVITE_POPUP_MESSAGE"),null,centerCallback,true,null,null,null,true,"DUNGEON_SUMMARY_LEVEL_UP_POPUP");
+         super(dbFacade,"DUNGEON_SUMMARY_LEVEL_UP_POPUP",Locale.getString("INVITE_POPUP_TITLE"),Locale.getString("INVITE_POPUP_MESSAGE"),null,centerCallback);
          mDBFacade.metrics.log("InvitePopupPresented");
       }
       
@@ -61,18 +63,11 @@ package UI.Popup
          movieClipRenderer.play();
          avatarPic.scaleX = avatarPic.scaleY = 0.45;
          mPopup.avatar.addChildAt(avatarPic,0);
-         mPopup.level_text.text = mLevelUpPost.LevelTrigger;
-         mPopup.congrats_label.text = Locale.getString("LEVEL_UP_SHARE_TITLE");
-         mPopup.label.text = Locale.getString("LEVEL_UP_SHARE_TEXT") + mLevelUpPost.LevelTrigger;
+         TextUtil.setText(mPopup.level_text,String(mLevel));
+         Locale.setText(mPopup.congrats_label,"LEVEL_UP_SHARE_TITLE");
+         TextUtil.setText(mPopup.label,Locale.getString("LEVEL_UP_SHARE_TEXT") + mLevel);
          levelUpButton = new UIButton(mDBFacade,mPopup.share);
-         if(mDBFacade.isDRPlayer)
-         {
-            levelUpButton.label.text = Locale.getString("SWEET");
-         }
-         else
-         {
-            levelUpButton.label.text = Locale.getString("LEVEL_UP_SHARE_BUTTON_TEXT");
-         }
+         Locale.setText(levelUpButton.label,"SWEET");
          levelUpButton.releaseCallback = function():void
          {
             close(null);

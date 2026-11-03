@@ -34,7 +34,7 @@ package Account
       
       override public function get isEquipped() : Boolean
       {
-         return this.gmStackable && mConsumableSlot != -1 && this.gmStackable.AccountBooster == false;
+         return this.gmStackable && mConsumableSlot != -1 && !this.gmStackable.AccountBooster;
       }
       
       public function get equipSlot() : int

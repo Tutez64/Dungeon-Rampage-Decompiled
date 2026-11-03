@@ -1,87 +1,122 @@
 package com.junkbyte.console
 {
+   import flash.Boot;
+   
    public class ConsoleConfig
    {
       
-      public var keystrokePassword:String;
-      
-      public var remotingPassword:String;
-      
-      public var maxLines:uint = 1000;
-      
-      public var maxRepeats:int = 75;
-      
-      public var autoStackPriority:int = Console.FATAL;
-      
-      public var defaultStackDepth:int = 2;
-      
-      public var useObjectLinking:Boolean = true;
-      
-      public var objectHardReferenceTimer:uint = 0;
+      public var useObjectLinking:Boolean;
       
       public var tracing:Boolean;
       
-      public function traceCall(ch:String, line:String, ... rest):void
-      {
-         trace("[" + ch + "] " + line);
-      }
-      public var showTimestamp:Boolean = false;
+      public var traceCall:*;
       
-      public function timeStampFormatter(timer:uint):String
-      {
-         var _loc2_:uint = timer * 0.001;
-         return this.makeTimeDigit(_loc2_ / 60) + ":" + this.makeTimeDigit(_loc2_ % 60);
-      }
-      public var showLineNumber:Boolean = false;
+      public var timeStampFormatter:*;
       
-      public var remotingConnectionName:String = "_Console";
+      public var showTimestamp:Boolean;
       
-      public var allowedRemoteDomain:String = "*";
+      public var showLineNumber:Boolean;
       
-      public var commandLineAllowed:Boolean;
+      public var sharedObjectPath:String;
       
-      public var commandLineAutoScope:Boolean;
+      public var sharedObjectName:String;
       
-      public var commandLineInputPassThrough:Function;
+      public var rulerToolEnabled:Boolean;
       
-      public var commandLineAutoCompleteEnabled:Boolean = true;
+      public var rulerHidesMouse:Boolean;
       
-      public var keyBindsEnabled:Boolean = true;
+      public var remotingPassword:String;
       
-      public var displayRollerEnabled:Boolean = true;
-      
-      public var rulerToolEnabled:Boolean = true;
-      
-      public var rulerHidesMouse:Boolean = true;
-      
-      public var sharedObjectName:String = "com.junkbyte/Console/UserData";
-      
-      public var sharedObjectPath:String = "/";
+      public var remotingConnectionName:String;
       
       public var rememberFilterSettings:Boolean;
       
-      public var alwaysOnTop:Boolean = true;
+      public var objectHardReferenceTimer:uint;
       
-      private var _style:ConsoleStyle;
+      public var maxRepeats:int;
+      
+      public var maxLines:uint;
+      
+      public var keystrokePassword:String;
+      
+      public var keyBindsEnabled:Boolean;
+      
+      public var displayRollerTilemapCapturingEnabled:Boolean;
+      
+      public var displayRollerEnabled:Boolean;
+      
+      public var defaultStackDepth:int;
+      
+      public var commandLineInputPassThrough:*;
+      
+      public var commandLineAutoScope:Boolean;
+      
+      public var commandLineAutoCompleteEnabled:Boolean;
+      
+      public var commandLineAllowed:Boolean;
+      
+      public var autoStackPriority:int;
+      
+      public var alwaysOnTop:Boolean;
+      
+      public var allowedRemoteDomain:String;
+      
+      public var _style:ConsoleStyle;
       
       public function ConsoleConfig()
       {
-         super();
-         this._style = new ConsoleStyle();
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         alwaysOnTop = true;
+         sharedObjectPath = "/";
+         sharedObjectName = "com.junkbyte/Console/UserData";
+         rulerHidesMouse = true;
+         rulerToolEnabled = true;
+         displayRollerTilemapCapturingEnabled = false;
+         displayRollerEnabled = true;
+         keyBindsEnabled = true;
+         commandLineAutoCompleteEnabled = true;
+         allowedRemoteDomain = "*";
+         remotingConnectionName = "_Console";
+         showLineNumber = false;
+         timeStampFormatter = function(timer:uint):String
+         {
+            var _loc2_:uint = uint(int(timer * 0.001));
+            return ConsoleConfig.makeTimeDigit(int(_loc2_ / 60)) + ":" + ConsoleConfig.makeTimeDigit(int(_loc2_ % 60));
+         };
+         showTimestamp = false;
+         traceCall = function(ch:String, line:String, ... rest):void
+         {
+            trace("[" + ch + "] " + line);
+         };
+         objectHardReferenceTimer = 0;
+         useObjectLinking = true;
+         defaultStackDepth = 2;
+         autoStackPriority = int(10);
+         maxRepeats = 75;
+         maxLines = 1000;
+         _style = new ConsoleStyle();
       }
       
-      private function makeTimeDigit(v:uint) : String
+      public static function makeTimeDigit(v:uint) : String
       {
          if(v < 10)
          {
-            return "0" + v;
+            return "0" + ("" + v);
          }
-         return String(v);
+         return "" + v;
+      }
+      
+      public function get_style() : ConsoleStyle
+      {
+         return _style;
       }
       
       public function get style() : ConsoleStyle
       {
-         return this._style;
+         return get_style();
       }
    }
 }

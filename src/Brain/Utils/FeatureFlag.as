@@ -19,6 +19,8 @@ package Brain.Utils
       
       private var _configFileAttributeName:String;
       
+      private var storedSettingValue:uint;
+      
       private var configFileValue:uint;
       
       private var dbValue:uint;
@@ -61,6 +63,7 @@ package Brain.Utils
          {
             throw new ArgumentError("ConfigFileAttributeName  must not contain spaces");
          }
+         this.storedSettingValue = 0;
          this.configFileValue = 0;
          this.dbValue = 0;
          this.cliValue = 0;
@@ -70,6 +73,19 @@ package Brain.Utils
       public static function featureFlagFactory(name:String, defaultValue:Boolean, commandLineFlag:String = null, configFileAttributeName:String = null) : FeatureFlag
       {
          return new FeatureFlag(name,defaultValue,commandLineFlag,configFileAttributeName);
+      }
+      
+      public function setStoredSettingValue(value:Boolean) : void
+      {
+         this.storedSettingValue = value ? 2 : 1;
+         this.updateCurrentValue();
+      }
+      
+      public function clearPlayerValues() : void
+      {
+         this.overrideValue = 0;
+         this.storedSettingValue = 0;
+         this.updateCurrentValue();
       }
       
       public function setConfigFileValue(value:Boolean) : void
@@ -108,6 +124,11 @@ package Brain.Utils
             this._currentValue = this.cliValue == 2;
             return;
          }
+         if(this.storedSettingValue != 0)
+         {
+            this._currentValue = this.storedSettingValue == 2;
+            return;
+         }
          if(this.dbValue != 0)
          {
             this._currentValue = this.dbValue == 2;
@@ -118,6 +139,7 @@ package Brain.Utils
             this._currentValue = this.configFileValue == 2;
             return;
          }
+         this._currentValue = this.defaultValue;
       }
       
       public function get currentValue() : Boolean

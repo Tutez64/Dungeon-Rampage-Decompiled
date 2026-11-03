@@ -2,13 +2,14 @@ package UI.Popup
 {
    import Brain.AssetRepository.SwfAsset;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import GameMasterDictionary.GMOffer;
-   import UI.*;
    import UI.Shop.UIShopBundleOffer;
    import UI.Shop.UIShopOffer;
    import flash.display.MovieClip;
-   import flash.geom.Rectangle;
    
    public class UIOfferPopup extends DBUIPopup
    {
@@ -39,13 +40,13 @@ package UI.Popup
       
       private var mWantNewRollOverScale:Boolean;
       
-      public function UIOfferPopup(dbFacade:DBFacade, titleText:String, offerIds:Vector.<uint>, buyCallback:Function, closeCallback:Function, useIconScaling:Boolean = true, wantNewRollOverScale:Boolean = true)
+      public function UIOfferPopup(dbFacade:DBFacade, titleText:String, offerIds:Vector.<uint>, buyCallback:Function, closeCallback:Function, useIconScaling:Boolean = true, wantNewRollOverScale:Boolean = true, navigationLayerName:String = "POPUP_OFFER")
       {
          mOfferIds = offerIds;
          mBuyCallback = buyCallback;
          mUseIconScaling = useIconScaling;
          mWantNewRollOverScale = wantNewRollOverScale;
-         super(dbFacade,titleText,null,true,true,closeCallback);
+         super(dbFacade,navigationLayerName,titleText,null,true,true,closeCallback,false);
       }
       
       override public function destroy() : void
@@ -64,7 +65,6 @@ package UI.Popup
       
       override protected function setupUI(swfAsset:SwfAsset, titleText:String, content:*, allowClose:Boolean, closeCallback:Function) : void
       {
-         var bounds:Rectangle;
          var offerId:uint;
          var emptyOffer:MovieClip;
          var gmOffer:GMOffer;
@@ -75,12 +75,10 @@ package UI.Popup
          var popupClass:Class = swfAsset.getClass(this.getClassName());
          mPopup = new popupClass();
          mRoot.addChild(mPopup);
-         mPopup.scaleY = mPopup.scaleX = 1.8;
-         bounds = mPopup.getBounds(mDBFacade.stageRef);
-         mPopup.x = mDBFacade.stageRef.stageWidth / 2 - bounds.width / 2 - bounds.x;
-         mPopup.y = mDBFacade.stageRef.stageHeight / 2 - bounds.height / 2 - bounds.y;
+         mPopup.scaleY = mPopup.scaleX = DBGlobal.UI_16_TO_9_PORT_OBJECT_SCALE;
+         centerPopup();
          mTitle = mPopup.title_label;
-         mTitle.text = titleText;
+         TextUtil.setText(mTitle,titleText);
          mEmptyOffers.push(mPopup.coin_shop_empty_slot_1);
          mEmptyOffers.push(mPopup.coin_shop_empty_slot_2);
          mEmptyOffers.push(mPopup.coin_shop_empty_slot_3);
@@ -96,7 +94,7 @@ package UI.Popup
             };
             offerId = mOfferIds[i];
             gmOffer = mDBFacade.gameMaster.offerById.itemFor(offerId);
-            offerClass = gmOffer.CurrencyType == "PREMIUM" && gmOffer.Price ? mPremiumOfferTemplateClass : mOfferTemplateClass;
+            offerClass = gmOffer.CurrencyType == GMOffer.PREMIUM_CURRENCY && gmOffer.Price ? mPremiumOfferTemplateClass : mOfferTemplateClass;
             uiShopOffer = new UIShopBundleOffer(mDBFacade,offerClass,callback,mUseIconScaling,mWantNewRollOverScale);
             emptyOffer = mEmptyOffers[i];
             emptyOffer.parent.addChild(uiShopOffer.root);
@@ -114,6 +112,50 @@ package UI.Popup
             close(closeCallback);
          };
          animatedEntrance();
+      }
+      
+      override protected function setupMenuNavigation() : void
+      {
+         var _loc2_:uint = 0;
+         var _loc1_:Vector.<UIButton> = getNavigationButtons();
+         for each(var _loc3_:UIButton in _loc1_)
+         {
+            _loc3_.clearNavigationAndInteractions();
+         }
+         mCloseButton.clearNavigationAndInteractions();
+         _loc2_ = 0;
+         while(_loc2_ < _loc1_.length)
+         {
+            _loc1_[_loc2_].upNavigation = mCloseButton;
+            if(_loc2_ > 0)
+            {
+               _loc1_[_loc2_ - 1].isToTheLeftOf(_loc1_[_loc2_]);
+            }
+            _loc2_++;
+         }
+         if(_loc1_.length > 0)
+         {
+            mCloseButton.downNavigation = _loc1_[0];
+         }
+      }
+      
+      override protected function getInitialFocusedNavigationObject() : UIObject
+      {
+         var _loc1_:Vector.<UIButton> = getNavigationButtons();
+         return _loc1_.length > 0 ? _loc1_[0] : mCloseButton;
+      }
+      
+      private function getNavigationButtons() : Vector.<UIButton>
+      {
+         var _loc1_:Vector.<UIButton> = new Vector.<UIButton>();
+         for each(var _loc2_:UIShopOffer in mUIOffers)
+         {
+            if(_loc2_.navigationButton != null)
+            {
+               _loc1_.push(_loc2_.navigationButton);
+            }
+         }
+         return _loc1_;
       }
    }
 }

@@ -1,5 +1,6 @@
 package Brain.SceneGraph
 {
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
    import Brain.Render.Layer;
@@ -7,13 +8,13 @@ package Brain.SceneGraph
    import Brain.Render.SortOnAddLayer;
    import Brain.Render.SortedLayer;
    import Brain.Utils.MemoryTracker;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import flash.display.DisplayObject;
    import flash.display.DisplayObjectContainer;
    import flash.display.Sprite;
    import flash.events.Event;
    import flash.filters.ColorMatrixFilter;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class SceneGraphManager
    {
@@ -35,6 +36,10 @@ package Brain.SceneGraph
       public static const OVERFADE:int = 46;
       
       public static const UI:int = 50;
+      
+      public static const STARLING_OVERLAY:int = 36;
+      
+      public static const STARLING_HUD:int = 64;
       
       public static const UITopCenterBackGround:int = 51;
       
@@ -215,7 +220,7 @@ package Brain.SceneGraph
          mPopupCurtain.graphics.drawRect(0,0,mFacade.viewWidth,mFacade.viewHeight);
          mPopupCurtain.graphics.endFill();
          mPopupCurtain.mouseEnabled = mFacade.popupCurtainBlockMouse;
-         mFacade.stageRef.addEventListener("resize",onResize);
+         EventListeners.add(mFacade.stageRef,"resize",onResize);
          onResize();
          MemoryTracker.track(this,"SceneGraphManager - created in SceneGraphManager()","brain");
       }
@@ -400,6 +405,11 @@ package Brain.SceneGraph
          }
       }
       
+      public function get popupCurtainShown() : Boolean
+      {
+         return mUIPopUpCurtainLayer.contains(mPopupCurtain);
+      }
+      
       public function removePopupCurtain() : void
       {
          if(mCurtainReferenceCount == 0)
@@ -564,8 +574,8 @@ package Brain.SceneGraph
       {
          var _loc4_:Layer = null;
          var _loc5_:DisplayObject = null;
-         var _loc1_:* = 0;
-         var _loc3_:* = 0;
+         var _loc1_:uint = 0;
+         var _loc3_:uint = 0;
          var _loc2_:IMapIterator = mLayers.iterator() as IMapIterator;
          while(_loc2_.hasNext())
          {

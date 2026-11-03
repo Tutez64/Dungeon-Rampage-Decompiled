@@ -7,6 +7,8 @@ package Brain.Render
       
       function get rendererType() : String;
       
+      function get backendType() : String;
+      
       function play(startingFrame:uint = 0, loop:Boolean = true, finishedCallback:Function = null) : void;
       
       function stop() : void;

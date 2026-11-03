@@ -5,14 +5,15 @@ package Projectile
    import Brain.Logger.Logger;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import Combat.CombatGameObject;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.DistributedDungeonFloor;
    import Facade.DBFacade;
    import GameMasterDictionary.GMAttack;
    import GeneratedCode.Attack;
    import GeneratedCode.CombatResult;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class CollisionComponent
    {
@@ -59,7 +60,7 @@ package Projectile
       
       private var mMarkedForDeletion:Boolean = false;
       
-      public function CollisionComponent(dbFacade:DBFacade, projectile:ProjectileGameObject, parentActorId:uint, dungeonFloor:DistributedDungeonFloor, weaponType:uint, weaponPower:uint, gmAttck:GMAttack, combatResultCallback:Function, weaponSlot:int, additiveHits:Number, isPierceProjectile:Boolean, generation:uint = 0)
+      public function CollisionComponent(dbFacade:DBFacade, projectile:ProjectileGameObject, parentActorId:uint, dungeonFloor:DistributedDungeonFloor, weaponType:uint, weaponPower:uint, gmAttack:GMAttack, combatResultCallback:Function, weaponSlot:int, additiveHits:Number, isPierceProjectile:Boolean, generation:uint = 0)
       {
          super();
          mDBFacade = dbFacade;
@@ -80,7 +81,7 @@ package Projectile
          mHitsPerActor = mProjectile.gmProjectile.HitsPerActor;
          mMaxCollisions = mProjectile.gmProjectile.MaxCollisions + additiveHits;
          mRecurringHitDelayTasks = new Map();
-         mGMAttack = gmAttck;
+         mGMAttack = gmAttack;
          mIsPierceProjectile = isPierceProjectile;
       }
       
@@ -97,7 +98,7 @@ package Projectile
       public function destroy() : void
       {
          var _loc3_:Task = null;
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          mDungeonFloor = null;
          mCombatResultCallback = null;
          var _loc1_:IMapIterator = mRecurringHitDelayTasks.iterator() as IMapIterator;
@@ -129,7 +130,7 @@ package Projectile
       
       public function hitActor(actor:ActorGameObject) : Boolean
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc6_:Number = NaN;
          var _loc3_:Number = NaN;
          mProjectile.onHitActor(actor);
@@ -209,7 +210,7 @@ package Projectile
          {
             addRecurringHitDelayTask(actor,mHitRecurDelay);
          }
-         if(mNumCollisions >= mMaxCollisions || actor.hasAbility(16777216) && mIsPierceProjectile)
+         if(mNumCollisions >= mMaxCollisions || actor.hasAbility(DBGlobal.ABILITY_PIERCE_IMMUNE) && mIsPierceProjectile)
          {
             mMarkedForDeletion = true;
          }

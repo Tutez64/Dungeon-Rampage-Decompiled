@@ -1,12 +1,13 @@
 package Brain
 {
+   import Brain.Event.EventListeners;
+   import Collections.Map;
    import flash.display.DisplayObject;
    import flash.display.DisplayObjectContainer;
    import flash.display.MovieClip;
    import flash.display.Stage;
    import flash.events.KeyboardEvent;
    import flash.utils.getQualifiedClassName;
-   import org.as3commons.collections.Map;
    
    public class GameEntry extends MovieClip
    {
@@ -17,7 +18,7 @@ package Brain
       {
          super();
          mStageRef = stage;
-         stage.addEventListener("keyDown",this.debugTrace);
+         EventListeners.add(stage,"keyDown",this.debugTrace);
       }
       
       protected function debugTrace(event:KeyboardEvent) : void
@@ -38,13 +39,13 @@ package Brain
                   nodeTypes = new Map();
                   recurse = function(param1:DisplayObject, param2:int):void
                   {
-                     var _loc4_:* = 0;
+                     var _loc4_:uint = 0;
                      var _loc5_:int = 0;
                      var _loc8_:int = 0;
                      var _loc7_:String = getQualifiedClassName(param1);
                      if(nodeTypes.hasKey(_loc7_))
                      {
-                        _loc4_ = uint(nodeTypes.itemFor(_loc7_));
+                        _loc4_ = nodeTypes.itemFor(_loc7_);
                         nodeTypes.replaceFor(_loc7_,_loc4_ + 1);
                      }
                      else

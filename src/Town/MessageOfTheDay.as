@@ -9,7 +9,7 @@ package Town
       
       public static const MOVIE:uint = 2;
       
-      public var type:uint;
+      public var imageType:uint;
       
       public var title:String;
       
@@ -30,15 +30,15 @@ package Town
          super();
          if(LayoutType == "IMAGE_PORTRAIT")
          {
-            type = 0;
+            imageType = 0;
          }
          else if(LayoutType == "IMAGE_LANDSCAPE")
          {
-            type = 1;
+            imageType = 1;
          }
          else if(LayoutType == "MOVIE")
          {
-            type = 2;
+            imageType = 2;
          }
          title = TitleText;
          message = MessageText;

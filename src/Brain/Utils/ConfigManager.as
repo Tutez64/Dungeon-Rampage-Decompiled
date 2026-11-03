@@ -58,16 +58,18 @@ package Brain.Utils
          {
             Logger.info("Loading Configs From HTML host = " + _loc1_);
             mTotalFilePathsToOpen = 1;
+            mJsonDictionaries.length = 1;
             _loc2_ = new JsonAsset(_loc1_);
-            jsonFileLoaded(_loc2_);
+            jsonFileLoaded(0,_loc2_);
          }
          else
          {
+            mJsonDictionaries.length = mFilePathsToOpen.length;
             _loc3_ = 0;
             while(_loc3_ < mFilePathsToOpen.length)
             {
                Logger.info("Loading Config " + mFilePathsToOpen[_loc3_]);
-               mAssetLoadingComponent.getJsonAsset(mFilePathsToOpen[_loc3_],jsonFileLoaded,wrappedJsonFileFailedCallback(mFilePathsToOpen[_loc3_]),false);
+               mAssetLoadingComponent.getJsonAsset(mFilePathsToOpen[_loc3_],wrappedJsonFileLoadedCallback(_loc3_),wrappedJsonFileFailedCallback(mFilePathsToOpen[_loc3_]),false);
                _loc3_++;
             }
          }
@@ -86,6 +88,14 @@ package Brain.Utils
          };
       }
       
+      private function wrappedJsonFileLoadedCallback(index:int) : Function
+      {
+         return function(param1:JsonAsset):void
+         {
+            jsonFileLoaded(index,param1);
+         };
+      }
+      
       private function jsonFileFailedCallback(configFilePath:String) : void
       {
          mIsInError = true;
@@ -100,10 +110,10 @@ package Brain.Utils
          }
       }
       
-      private function jsonFileLoaded(asset:JsonAsset) : void
+      private function jsonFileLoaded(index:int, asset:JsonAsset) : void
       {
-         var _loc2_:JsonAsset = asset;
-         mJsonDictionaries.push(_loc2_.json);
+         var _loc3_:JsonAsset = asset;
+         mJsonDictionaries[index] = _loc3_.json;
          networkId = getConfigNumber("NetworkId",1);
          Logger.info("App launched from network: " + networkId);
          mLoadedFiles = mLoadedFiles + 1;
@@ -116,14 +126,14 @@ package Brain.Utils
       private function findValue(configString:String) : *
       {
          var _loc2_:int = 0;
-         _loc2_ = 0;
-         while(_loc2_ < mJsonDictionaries.length)
+         _loc2_ = mJsonDictionaries.length - 1;
+         while(_loc2_ >= 0)
          {
-            if(mJsonDictionaries[_loc2_][configString] != null)
+            if(mJsonDictionaries[_loc2_] != null && mJsonDictionaries[_loc2_][configString] != null)
             {
                return mJsonDictionaries[_loc2_][configString];
             }
-            _loc2_++;
+            _loc2_--;
          }
          return null;
       }

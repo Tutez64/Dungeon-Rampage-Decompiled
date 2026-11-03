@@ -19,17 +19,17 @@ package Dungeon
       
       private var mTiles:Vector.<Tile>;
       
-      private var mEmptyTileColiders:Vector.<RectangleNavCollider>;
+      private var mEmptyTileColliders:Vector.<RectangleNavCollider>;
       
       public function TileGrid(gridWidth:uint = 12, gridHeight:uint = 12)
       {
-         var _loc4_:* = 0;
-         var _loc3_:* = 0;
+         var _loc4_:uint = 0;
+         var _loc3_:uint = 0;
          super();
          mGridWidth = gridWidth;
          mGridHeight = gridHeight;
          mTiles = new Vector.<Tile>();
-         mEmptyTileColiders = new Vector.<RectangleNavCollider>();
+         mEmptyTileColliders = new Vector.<RectangleNavCollider>();
          _loc4_ = 0;
          while(_loc4_ < mGridHeight)
          {
@@ -37,7 +37,7 @@ package Dungeon
             while(_loc3_ < mGridWidth)
             {
                mTiles.push(null);
-               mEmptyTileColiders.push(null);
+               mEmptyTileColliders.push(null);
                _loc3_++;
             }
             _loc4_++;
@@ -73,11 +73,15 @@ package Dungeon
             throw new Error("index out of range");
          }
          mTiles[i + j * mGridWidth] = tile;
-         var _loc4_:RectangleNavCollider = mEmptyTileColiders[i + j * mGridWidth];
+         if(tile != null && tile.isGeneratedFiller)
+         {
+            return;
+         }
+         var _loc4_:RectangleNavCollider = mEmptyTileColliders[i + j * mGridWidth];
          if(_loc4_ != null)
          {
             _loc4_.destroy();
-            mEmptyTileColiders[i + j * mGridWidth] = null;
+            mEmptyTileColliders[i + j * mGridWidth] = null;
          }
       }
       
@@ -87,7 +91,7 @@ package Dungeon
          {
             throw new Error("index out of range");
          }
-         mEmptyTileColiders[i + j * mGridWidth] = col;
+         mEmptyTileColliders[i + j * mGridWidth] = col;
       }
       
       public function getEmptyColliderAtIndex(i:uint, j:uint) : RectangleNavCollider
@@ -96,7 +100,7 @@ package Dungeon
          {
             return null;
          }
-         return mEmptyTileColiders[i + j * mGridWidth];
+         return mEmptyTileColliders[i + j * mGridWidth];
       }
       
       public function setTileAtPosition(pos:Vector3D, tile:Tile) : void
@@ -202,15 +206,15 @@ package Dungeon
       
       public function destroy() : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc1_:RectangleNavCollider = null;
          removeAllFromWorld();
-         if(mEmptyTileColiders)
+         if(mEmptyTileColliders)
          {
             _loc2_ = 0;
-            while(_loc2_ < mEmptyTileColiders.length)
+            while(_loc2_ < mEmptyTileColliders.length)
             {
-               _loc1_ = mEmptyTileColiders[_loc2_];
+               _loc1_ = mEmptyTileColliders[_loc2_];
                if(_loc1_)
                {
                   _loc1_.destroy();
@@ -218,8 +222,8 @@ package Dungeon
                }
                _loc2_++;
             }
-            mEmptyTileColiders.length = 0;
-            mEmptyTileColiders = null;
+            mEmptyTileColliders.length = 0;
+            mEmptyTileColliders = null;
          }
          mTiles = null;
       }

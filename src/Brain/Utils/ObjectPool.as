@@ -7,6 +7,8 @@ package Brain.Utils
       
       protected var mPool:Dictionary = new Dictionary();
       
+      private var mStats:Dictionary = new Dictionary();
+      
       public function ObjectPool()
       {
          super();
@@ -15,7 +17,7 @@ package Brain.Utils
       
       public function toString() : String
       {
-         var _loc2_:* = undefined;
+         var _loc2_:Vector.<IPoolable> = undefined;
          var _loc1_:String = "";
          for(var _loc3_:String in mPool)
          {
@@ -41,7 +43,7 @@ package Brain.Utils
       
       private function getPool(key:String) : Vector.<IPoolable>
       {
-         var _loc2_:* = undefined;
+         var _loc2_:Vector.<IPoolable> = undefined;
          if(key in mPool)
          {
             return mPool[key];
@@ -52,22 +54,37 @@ package Brain.Utils
          return _loc2_;
       }
       
+      private function statsFor(key:String) : PoolStats
+      {
+         var _loc2_:PoolStats = mStats[key];
+         if(!_loc2_)
+         {
+            _loc2_ = new PoolStats();
+            mStats[key] = _loc2_;
+         }
+         return _loc2_;
+      }
+      
       public function checkout(... rest) : IPoolable
       {
          var _loc2_:IPoolable = null;
          var _loc3_:Boolean = false;
-         var _loc5_:String = getPoolKey(rest);
-         var _loc4_:Vector.<IPoolable> = getPool(_loc5_);
-         if(_loc4_.length)
+         var _loc6_:String = getPoolKey(rest);
+         var _loc5_:Vector.<IPoolable> = getPool(_loc6_);
+         var _loc4_:PoolStats = statsFor(_loc6_);
+         _loc4_.checkouts++;
+         if(_loc5_.length)
          {
-            _loc2_ = _loc4_.pop();
+            _loc2_ = _loc5_.pop();
             reset(_loc2_,rest);
             _loc3_ = false;
+            _loc4_.reuses++;
          }
          else
          {
             _loc2_ = construct(rest);
             _loc3_ = true;
+            _loc4_.constructed++;
          }
          _loc2_.postCheckout(_loc3_);
          return _loc2_;
@@ -76,8 +93,35 @@ package Brain.Utils
       public function checkin(object:IPoolable) : void
       {
          object.postCheckin();
-         var _loc2_:Vector.<IPoolable> = getPool(object.getPoolKey());
-         _loc2_.push(object);
+         var _loc4_:String = object.getPoolKey();
+         var _loc3_:Vector.<IPoolable> = getPool(_loc4_);
+         var _loc2_:PoolStats = statsFor(_loc4_);
+         _loc2_.checkins++;
+         _loc3_.push(object);
+      }
+      
+      public function stats() : Array
+      {
+         var _loc1_:PoolStats = null;
+         var _loc2_:Vector.<IPoolable> = undefined;
+         var _loc3_:Array = [];
+         for(var _loc4_:String in mStats)
+         {
+            _loc1_ = mStats[_loc4_];
+            _loc2_ = mPool[_loc4_];
+            _loc3_.push({
+               "key":_loc4_,
+               "pooled":(_loc2_ ? _loc2_.length : 0),
+               "constructed":_loc1_.constructed,
+               "checkouts":_loc1_.checkouts,
+               "reuses":_loc1_.reuses,
+               "checkins":_loc1_.checkins,
+               "out":_loc1_.checkouts - _loc1_.checkins,
+               "dupes":_loc1_.dupes
+            });
+         }
+         _loc3_.sortOn("key");
+         return _loc3_;
       }
       
       public function clear() : void
@@ -90,13 +134,33 @@ package Brain.Utils
             }
          }
          mPool = new Dictionary();
+         mStats = new Dictionary();
       }
       
       public function destroy() : void
       {
          this.clear();
          mPool = null;
+         mStats = null;
       }
    }
 }
 
+class PoolStats
+{
+   
+   public var constructed:int;
+   
+   public var checkouts:int;
+   
+   public var reuses:int;
+   
+   public var checkins:int;
+   
+   public var dupes:int;
+   
+   public function PoolStats()
+   {
+      super();
+   }
+}

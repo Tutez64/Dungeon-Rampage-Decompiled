@@ -18,6 +18,7 @@ package Combat.Attack
    import Facade.DBFacade;
    import GameMasterDictionary.GMAttack;
    import GameMasterDictionary.GMStackable;
+   import SteamInput.RumbleEffect;
    
    public class PlayerOwnerAttackController
    {
@@ -131,7 +132,7 @@ package Combat.Attack
                _loc2_ = new ShieldWeaponController(mDBFacade,weapon,mDistributedPlayerOwner);
                break;
             default:
-               Logger.warn("Unable to determine weapon controller for GMWeaponItem.WeaponController: " + weapon.weaponData.WeaponController + ".  Using ChargeWeaponController as default.");
+               Logger.debug("Unable to determine weapon controller for GMWeaponItem.WeaponController: " + weapon.weaponData.WeaponController + ".  Using ChargeWeaponController as default.");
                _loc2_ = new ChargeWeaponController(mDBFacade,weapon,mDistributedPlayerOwner);
          }
          return _loc2_;
@@ -213,17 +214,16 @@ package Combat.Attack
             }
             mNextWeaponCommand = null;
             mDistributedPlayerOwner.attack(mDungeonBusterGMAttack.Id,null,mDungeonBusterGMAttack.AttackSpdF,mDungeonBusterAttackTimeline);
+            mDBFacade.steamInputManager.playRumble(RumbleEffect.DUNGEON_BUSTER);
             mDBFacade.hud.hideBustSign();
+            mDBFacade.steamAchievementsHelper.unlockAchievement("DUNGEON_BUSTER_FIRST_TIME");
+            mDBFacade.steamAchievementsHelper.addValueToStatInt(1,"DUNGEON_BUSTERS_USED");
          }
       }
       
       public function canPlayDungeonBusterAttack() : Boolean
       {
-         if(mDistributedPlayerOwner.dungeonBusterPoints >= mDistributedPlayerOwner.maxBusterPoints)
-         {
-            return true;
-         }
-         return false;
+         return mDistributedPlayerOwner.dungeonBusterPoints >= mDistributedPlayerOwner.maxBusterPoints;
       }
       
       public function addToPotentialWeaponInputQueue(weaponIndex:uint, down:Boolean, autoAim:Boolean) : void
@@ -328,7 +328,7 @@ package Combat.Attack
          {
             if(mNextWeaponCommand.weaponIndex == 3)
             {
-               if(mDistributedPlayerOwner.dungeonBusterPoints >= mDistributedPlayerOwner.maxBusterPoints)
+               if(canPlayDungeonBusterAttack())
                {
                   playDungeonBusterAttack();
                }
@@ -380,7 +380,7 @@ package Combat.Attack
       
       public function isCharging() : Boolean
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          _loc1_ = 0;
          while(_loc1_ < mWeaponControllers.length)
          {
@@ -416,7 +416,7 @@ package Combat.Attack
       
       public function resetCombosOnAllBut(weaponIndex:uint = 4294967295) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc3_:WeaponController = null;
          _loc2_ = 0;
          while(_loc2_ < mWeaponControllers.length)
@@ -435,7 +435,7 @@ package Combat.Attack
       
       public function resetWeapons() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          var _loc2_:WeaponController = null;
          mPotentialWeaponInputQueue.length = 0;
          _loc1_ = 0;
@@ -479,7 +479,7 @@ package Combat.Attack
       private function berserkModeStart(e:GameObjectEvent) : void
       {
          var _loc2_:ChargeWeaponController = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          _loc3_ = 0;
          while(_loc3_ < mWeaponControllers.length)
          {
@@ -490,12 +490,13 @@ package Combat.Attack
             }
             _loc3_++;
          }
+         mDBFacade.steamInputManager.playRumble(RumbleEffect.BERSERKER_MODE);
       }
       
       private function berserkModeEnd(e:GameObjectEvent) : void
       {
          var _loc2_:ChargeWeaponController = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          _loc3_ = 0;
          while(_loc3_ < mWeaponControllers.length)
          {

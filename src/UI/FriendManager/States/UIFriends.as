@@ -2,16 +2,16 @@ package UI.FriendManager.States
 {
    import Account.FriendInfo;
    import Account.StoreServicesController;
-   import Brain.Logger.Logger;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
    import Brain.Utils.MemoryTracker;
    import Brain.jsonRPC.JSONRPCService;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.Locale;
    import Town.TownStateMachine;
    import UI.FriendManager.FriendPopulater;
    import UI.FriendManager.UIFriendManager;
-   import UI.Popup.DBUIOneButtonPopup;
    import UI.Popup.DBUITwoButtonPopup;
    
    public class UIFriends extends UIFMState
@@ -36,12 +36,6 @@ package UI.FriendManager.States
       private var mRemoveFriendsPopUp:DBUITwoButtonPopup;
       
       private var mSelectedDRFriends:Array = [];
-      
-      private var mSelectedFBFriends:Array = [];
-      
-      private var mSelectedKGFriends:Array = [];
-      
-      private var mFBRemoveFriendPopup:DBUIOneButtonPopup;
       
       public function UIFriends(uiFriendManager:UIFriendManager, dbFacade:DBFacade, townStateMachine:TownStateMachine)
       {
@@ -85,7 +79,7 @@ package UI.FriendManager.States
       private function refresh(list:Array) : void
       {
          var _loc3_:Boolean = false;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          for each(var _loc2_:uint in list)
          {
             _loc3_ = false;
@@ -142,11 +136,25 @@ package UI.FriendManager.States
          mFriendPopulater = new FriendPopulater(mDBFacade,mTownStateMachine,mListOfFriends,mUIFriendManager);
          mRemoveButton = createButton("friend_management_button_grey",Locale.getString("REMOVE"),800,1000,removeFriendsConfirmation);
          mGiftButton = createButton("friend_management_button",Locale.getString("GIFT"),1075,1000,giftButtonCallback);
+         setupMenuNavigation();
+      }
+      
+      private function setupMenuNavigation() : void
+      {
+         mRemoveButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
+         mGiftButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
+         mRemoveButton.isToTheLeftOf(mGiftButton);
+         mFriendPopulater.setupMenuNavigation(mUIFriendManager.currentTabButton,mRemoveButton,mGiftButton);
+      }
+      
+      override public function getFirstNavigationUIObject() : UIObject
+      {
+         return mFriendPopulater.getFirstNavigationUIObject();
       }
       
       private function removeFriendsConfirmation() : void
       {
-         mRemoveFriendsPopUp = new DBUITwoButtonPopup(mDBFacade,Locale.getString("REMOVE_FRIEND_POPUP_TITLE"),Locale.getString("REMOVE_FRIEND_POPUP_DESC"),Locale.getString("REMOVE_FRIEND_POPUP_CANCEL"),closeRemoveFriendsPopUp,Locale.getString("REMOVE_FRIEND_POPUP_CONFIRM"),removeButtonCallback,true,null);
+         mRemoveFriendsPopUp = new DBUITwoButtonPopup(mDBFacade,"REMOVE_FRIEND_POPUP",Locale.getString("REMOVE_FRIEND_POPUP_TITLE"),Locale.getString("REMOVE_FRIEND_POPUP_DESC"),Locale.getString("REMOVE_FRIEND_POPUP_CANCEL"),closeRemoveFriendsPopUp,Locale.getString("REMOVE_FRIEND_POPUP_CONFIRM"),removeButtonCallback);
          MemoryTracker.track(mRemoveFriendsPopUp,"DBUITwoButtonPopup - created in UIFriends.removeFriendsConfirmation()");
       }
       
@@ -164,29 +172,16 @@ package UI.FriendManager.States
          var rpcFunc:Function;
          var idx:uint;
          mSelectedDRFriends.splice(0,mSelectedDRFriends.length);
-         mSelectedFBFriends.splice(0,mSelectedFBFriends.length);
-         mSelectedKGFriends.splice(0,mSelectedKGFriends.length);
          for each(idx in mFriendPopulater.getSelectedToggles())
          {
-            if(mListOfFriends[idx].isDRFriend)
-            {
-               mSelectedDRFriends.push(mListOfFriends[idx].id);
-            }
-            else if(mListOfFriends[idx].facebookId != null && mListOfFriends[idx].facebookId != "")
-            {
-               mSelectedFBFriends.push(mListOfFriends[idx].id);
-            }
-            else if(mListOfFriends[idx].kongregateId != null && mListOfFriends[idx].kongregateId != "")
-            {
-               mSelectedKGFriends.push(mListOfFriends[idx].id);
-            }
+            mSelectedDRFriends.push(mListOfFriends[idx].id);
          }
          if(mSelectedDRFriends.length > 0)
          {
             rpcFunc = JSONRPCService.getFunction("DRFriendRemove",mDBFacade.rpcRoot + "friendrequests");
             rpcFunc(mDBFacade.accountId,mSelectedDRFriends,mDBFacade.validationToken,function(param1:*):void
             {
-               var _loc2_:* = 0;
+               var _loc2_:uint = 0;
                refresh(mSelectedDRFriends);
                mDBFacade.dbAccountInfo.removeFriendCallback(param1);
                mTownStateMachine.leaderboard.refreshLeaderboard();
@@ -198,96 +193,21 @@ package UI.FriendManager.States
                }
             });
          }
-         if(mSelectedFBFriends.length > 0)
-         {
-            mFBRemoveFriendPopup = new DBUIOneButtonPopup(mDBFacade,Locale.getString("LEADERBOARD_FB_REMOVE_FRIEND_POPUP_TITLE"),Locale.getString("LEADERBOARD_FB_REMOVE_FRIEND_POPUP_DESC"),Locale.getString("OK"),null);
-            MemoryTracker.track(mFBRemoveFriendPopup,"DBUIOneButtonPopup - created in UIFriends.removeButtonCallback()");
-         }
-         else if(mSelectedKGFriends.length > 0)
-         {
-            mFBRemoveFriendPopup = new DBUIOneButtonPopup(mDBFacade,Locale.getString("LEADERBOARD_KG_REMOVE_FRIEND_POPUP_TITLE"),Locale.getString("LEADERBOARD_KG_REMOVE_FRIEND_POPUP_DESC"),Locale.getString("OK"),null);
-            MemoryTracker.track(mFBRemoveFriendPopup,"DBUIOneButtonPopup - created in UIFriends.removeButtonCallback()");
-         }
       }
       
       private function giftButtonCallback() : void
       {
-         var newFriendsFound:Boolean;
-         var idx:uint;
-         if(mDBFacade.dbConfigManager.getConfigBoolean("FUFB",false))
+         var _loc1_:Boolean = false;
+         for each(var _loc2_:uint in mFriendPopulater.getSelectedToggles())
          {
-            mGiftButton.releaseCallback = function():void
+            if(mDBFacade.dbAccountInfo.giftExcludeIds.indexOf(mListOfFriends[_loc2_].excludeId) < 0)
             {
-               mDBFacade.errorPopup("GIFTING CURRENTLY DISABLED","Sorry for the inconvenience, we are looking into resolving the issue.");
-            };
-            return;
-         }
-         newFriendsFound = false;
-         for each(idx in mFriendPopulater.getSelectedToggles())
-         {
-            if(mDBFacade.dbAccountInfo.giftExcludeIds.indexOf(mListOfFriends[idx].excludeId) < 0)
-            {
-               newFriendsFound = true;
+               _loc1_ = true;
             }
          }
-         if(newFriendsFound)
+         if(_loc1_)
          {
-            StoreServicesController.showGiftPage(mDBFacade,sendGifts);
-         }
-      }
-      
-      private function sendGifts(offerName:String, offerId:uint) : void
-      {
-         if(mDBFacade.isFacebookPlayer)
-         {
-            fbGiftFlow(offerName,offerId);
-         }
-         else if(mDBFacade.isDRPlayer)
-         {
-            if(mDBFacade.facebookController.accessToken)
-            {
-               fbGiftFlow(offerName,offerId);
-            }
-            else
-            {
-               drGiftFlow(offerName,offerId);
-            }
-         }
-         else if(mDBFacade.isKongregatePlayer)
-         {
-            kongGiftFlow(offerName,offerId);
-         }
-         else
-         {
-            Logger.warn("What kind of player are you??? ");
-         }
-      }
-      
-      private function fbGiftFlow(offerName:String, offerId:uint) : void
-      {
-         var _loc3_:Array = [];
-         var _loc4_:Array = [];
-         for each(var _loc5_:uint in mFriendPopulater.getSelectedToggles())
-         {
-            if(mDBFacade.dbAccountInfo.giftExcludeIds.indexOf(mListOfFriends[_loc5_].excludeId) < 0)
-            {
-               if(mListOfFriends[_loc5_].isDRFriend)
-               {
-                  _loc4_.push(_loc5_);
-               }
-               else
-               {
-                  _loc3_.push(_loc5_);
-               }
-            }
-         }
-         if(_loc3_.length > 0)
-         {
-            sendFacebookGift(offerName,offerId,_loc3_);
-         }
-         if(_loc4_.length > 0)
-         {
-            sendDRComGift(offerName,offerId,_loc4_);
+            StoreServicesController.showGiftPage(mDBFacade,drGiftFlow);
          }
       }
       
@@ -307,46 +227,6 @@ package UI.FriendManager.States
          }
       }
       
-      private function kongGiftFlow(offerName:String, offerId:uint) : void
-      {
-         var _loc4_:Array = [];
-         var _loc3_:Array = [];
-         for each(var _loc5_:uint in mFriendPopulater.getSelectedToggles())
-         {
-            if(mDBFacade.dbAccountInfo.giftExcludeIds.indexOf(mListOfFriends[_loc5_].excludeId) < 0)
-            {
-               if(mListOfFriends[_loc5_].isDRFriend)
-               {
-                  _loc3_.push(_loc5_);
-               }
-               else
-               {
-                  _loc4_.push(_loc5_);
-               }
-            }
-         }
-         if(_loc4_.length > 0)
-         {
-            sendKongregateGift(offerName,offerId,_loc4_);
-         }
-         if(_loc3_.length > 0)
-         {
-            sendDRComGift(offerName,offerId,_loc3_);
-         }
-      }
-      
-      private function sendFacebookGift(offerName:String, offerId:uint, fbFriends:Array) : void
-      {
-         var _loc4_:Array = [];
-         for each(var _loc5_:uint in fbFriends)
-         {
-            _loc4_.push(mListOfFriends[_loc5_].facebookId);
-         }
-         mDBFacade.facebookController.sendGiftRequests(offerName,offerId,_loc4_.toString());
-         mDBFacade.dbAccountInfo.giftExcludeIds = mDBFacade.dbAccountInfo.giftExcludeIds.concat(_loc4_);
-         mFriendPopulater.refreshGiftedOnCurrentPage();
-      }
-      
       private function sendDRComGift(offerName:String, offerId:uint, drFriends:Array) : void
       {
          var _loc4_:String = null;
@@ -361,26 +241,6 @@ package UI.FriendManager.States
             _loc7_.push(_loc5_);
             _loc8_.push(_loc4_);
             mDBFacade.metrics.log("DRGiftRequest",{"friendId":_loc4_});
-         }
-         mDBFacade.dbAccountInfo.giftExcludeIds = mDBFacade.dbAccountInfo.giftExcludeIds.concat(_loc8_);
-         mDBFacade.dbAccountInfo.sendGiftData(offerId,_loc7_,_loc8_);
-         mFriendPopulater.refreshGiftedOnCurrentPage();
-      }
-      
-      private function sendKongregateGift(offerName:String, offerId:uint, kongFriends:Array) : void
-      {
-         var _loc4_:String = null;
-         var _loc5_:String = null;
-         var _loc8_:Array = [];
-         var _loc7_:Array = [];
-         var _loc6_:String = new Date().time.toString();
-         for each(var _loc9_:uint in kongFriends)
-         {
-            _loc4_ = mListOfFriends[_loc9_].kongregateId.toString();
-            _loc5_ = "0_" + _loc6_ + "_" + _loc4_;
-            _loc7_.push(_loc5_);
-            _loc8_.push(_loc4_);
-            mDBFacade.metrics.log("KGGiftRequest",{"friendId":_loc4_});
          }
          mDBFacade.dbAccountInfo.giftExcludeIds = mDBFacade.dbAccountInfo.giftExcludeIds.concat(_loc8_);
          mDBFacade.dbAccountInfo.sendGiftData(offerId,_loc7_,_loc8_);

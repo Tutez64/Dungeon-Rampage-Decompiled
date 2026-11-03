@@ -1,10 +1,12 @@
 package UI.Popup
 {
    import Brain.AssetRepository.SwfAsset;
+   import Brain.Logger.Logger;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
-   import UI.*;
    
    public class DBUITwoButtonPopup extends DBUIPopup
    {
@@ -21,13 +23,13 @@ package UI.Popup
       
       protected var mRightText:String;
       
-      public function DBUITwoButtonPopup(dbFacade:DBFacade, titleText:String, content:*, leftText:String, leftCallback:Function, rightText:String, rightCallback:Function, allowClose:Boolean = true, closeCallback:Function = null, useOriginalPopup:Boolean = true, scalePopup:Boolean = true, UILayerName:String = "")
+      public function DBUITwoButtonPopup(dbFacade:DBFacade, uiLayerName:String, titleText:String, content:*, leftText:String, leftCallback:Function, rightText:String, rightCallback:Function, allowClose:Boolean = true, closeCallback:Function = null, useOriginalPopup:Boolean = true, scalePopup:Boolean = true)
       {
          mLeftText = leftText;
          mLeftCallback = leftCallback;
          mRightText = rightText;
          mRightCallback = rightCallback;
-         super(dbFacade,titleText,content,allowClose,useCurtain(),closeCallback,useOriginalPopup,scalePopup,UILayerName);
+         super(dbFacade,uiLayerName,titleText,content,allowClose,useCurtain(),closeCallback,useOriginalPopup,scalePopup);
       }
       
       override public function destroy() : void
@@ -55,7 +57,7 @@ package UI.Popup
             mPopup.left_button.visible = true;
             mLeftButton = new UIButton(mDBFacade,mPopup.left_button);
             mLeftButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
-            mLeftButton.label.text = mLeftText;
+            TextUtil.setText(mLeftButton.label,mLeftText);
             mLeftButton.releaseCallback = function():void
             {
                close(mLeftCallback);
@@ -70,7 +72,7 @@ package UI.Popup
             mPopup.right_button.visible = true;
             mRightButton = new UIButton(mDBFacade,mPopup.right_button);
             mRightButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
-            mRightButton.label.text = mRightText;
+            TextUtil.setText(mRightButton.label,mRightText);
             mRightButton.releaseCallback = function():void
             {
                close(mRightCallback);
@@ -80,7 +82,6 @@ package UI.Popup
          {
             mPopup.right_button.visible = false;
          }
-         setupMenuNavigation();
       }
       
       override protected function getClassName() : String
@@ -90,29 +91,46 @@ package UI.Popup
       
       override protected function setupMenuNavigation() : void
       {
-         if(mLeftText && mRightText)
+         var _loc1_:Boolean = Boolean(mLeftText) && mLeftButton != null;
+         var _loc2_:Boolean = Boolean(mRightText) && mRightButton != null;
+         if(_loc1_ && _loc2_)
          {
             mRightButton.isToTheLeftOf(mLeftButton);
-            if(mCloseButton)
+         }
+         if(mCloseButton)
+         {
+            if(_loc2_)
             {
-               mCloseButton.isAbove(mLeftButton);
+               mCloseButton.isAbove(mRightButton);
+            }
+            if(_loc1_)
+            {
+               mLeftButton.upNavigation = mCloseButton;
             }
          }
-         if(mUILayerName)
+         if(chooseFocusTarget(_loc1_,_loc2_) == null)
          {
-            if(mCloseButton)
-            {
-               mDBFacade.menuNavigationController.pushNewLayer(mUILayerName,mCloseCallback,mCloseButton);
-            }
-            else
-            {
-               mDBFacade.menuNavigationController.pushNewLayer(mUILayerName,mCloseCallback,mLeftButton);
-            }
+            Logger.debugch("UI","DBUITwoButtonPopup: setupMenuNavigation: No buttons found to set focused on");
          }
       }
       
-      override protected function initializeMenuNavigationLayer() : void
+      private function chooseFocusTarget(hasLeft:Boolean, hasRight:Boolean) : UIButton
       {
+         if(hasRight)
+         {
+            return mRightButton;
+         }
+         if(hasLeft)
+         {
+            return mLeftButton;
+         }
+         Logger.debugch("UI","DBUITwoButtonPopup: setupMenuNavigation: No left or right buttons found to setup navigation for");
+         return mCloseButton;
+      }
+      
+      override protected function getDefaultNavigationObject() : UIObject
+      {
+         return chooseFocusTarget(Boolean(mLeftText) && mLeftButton != null,Boolean(mRightText) && mRightButton != null);
       }
    }
 }

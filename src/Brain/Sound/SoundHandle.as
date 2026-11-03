@@ -2,6 +2,7 @@ package Brain.Sound
 {
    import Brain.Clock.GameClock;
    import Brain.Event.EventComponent;
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
    import Brain.Utils.MemoryTracker;
@@ -80,6 +81,10 @@ package Brain.Sound
          mSoundChannel = mSound.play(0,mLoopCount,mSoundTransform);
          if(mSoundChannel == null)
          {
+            if(!mManaged)
+            {
+               destroy();
+            }
             return false;
          }
          var _loc3_:Number = (mSound.length - startPosition) / 1000;
@@ -154,7 +159,7 @@ package Brain.Sound
             return;
          }
          mSoundChannel.stop();
-         mSoundChannel.removeEventListener("soundComplete",soundComplete);
+         EventListeners.remove(mSoundChannel,"soundComplete",soundComplete);
          mPausePosition = 0;
          if(mSoundCompleteTask != null)
          {

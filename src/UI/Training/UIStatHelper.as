@@ -3,6 +3,7 @@ package UI.Training
    import Brain.AssetRepository.SwfAsset;
    import Brain.Render.MovieClipRenderController;
    import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import flash.display.MovieClip;
@@ -64,7 +65,7 @@ package UI.Training
          mStatIconTooltipBar.tooltipPos = new Point(-75,mUIRoot.hit.height * -0.5 + 25);
          mStatNameText = mUIRoot.training_meter_text;
          mTooltipBar = new UIObject(mDBFacade,mUIRoot.barTooltip_hit);
-         mUIRoot.barTooltip.text = "0/75";
+         TextUtil.setText(mUIRoot.barTooltip,"0/75");
       }
       
       public function destroy() : void
@@ -107,18 +108,23 @@ package UI.Training
          mStatName = val;
       }
       
+      public function get statName() : String
+      {
+         return mStatName;
+      }
+      
       public function refresh(swfAsset:SwfAsset) : void
       {
          var _loc2_:Class = null;
          if(mDBFacade.gameMaster.statByConstant.itemFor(mStatName) != null)
          {
-            mStatNameText.text = GameMasterLocale.getGameMasterSubString("STATS_NAME",mDBFacade.gameMaster.statByConstant.itemFor(mStatName).Constant).toUpperCase();
+            TextUtil.setText(mStatNameText,GameMasterLocale.getGameMasterSubString("STATS_NAME",mDBFacade.gameMaster.statByConstant.itemFor(mStatName).Constant).toUpperCase());
             mStatIconName = mDBFacade.gameMaster.statByConstant.itemFor(mStatName).IconName;
             mStatIconTooltip.statItem = mDBFacade.gameMaster.statByConstant.itemFor(mStatName);
          }
          else
          {
-            mStatNameText.text = GameMasterLocale.getGameMasterSubString("STATS_NAME",mDBFacade.gameMaster.superStatByConstant.itemFor(mStatName).Constant).toUpperCase();
+            TextUtil.setText(mStatNameText,GameMasterLocale.getGameMasterSubString("STATS_NAME",mDBFacade.gameMaster.superStatByConstant.itemFor(mStatName).Constant).toUpperCase());
             mStatIconName = mDBFacade.gameMaster.superStatByConstant.itemFor(mStatName).IconName;
             mStatIconTooltip.superStatItem = mDBFacade.gameMaster.superStatByConstant.itemFor(mStatName);
          }
@@ -139,11 +145,11 @@ package UI.Training
       
       public function updateUI() : void
       {
+         var _loc6_:int = 0;
          var _loc5_:int = 0;
          var _loc4_:uint = 25;
          var _loc3_:uint = 50;
          var _loc2_:uint = 75;
-         var _loc6_:int = 0;
          if(mStatAmount == _loc2_)
          {
             _loc6_ = 3;
@@ -181,7 +187,7 @@ package UI.Training
             }
             _loc5_++;
          }
-         mUIRoot.barTooltip.text = mStatAmount.toString() + " / " + (25 * 3).toString();
+         TextUtil.setText(mUIRoot.barTooltip,mStatAmount.toString() + " / " + (25 * 3).toString());
       }
    }
 }

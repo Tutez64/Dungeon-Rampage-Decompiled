@@ -1,22 +1,21 @@
 package DistributedObjects
 {
-   import Actor.ActorGameObject;
    import Brain.Event.EventComponent;
    import Brain.Logger.Logger;
    import Brain.SceneGraph.SceneGraphComponent;
    import Events.CacheLoadRequestNpcEvent;
    import Facade.DBFacade;
-   import GameMasterDictionary.GMAttack;
    import GeneratedCode.DistributedDungionAreaNetworkComponent;
    import GeneratedCode.IDistributedDungionArea;
    import GeneratedCode.InfiniteRewardData;
-   import GeneratedCode.WeaponDetails;
    import GeneratedCode.swrapper;
    
    public class DistributedDungionArea extends Area implements IDistributedDungionArea
    {
       
       private var mNetworkComponent:DistributedDungionAreaNetworkComponent;
+      
+      private var mTeammateRevivesThisDungeon:int = 0;
       
       private var mTileLibrary:Vector.<String>;
       
@@ -45,7 +44,7 @@ package DistributedObjects
       
       public function set cacheSWC(val:Vector.<swrapper>) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          mCacheSfc = new Vector.<String>();
          _loc2_ = 0;
          while(_loc2_ < val.length)
@@ -67,7 +66,7 @@ package DistributedObjects
       
       public function tileLibrary(val:Vector.<swrapper>) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          mTileLibrary = new Vector.<String>();
          _loc2_ = 0;
          while(_loc2_ < val.length)
@@ -77,23 +76,9 @@ package DistributedObjects
          }
       }
       
-      public function calculateNetAttackDamage(attacker:ActorGameObject, target:ActorGameObject, attack:GMAttack, weapon:WeaponDetails) : Number
+      public function countTeammateRevive() : int
       {
-         var _loc6_:Number = NaN;
-         var _loc7_:Number = NaN;
-         var _loc5_:Number = 0;
-         if(attack.StatOffsets != null)
-         {
-            _loc6_ = (weapon.power * mDBFacade.gameMaster.stat_BonusMultiplier.values[attack.StatOffsets.offence] + attacker.stats.values[attack.StatOffsets.offence]) * attacker.buffHandler.multiplier[attack.StatOffsets.offence];
-            _loc6_ = _loc6_ * attack.DamageMod;
-            _loc7_ = target.stats.values[attack.StatOffsets.defence] * target.buffHandler.multiplier[attack.StatOffsets.defence];
-            _loc5_ = _loc6_ + _loc7_;
-         }
-         else
-         {
-            _loc5_ = weapon.power * attack.DamageMod;
-         }
-         return _loc5_;
+         return ++mTeammateRevivesThisDungeon;
       }
       
       public function floorReward(mapReward:uint) : void

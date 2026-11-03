@@ -26,9 +26,7 @@ package Town
             mUIShop.animateEntry();
          }
          mTownStateMachine.townHeader.showCloseButton(true);
-         super.resetHeaderLinks();
-         super.setupHeaderLinks();
-         mDBFacade.menuNavigationController.pushNewLayer("SHOP_MENU",mTownStateMachine.townHeader.determineCallback,mTownStateMachine.townHeader.closeButton,mTownStateMachine.townHeader.closeButton);
+         mDBFacade.menuNavigationController.pushNewLayer("SHOP_MENU",mTownStateMachine.townHeader.determineCallback,mTownStateMachine.townHeader.closeButton,mTownStateMachine.townHeader.closeButton,mUIShop.showPreviousCategory,mUIShop.showNextCategory);
       }
       
       override protected function setupHeaderLinks() : void
@@ -52,7 +50,10 @@ package Town
       override protected function setupState() : void
       {
          super.setupState();
-         mUIShop = new UIShop(mDBFacade,mTownStateMachine.townSwf,mRootMovieClip,mTownStateMachine.townHeader);
+         mUIShop = new UIShop(mDBFacade,mTownStateMachine.townSwf,mRootMovieClip,mTownStateMachine.townHeader,function():Boolean
+         {
+            return mTownStateMachine.currentStateName == "ShopTownSubState";
+         });
       }
       
       public function set startAtCategoryTab(value:String) : void

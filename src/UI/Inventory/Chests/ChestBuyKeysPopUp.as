@@ -1,36 +1,31 @@
 package UI.Inventory.Chests
 {
    import Account.ChestInfo;
-   import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
    import Brain.Render.MovieClipRenderer;
-   import Brain.SceneGraph.SceneGraphComponent;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
    import GameMasterDictionary.GMChest;
    import GameMasterDictionary.GMRarity;
    import UI.Hud.UIHud;
+   import UI.Popup.DBUIPopup;
+   import UI.Popup.UITreasureFoundPopup;
    import flash.display.MovieClip;
    import flash.geom.Rectangle;
    
-   public class ChestBuyKeysPopUp
+   public class ChestBuyKeysPopUp extends DBUIPopup
    {
       
-      private var mDBFacade:DBFacade;
-      
-      private var mAssetLoadingComponent:AssetLoadingComponent;
-      
-      private var mSceneGraphComponent:SceneGraphComponent;
-      
-      private var mRoot:MovieClip;
+      private static const SCORE_REPORT_PATH:String = "Resources/Art2D/UI/db_UI_score_report.swf";
       
       private var mBuyCoinButton:UIButton;
       
       private var mBuyGemButton:UIButton;
-      
-      private var mCloseButton:UIButton;
       
       private var mRenderer:MovieClipRenderer;
       
@@ -40,9 +35,24 @@ package UI.Inventory.Chests
       
       private var mCoinIconCenteredPosition:int = -50;
       
-      public function ChestBuyKeysPopUp(dbFacade:DBFacade, assetLoadingComponent:AssetLoadingComponent, sceneGraphComponent:SceneGraphComponent, swfAsset:SwfAsset, selectedGMChest:GMChest, chestBuyCoinCallback:Function, chestBuyGemCallback:Function, closeKeylessChestPopup:Function, refreshHeroInfoCallback:Function, isFromSummary:Boolean = false)
+      public function ChestBuyKeysPopUp(dbFacade:DBFacade, selectedGMChest:GMChest, chestBuyCoinCallback:Function, chestBuyGemCallback:Function, closeKeylessChestPopup:Function, refreshHeroInfoCallback:Function, isFromSummary:Boolean = false)
       {
-         var openKeyChestClass:Class;
+         super(dbFacade,"POPUP_KEYLESS","",{
+            "chest":selectedGMChest,
+            "buyCoinCallback":chestBuyCoinCallback,
+            "buyGemCallback":chestBuyGemCallback,
+            "refreshHeroInfoCallback":refreshHeroInfoCallback,
+            "isFromSummary":isFromSummary
+         },true,true,closeKeylessChestPopup,false,false);
+      }
+      
+      override protected function getSwfPath() : String
+      {
+         return "Resources/Art2D/UI/db_UI_score_report.swf";
+      }
+      
+      override protected function setupUI(swfAsset:SwfAsset, titleText:String, content:*, allowClose:Boolean, closeCallback:Function) : void
+      {
          var bounds:Rectangle;
          var swfPath:String;
          var iconName:String;
@@ -53,26 +63,25 @@ package UI.Inventory.Chests
          var coinCostForChestKey:Number;
          var cashCostForChestKey:Number;
          var i:int;
-         super();
-         mDBFacade = dbFacade;
-         mAssetLoadingComponent = assetLoadingComponent;
-         mSceneGraphComponent = sceneGraphComponent;
-         openKeyChestClass = UIHud.isThisAConsumbleChestId(selectedGMChest.Id) ? swfAsset.getClass("popup_itemBox_open") : swfAsset.getClass("popup_chest_keyless");
-         mRoot = new openKeyChestClass();
-         mRoot.scaleX = mRoot.scaleY = 1.8;
-         bounds = mRoot.getBounds(mDBFacade.stageRef);
-         mRoot.x = mDBFacade.stageRef.stageWidth / 2 - bounds.width / 2 - bounds.x;
-         mRoot.y = mDBFacade.stageRef.stageHeight / 2 - bounds.height / 2 - bounds.y;
-         mRoot.title_label.text = isFromSummary ? Locale.getString("TREASURE_FOUND") : GameMasterLocale.getGameMasterSubString("CHEST_NAME",selectedGMChest.Rarity);
-         if(mRoot.description_label)
+         mSwfAsset = swfAsset;
+         var selectedGMChest:GMChest = content.chest as GMChest;
+         var openKeyChestClass:Class = UIHud.isThisAConsumbleChestId(selectedGMChest.Id) ? swfAsset.getClass("popup_itemBox_open") : swfAsset.getClass("popup_chest_keyless");
+         mPopup = new openKeyChestClass();
+         mRoot.addChild(mPopup);
+         mPopup.scaleX = mPopup.scaleY = DBGlobal.UI_16_TO_9_PORT_OBJECT_SCALE;
+         bounds = mPopup.getBounds(mDBFacade.scalingRoot);
+         mPopup.x = mDBFacade.viewWidth / 2 - bounds.width / 2 - bounds.x;
+         mPopup.y = mDBFacade.viewHeight / 2 - bounds.height / 2 - bounds.y;
+         TextUtil.setText(mPopup.title_label,content.isFromSummary ? Locale.getString("TREASURE_FOUND") : GameMasterLocale.getGameMasterSubString("CHEST_NAME",selectedGMChest.Rarity));
+         if(mPopup.description_label)
          {
-            mRoot.description_label.text = Locale.getString("BUY_KEY_TO_OPEN") + selectedGMChest.Rarity + Locale.getString("CHEST_!");
+            Locale.setText(mPopup.description_label,"BUY_KEY_TO_OPEN",{"CHEST":GameMasterLocale.getGameMasterSubString("CHEST_NAME",selectedGMChest.Rarity)});
          }
          swfPath = selectedGMChest.IconSwf;
          iconName = selectedGMChest.IconName;
-         ChestInfo.loadItemIcon(swfPath,iconName,mRoot.content,mDBFacade,150,150,mAssetLoadingComponent);
-         mRoot.content.y = UIHud.isThisAConsumbleChestId(selectedGMChest.Id) ? -6 : -35;
-         mRenderer = new MovieClipRenderer(mDBFacade,mRoot.content);
+         ChestInfo.loadItemIcon(swfPath,iconName,mPopup.content,mDBFacade,150,150,mAssetLoadingComponent);
+         mPopup.content.y = UIHud.isThisAConsumbleChestId(selectedGMChest.Id) ? -6 : -35;
+         mRenderer = new MovieClipRenderer(mDBFacade,mPopup.content);
          mRenderer.play(0,true);
          rarity = mDBFacade.gameMaster.rarityByConstant.itemFor(selectedGMChest.Rarity);
          bgColoredExists = rarity.HasColoredBackground;
@@ -87,7 +96,7 @@ package UI.Inventory.Chests
                if(_loc2_)
                {
                   _loc3_ = new _loc2_() as MovieClip;
-                  mRoot.content.addChildAt(_loc3_,0);
+                  mPopup.content.addChildAt(_loc3_,0);
                   _loc3_.scaleX = _loc3_.scaleY = 1.5;
                }
             });
@@ -103,27 +112,30 @@ package UI.Inventory.Chests
             }
             i = i + 1;
          }
-         mRoot.coin_button.x = mCoinButtonCenteredPosition;
-         mRoot.coin_icon.x = mCoinIconCenteredPosition;
-         mBuyCoinButton = new UIButton(mDBFacade,mRoot.coin_button);
-         mBuyCoinButton.releaseCallback = chestBuyCoinCallback(coinCostForChestKey);
-         mBuyCoinButton.label.text = coinCostForChestKey.toString();
-         mBuyGemButton = new UIButton(mDBFacade,mRoot.gem_button);
-         mRoot.gem_icon.visible = false;
+         mPopup.coin_button.x = mCoinButtonCenteredPosition;
+         mPopup.coin_icon.x = mCoinIconCenteredPosition;
+         mBuyCoinButton = new UIButton(mDBFacade,mPopup.coin_button);
+         mBuyCoinButton.releaseCallback = content.buyCoinCallback(coinCostForChestKey);
+         TextUtil.setText(mBuyCoinButton.label,coinCostForChestKey.toString());
+         mBuyGemButton = new UIButton(mDBFacade,mPopup.gem_button);
+         mPopup.gem_icon.visible = false;
          mBuyGemButton.visible = false;
-         mCloseButton = new UIButton(mDBFacade,mRoot.close);
-         mCloseButton.releaseCallback = closeKeylessChestPopup;
-         mRoot.coin_icon.mouseEnabled = false;
-         mRoot.coin_icon.mouseChildren = false;
-         mRoot.gem_icon.mouseEnabled = false;
-         mRoot.gem_icon.mouseChildren = false;
+         mCloseButton = new UIButton(mDBFacade,mPopup.close);
+         mCloseButton.releaseCallback = handleInputCalledClosed;
+         mPopup.coin_icon.mouseEnabled = false;
+         mPopup.coin_icon.mouseChildren = false;
+         mPopup.gem_icon.mouseEnabled = false;
+         mPopup.gem_icon.mouseChildren = false;
          if(!UIHud.isThisAConsumbleChestId(selectedGMChest.Id))
          {
             createKeySlots(selectedGMChest);
-            refreshHeroInfoCallback(mRoot);
+            content.refreshHeroInfoCallback(mPopup);
+            UITreasureFoundPopup.fitHeroLabel(mPopup.hero_label);
          }
-         mSceneGraphComponent.addChild(mRoot,105);
-         mDBFacade.menuNavigationController.pushNewLayer("POPUP_KEYLESS",closeKeylessChestPopup,mCloseButton,mBuyCoinButton);
+      }
+      
+      override protected function setupMenuNavigation() : void
+      {
          mCloseButton.isAbove(mBuyCoinButton);
          mBuyCoinButton.isToTheLeftOf(mBuyGemButton);
       }
@@ -136,7 +148,7 @@ package UI.Inventory.Chests
          _loc3_ = 0;
          while(_loc3_ < 4)
          {
-            _loc2_ = mRoot.getChildByName("slot_" + _loc3_.toString()) as MovieClip;
+            _loc2_ = mPopup.getChildByName("slot_" + _loc3_.toString()) as MovieClip;
             mChestKeySlots.push(new ChestKeySlot(mDBFacade,_loc2_,mDBFacade.dbAccountInfo.inventoryInfo.keys[_loc3_],mAssetLoadingComponent));
             if(selectedGMChest.Id == mChestKeySlots[_loc3_].keyInfo.gmKey.ChestId)
             {
@@ -150,23 +162,37 @@ package UI.Inventory.Chests
          }
       }
       
-      public function get root() : MovieClip
+      override protected function getDefaultNavigationObject() : UIObject
       {
-         return mRoot;
+         return mCloseButton;
       }
       
-      public function destroy() : void
+      override protected function getInitialFocusedNavigationObject() : UIObject
+      {
+         return mBuyCoinButton;
+      }
+      
+      override public function destroy() : void
       {
          var _loc1_:int = 0;
-         mSceneGraphComponent.removeChild(mRoot);
-         mDBFacade.menuNavigationController.popLayer("POPUP_KEYLESS");
-         mDBFacade = null;
-         mAssetLoadingComponent = null;
-         mBuyCoinButton.destroy();
+         if(mDBFacade == null)
+         {
+            return;
+         }
+         if(mBuyCoinButton)
+         {
+            mBuyCoinButton.destroy();
+         }
          mBuyCoinButton = null;
-         mBuyGemButton.destroy();
+         if(mBuyGemButton)
+         {
+            mBuyGemButton.destroy();
+         }
          mBuyGemButton = null;
-         mRenderer.destroy();
+         if(mRenderer)
+         {
+            mRenderer.destroy();
+         }
          mRenderer = null;
          if(mChestKeySlots)
          {
@@ -179,7 +205,7 @@ package UI.Inventory.Chests
             mChestKeySlots.splice(0,mChestKeySlots.length);
             mChestKeySlots = null;
          }
-         mRoot = null;
+         super.destroy();
       }
    }
 }

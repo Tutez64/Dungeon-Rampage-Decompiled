@@ -11,15 +11,15 @@ package GeneratedCode
       
       private var the_instance:DistributedDooberGameObject;
       
-      public const FLID_type:uint = 287;
+      public const FLID_type:uint = 296;
       
-      public const FLID_position:uint = 288;
+      public const FLID_position:uint = 297;
       
-      public const FLID_layer:uint = 289;
+      public const FLID_layer:uint = 298;
       
-      public const FLID_spawnFrom:uint = 290;
+      public const FLID_spawnFrom:uint = 299;
       
-      public const FLID_collectedBy:uint = 291;
+      public const FLID_collectedBy:uint = 300;
       
       public function DistributedDooberGameObjectNetworkComponent(Inst:DistributedDooberGameObject, gs:GeneratedDcSocket, id:uint)
       {
@@ -39,7 +39,7 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 287)
+         switch(int(fieldid) - 296)
          {
             case 0:
                recv_type(packet);

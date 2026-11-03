@@ -7,8 +7,12 @@ package DistributedObjects
    import Events.PlayerExitEvent;
    import Events.PlayerIsTypingEvent;
    import Facade.DBFacade;
+   import Facade.LoadingPrewarm;
+   import Facade.TrickleCacheLoader;
+   import GeneratedCode.HeroPreloadLook;
    import GeneratedCode.IPlayerGameObject;
    import GeneratedCode.PlayerGameObjectNetworkComponent;
+   import StateMachine.MainStateMachine.LoadingScreenState;
    import UI.UIChatLog;
    
    public class PlayerGameObject extends GameObject implements IPlayerGameObject
@@ -16,7 +20,9 @@ package DistributedObjects
       
       protected var mName:String;
       
-      protected var mFacebookHelper:FacebookHelper;
+      protected var mHeroPreloadLook:HeroPreloadLook;
+      
+      protected var mSteamHelper:SteamHelper;
       
       protected var mDBFacade:DBFacade;
       
@@ -24,7 +30,7 @@ package DistributedObjects
       {
          super(dbFacade,remoteId);
          mDBFacade = dbFacade;
-         mFacebookHelper = new FacebookHelper(dbFacade,remoteId);
+         mSteamHelper = new SteamHelper(dbFacade,remoteId);
          mFacade.eventManager.dispatchEvent(new FriendStatusEvent("FRIEND_DUNGEON_STATUS_EVENT",this.id,true));
       }
       
@@ -46,18 +52,33 @@ package DistributedObjects
          return mName;
       }
       
-      public function get facebookId() : String
+      public function set heroPreloadLook(val:HeroPreloadLook) : void
       {
-         if(mFacebookHelper)
+         mHeroPreloadLook = val;
+         if(val != null && id != mDBFacade.dbAccountInfo.id)
          {
-            return mFacebookHelper.facebookId;
+            TrickleCacheLoader.queueHeroLookAtlases(mDBFacade,val,!(mDBFacade.mainStateMachine.currentState is LoadingScreenState));
+            LoadingPrewarm.heroJoined(mDBFacade,val);
+         }
+      }
+      
+      public function get heroPreloadLook() : HeroPreloadLook
+      {
+         return mHeroPreloadLook;
+      }
+      
+      public function get steamAvatarUrl() : String
+      {
+         if(mSteamHelper)
+         {
+            return mSteamHelper.steamAvatarUrl;
          }
          return "";
       }
       
       public function get isFriend() : Boolean
       {
-         return mFacebookHelper.isFriend;
+         return mSteamHelper.isFriend;
       }
       
       public function Chat(text:String) : void
@@ -82,11 +103,11 @@ package DistributedObjects
       {
          mFacade.eventManager.dispatchEvent(new FriendStatusEvent("FRIEND_DUNGEON_STATUS_EVENT",this.id,false));
          mFacade.eventManager.dispatchEvent(new PlayerExitEvent(id));
-         if(mFacebookHelper)
+         if(mSteamHelper)
          {
-            mFacebookHelper.destroy();
+            mSteamHelper.destroy();
          }
-         mFacebookHelper = null;
+         mSteamHelper = null;
          mDBFacade = null;
          super.destroy();
       }
@@ -99,13 +120,13 @@ package DistributedObjects
 }
 
 import Account.FriendInfo;
-import Events.FacebookIdReceivedEvent;
+import Events.SteamAvatarUrlReceivedEvent;
 import Facade.DBFacade;
 
-class FacebookHelper
+class SteamHelper
 {
    
-   private var mFacebookId:String;
+   private var mSteamAvatarUrl:String;
    
    private var mIsFriend:Boolean = false;
    
@@ -113,20 +134,20 @@ class FacebookHelper
    
    private var mDBFacade:DBFacade;
    
-   public function FacebookHelper(dbFacade:DBFacade, id:uint)
+   public function SteamHelper(dbFacade:DBFacade, id:uint)
    {
       super();
       mDBFacade = dbFacade;
       mPlayerId = id;
-      getFacebookId();
+      getSteamAvatar();
    }
    
-   private function getFacebookId() : void
+   private function getSteamAvatar() : void
    {
       var friend:FriendInfo;
       if(mDBFacade.dbAccountInfo.id == mPlayerId)
       {
-         mFacebookId = mDBFacade.facebookPlayerId;
+         mSteamAvatarUrl = mDBFacade.mSteamAvatarUrl;
       }
       else if(mDBFacade.dbAccountInfo.friendInfos.hasKey(mPlayerId))
       {
@@ -134,25 +155,25 @@ class FacebookHelper
          friend = mDBFacade.dbAccountInfo.friendInfos.itemFor(mPlayerId);
          if(friend)
          {
-            mFacebookId = friend.facebookId;
+            mSteamAvatarUrl = friend.steamAvatarUrl;
          }
       }
       else
       {
-         mDBFacade.dbAccountInfo.getFacebookIdRPC(mPlayerId,function(param1:String):void
+         mDBFacade.dbAccountInfo.getSteamAvatarUrlRPC(mPlayerId,function(param1:String):void
          {
-            if(param1 != "")
+            if(param1 != "" && mDBFacade)
             {
-               mDBFacade.eventManager.dispatchEvent(new FacebookIdReceivedEvent("FACEBOOK_ID_RECEIVED_EVENT",mPlayerId,param1));
+               mDBFacade.eventManager.dispatchEvent(new SteamAvatarUrlReceivedEvent("STEAM_AVATAR_URL_RECEIVED_EVENT",mPlayerId,param1));
             }
-            mFacebookId = param1;
+            mSteamAvatarUrl = param1;
          });
       }
    }
    
-   public function get facebookId() : String
+   public function get steamAvatarUrl() : String
    {
-      return mFacebookId;
+      return mSteamAvatarUrl;
    }
    
    public function get isFriend() : Boolean

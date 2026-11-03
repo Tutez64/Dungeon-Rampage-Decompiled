@@ -20,11 +20,32 @@ package Brain.Utils
       
       private static var m_currentFilter:Object = null;
       
+      private static var m_gcInFlight:Boolean = false;
+      
+      private static var m_gcReport:Boolean = false;
+      
+      public static var captureCreationStacks:Boolean = false;
+      
       private static var m_tracking:Dictionary = new Dictionary(true);
+      
+      private static var m_gcCallbacks:Array = [];
       
       public function MemoryTracker()
       {
          super();
+      }
+      
+      public static function registerWorkManagerForHuskCheck(mgr:*) : void
+      {
+      }
+      
+      public static function clearWorkManagersForHuskCheck() : void
+      {
+      }
+      
+      public static function get gcInFlight() : Boolean
+      {
+         return m_gcInFlight;
       }
       
       public static function set stage(s:Stage) : void
@@ -34,6 +55,16 @@ package Brain.Utils
       
       public static function track(obj:*, label:String, category:String = "default") : void
       {
+      }
+      
+      public static function isTracked(obj:*) : Boolean
+      {
+         return m_tracking[obj] != null;
+      }
+      
+      private static function captureCreationStack() : String
+      {
+         return null;
       }
       
       public static function nextGeneration() : void
@@ -124,7 +155,19 @@ package Brain.Utils
          return m_generation;
       }
       
-      public static function memoryReport(filterString:String = null) : void
+      public static function memoryReport(filterString:String = null, onComplete:Function = null) : void
+      {
+      }
+      
+      private static function _startGC() : void
+      {
+      }
+      
+      private static function _finishGC() : void
+      {
+      }
+      
+      public static function forceGC(onComplete:Function = null) : void
       {
       }
       
@@ -182,6 +225,10 @@ package Brain.Utils
       }
       
       private static function _gc(e:Event) : void
+      {
+      }
+      
+      private static function _gcTail() : void
       {
       }
       

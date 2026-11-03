@@ -1,5 +1,6 @@
 package UI.Inventory
 {
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import GameMasterDictionary.GMWeaponItem;
@@ -22,6 +23,7 @@ package UI.Inventory
          mRoot = new templateClass();
          this.addChild(mRoot);
          mDescription = mRoot.description_label;
+         mRoot.scaleX = mRoot.scaleY = UIWeaponTooltip.tooltipScale(mDescription,1.55);
       }
       
       public function destroy() : void
@@ -39,7 +41,7 @@ package UI.Inventory
       
       public function setWeaponItem(gmWeapon:GMWeaponItem, level:uint, isLegendary:Boolean = false) : void
       {
-         mDescription.text = GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_DESCRIPTION",gmWeapon.getWeaponAesthetic(level,isLegendary).WeaponItemConstant);
+         TextUtil.setText(mDescription,GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_DESCRIPTION",gmWeapon.getWeaponAesthetic(level,isLegendary).WeaponItemConstant));
       }
    }
 }

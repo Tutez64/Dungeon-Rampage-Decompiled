@@ -2,6 +2,7 @@ package Brain.Logger
 {
    import Brain.Clock.GameClock;
    import com.junkbyte.console.Cc;
+   import com.junkbyte.console.Console;
    import com.junkbyte.console.KeyBind;
    import flash.display.Stage;
    import flash.system.Capabilities;
@@ -229,7 +230,7 @@ package Brain.Logger
          if(mWantThrowErrors && Capabilities.isDebugger)
          {
             displayConsole();
-            Cc.minimumPriority = 8;
+            Cc.minimumPriority = Console.WARN;
             _loc5_.name = "LOGGED " + _loc5_.name;
             throw _loc5_;
          }
@@ -254,7 +255,7 @@ package Brain.Logger
          if(mWantConsole)
          {
             displayConsole();
-            Cc.minimumPriority = 8;
+            Cc.minimumPriority = Console.WARN;
             Cc.height = 250;
             Cc.warn(_loc3_);
             Cc.fatal(logString);
@@ -266,10 +267,6 @@ package Brain.Logger
             _loc5_.name = "LOGGED " + _loc5_.name;
             throw _loc5_;
          }
-      }
-      
-      public static function reloadPage() : void
-      {
       }
       
       public static function custom(myLoggerString:String, logString:String) : void

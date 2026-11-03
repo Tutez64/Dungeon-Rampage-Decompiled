@@ -1,5 +1,7 @@
 package GameMasterDictionary
 {
+   import flash.Boot;
+   
    public class GMKey
    {
       
@@ -7,11 +9,14 @@ package GameMasterDictionary
       
       public var ChestId:uint;
       
-      public function GMKey(jsonAsset:Object)
+      public function GMKey(jsonAsset:Object = undefined)
       {
-         super();
-         OfferId = jsonAsset.OfferId;
-         ChestId = jsonAsset.ChestId;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         OfferId = uint(jsonAsset.OfferId);
+         ChestId = uint(jsonAsset.ChestId);
       }
    }
 }

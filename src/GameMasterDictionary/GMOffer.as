@@ -1,43 +1,36 @@
 package GameMasterDictionary
 {
    import Brain.Clock.GameClock;
+   import DBGlobals.As3Compat;
+   import DBGlobals.DBGlobal;
+   import flash.Boot;
    
    public class GMOffer
    {
       
-      public static const BASIC_CURRENCY:String = "BASIC";
+      public static var BASIC_CURRENCY:String = "BASIC";
       
-      public static const PREMIUM_CURRENCY:String = "PREMIUM";
+      public static var PREMIUM_CURRENCY:String = "PREMIUM";
       
-      public static const DLC_CURRENCY:String = "DLC";
+      public static var DLC_CURRENCY:String = "DLC";
       
-      private static const SPECIAL_NEW:String = "NEW";
+      public static var SPECIAL_NEW:String = "NEW";
       
-      private static const SPECIAL_FEATURED:String = "FEATURED";
+      public static var SPECIAL_FEATURED:String = "FEATURED";
       
-      private static const SPECIAL_SALE:String = "SALE";
+      public static var SPECIAL_SALE:String = "SALE";
       
-      private var mPrice:uint;
+      public var mSpecial:String;
       
-      public var Id:uint;
-      
-      public var CurrencyType:String;
-      
-      public var Tab:String;
-      
-      public var Location:String;
-      
-      public var CoinOfferId:uint;
-      
-      public var CoinOffer:GMOffer;
-      
-      public var IsCoinAltOffer:Boolean = false;
+      public var mPrice:uint;
       
       public var VisibleDate:Date;
       
-      public var StartDate:Date;
+      public var Tab:String;
       
-      public var EndDate:Date;
+      public var SteamAppId:uint;
+      
+      public var StartDate:Date;
       
       public var SoldOutDate:Date;
       
@@ -45,49 +38,64 @@ package GameMasterDictionary
       
       public var SaleTargetOffer:GMOffer;
       
-      public var SaleOffers:Vector.<GMOffer>;
+      public var SaleStartDate:Date;
       
       public var SalePercentOff:uint;
       
-      public var SaleStartDate:Date;
+      public var SaleOffers:Vector.<GMOffer>;
       
       public var SaleEndDate:Date;
-      
-      public var LimitedQuantity:uint;
-      
-      private var mSpecial:String;
-      
-      public var Gift:Boolean;
-      
-      public var IsBundle:Boolean;
-      
-      public var BundleName:String;
-      
-      public var BundleIcon:String;
-      
-      public var BundleSwfFilepath:String;
-      
-      public var BundleDescription:String = "";
       
       public var Rarity:String;
       
       public var OrigPriceA:uint;
       
+      public var Location:String;
+      
+      public var LimitedQuantity:uint;
+      
+      public var IsCoinAltOffer:Boolean;
+      
+      public var IsBundle:Boolean;
+      
+      public var Id:uint;
+      
+      public var Gift:Boolean;
+      
+      public var EndDate:Date;
+      
       public var Details:Vector.<GMOfferDetail>;
       
-      public var SteamAppId:uint;
+      public var CurrencyType:String;
       
-      public function GMOffer(jsonAsset:Object, splitTests:Object)
+      public var CoinOfferId:uint;
+      
+      public var CoinOffer:GMOffer;
+      
+      public var BundleSwfFilepath:String;
+      
+      public var BundleName:String;
+      
+      public var BundleIcon:String;
+      
+      public var BundleDescription:String;
+      
+      public function GMOffer(jsonAsset:Object = undefined, splitTests:* = undefined)
       {
-         super();
-         Id = jsonAsset.Id;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         BundleDescription = "";
+         IsCoinAltOffer = false;
+         Id = uint(jsonAsset.Id);
          CurrencyType = jsonAsset.CurrencyType;
-         this.determinePrice(jsonAsset,splitTests);
+         determinePrice(jsonAsset,splitTests);
          Tab = jsonAsset.Tab;
          Location = jsonAsset.Location;
-         CoinOfferId = jsonAsset.CoinOfferId;
-         SaleTargetOfferId = jsonAsset.SaleOffer;
-         IsBundle = jsonAsset.IsBundle;
+         CoinOfferId = uint(jsonAsset.CoinOfferId);
+         SaleTargetOfferId = uint(jsonAsset.SaleOffer);
+         IsBundle = Boolean(jsonAsset.IsBundle);
          if(IsBundle)
          {
             BundleName = jsonAsset.BundleName;
@@ -96,113 +104,87 @@ package GameMasterDictionary
             BundleDescription = jsonAsset.BundleDescription;
          }
          Rarity = jsonAsset.Rarity;
-         if(jsonAsset.VisibleDate)
+         if(As3Compat.truthy(jsonAsset.VisibleDate))
          {
             VisibleDate = GameClock.parseW3CDTF(jsonAsset.VisibleDate);
          }
-         if(jsonAsset.StartDate)
+         if(As3Compat.truthy(jsonAsset.StartDate))
          {
             StartDate = GameClock.parseW3CDTF(jsonAsset.StartDate);
          }
-         if(jsonAsset.EndDate)
+         if(As3Compat.truthy(jsonAsset.EndDate))
          {
             EndDate = GameClock.parseW3CDTF(jsonAsset.EndDate);
          }
-         if(jsonAsset.SoldOutDate)
+         if(As3Compat.truthy(jsonAsset.SoldOutDate))
          {
             SoldOutDate = GameClock.parseW3CDTF(jsonAsset.SoldOutDate);
          }
-         if(jsonAsset.SaleStartDate)
+         if(As3Compat.truthy(jsonAsset.SaleStartDate))
          {
             SaleStartDate = GameClock.parseW3CDTF(jsonAsset.SaleStartDate);
          }
-         if(jsonAsset.SaleEndDate)
+         if(As3Compat.truthy(jsonAsset.SaleEndDate))
          {
             SaleEndDate = GameClock.parseW3CDTF(jsonAsset.SaleEndDate);
          }
-         SalePercentOff = jsonAsset.SalePercentOff;
-         LimitedQuantity = jsonAsset.LimitedQuantity;
+         SalePercentOff = uint(jsonAsset.SalePercentOff);
+         LimitedQuantity = uint(jsonAsset.LimitedQuantity);
          mSpecial = jsonAsset.Special;
-         Gift = jsonAsset.Gift;
+         Gift = Boolean(jsonAsset.Gift);
          Details = new Vector.<GMOfferDetail>();
-         SteamAppId = jsonAsset.SteamAppId;
-      }
-      
-      public function get percentOff() : uint
-      {
-         if(SaleTargetOffer && SalePercentOff)
-         {
-            return SalePercentOff;
-         }
-         return 0;
-      }
-      
-      public function get Special() : Boolean
-      {
-         if(isFeatured)
-         {
-            return true;
-         }
-         if(this.isOnSaleNow && this.isSale)
-         {
-            return true;
-         }
-         return Boolean(mSpecial);
+         SteamAppId = uint(jsonAsset.SteamAppId);
       }
       
       public function isVisible() : Boolean
       {
-         var _loc3_:Number = NaN;
          var _loc2_:Number = NaN;
-         var _loc5_:Number = NaN;
-         var _loc4_:Number = NaN;
-         var _loc6_:Number = NaN;
-         var _loc1_:Number = NaN;
-         var _loc7_:Number = GameClock.getWebServerTime();
-         if(VisibleDate)
+         var _loc3_:Number = NaN;
+         var _loc1_:Number = GameClock.getWebServerTime();
+         if(VisibleDate != null)
          {
-            _loc3_ = VisibleDate.getTime();
-            if(_loc3_ > _loc7_)
+            _loc2_ = VisibleDate.getTime();
+            if(_loc2_ > _loc1_)
             {
                return false;
             }
-            if(SoldOutDate)
+            if(SoldOutDate != null)
             {
-               _loc2_ = SoldOutDate.getTime();
-               if(_loc2_ < _loc7_)
+               _loc3_ = SoldOutDate.getTime();
+               if(_loc3_ < _loc1_)
                {
                   return false;
                }
             }
-            else if(EndDate)
+            else if(EndDate != null)
             {
-               _loc5_ = EndDate.getTime();
-               if(_loc5_ < _loc7_)
+               _loc3_ = EndDate.getTime();
+               if(_loc3_ < _loc1_)
                {
                   return false;
                }
             }
             return true;
          }
-         if(StartDate)
+         if(StartDate != null)
          {
-            _loc4_ = StartDate.getTime();
-            if(_loc4_ > _loc7_)
+            _loc2_ = StartDate.getTime();
+            if(_loc2_ > _loc1_)
             {
                return false;
             }
-            if(SoldOutDate)
+            if(SoldOutDate != null)
             {
-               _loc6_ = SoldOutDate.getTime();
-               if(_loc6_ < _loc7_)
+               _loc3_ = SoldOutDate.getTime();
+               if(_loc3_ < _loc1_)
                {
                   return false;
                }
             }
-            else if(EndDate)
+            else if(EndDate != null)
             {
-               _loc1_ = EndDate.getTime();
-               if(_loc1_ < _loc7_)
+               _loc3_ = EndDate.getTime();
+               if(_loc3_ < _loc1_)
                {
                   return false;
                }
@@ -214,21 +196,20 @@ package GameMasterDictionary
       
       public function isAvailableTime() : Boolean
       {
-         var _loc1_:Number = NaN;
          var _loc2_:Number = NaN;
-         var _loc3_:Number = GameClock.getWebServerTime();
-         if(StartDate)
+         var _loc1_:Number = GameClock.getWebServerTime();
+         if(StartDate != null)
          {
-            _loc1_ = StartDate.getTime();
-            if(_loc1_ > _loc3_)
+            _loc2_ = StartDate.getTime();
+            if(_loc2_ > _loc1_)
             {
                return false;
             }
          }
-         if(EndDate)
+         if(EndDate != null)
          {
             _loc2_ = EndDate.getTime();
-            if(_loc2_ < _loc3_)
+            if(_loc2_ < _loc1_)
             {
                return false;
             }
@@ -236,181 +217,274 @@ package GameMasterDictionary
          return true;
       }
       
-      public function get isFeatured() : Boolean
+      public function get_percentOff() : uint
       {
-         var _loc1_:GMOffer = isOnSaleNow;
-         if(_loc1_ && _loc1_.mSpecial == "FEATURED")
+         if(SaleTargetOffer != null && SalePercentOff != 0)
          {
-            return true;
+            return SalePercentOff;
          }
-         return mSpecial == "FEATURED";
+         return 0;
       }
       
-      public function get isNew() : Boolean
+      public function get percentOff() : uint
       {
-         return mSpecial == "NEW";
+         return get_percentOff();
+      }
+      
+      public function get_isSale() : Boolean
+      {
+         if(mSpecial != GMOffer.SPECIAL_SALE)
+         {
+            return mSpecial == GMOffer.SPECIAL_FEATURED;
+         }
+         return true;
       }
       
       public function get isSale() : Boolean
       {
-         return mSpecial == "SALE" || mSpecial == "FEATURED";
+         return get_isSale();
       }
       
-      public function get isOnSaleNow() : GMOffer
+      public function get_isOnSaleNow() : GMOffer
       {
-         var _loc2_:Number = NaN;
-         var _loc3_:Number = NaN;
-         if(!this.SaleOffers)
+         var _loc4_:int = 0;
+         var _loc5_:* = null as GMOffer;
+         var _loc6_:Number = NaN;
+         var _loc7_:Number = NaN;
+         if(SaleOffers == null)
          {
             return null;
          }
-         var _loc4_:Number = GameClock.getWebServerTime();
-         for each(var _loc1_:GMOffer in this.SaleOffers)
+         var _loc1_:Number = GameClock.getWebServerTime();
+         var _loc2_:int = 0;
+         var _loc3_:int = int(SaleOffers.length);
+         while(_loc2_ < _loc3_)
          {
-            if(!(_loc1_.SaleStartDate && _loc1_.SaleEndDate))
+            _loc4_ = _loc2_++;
+            _loc5_ = SaleOffers[_loc4_];
+            if(!(_loc5_.SaleStartDate != null && _loc5_.SaleEndDate != null))
             {
-               return _loc1_;
+               return _loc5_;
             }
-            _loc2_ = _loc1_.SaleStartDate.getTime();
-            _loc3_ = _loc1_.SaleEndDate.getTime();
-            if(_loc2_ < _loc4_ && _loc4_ < _loc3_)
+            _loc6_ = _loc5_.SaleStartDate.getTime();
+            _loc7_ = _loc5_.SaleEndDate.getTime();
+            if(_loc6_ < _loc1_ && _loc1_ < _loc7_)
             {
-               return _loc1_;
+               return _loc5_;
             }
          }
          return null;
       }
       
-      private function determinePrice(jsonAsset:Object, splitTests:Object) : void
+      public function get isOnSaleNow() : GMOffer
       {
-         var _loc3_:* = null;
-         OrigPriceA = jsonAsset.Price;
-         mPrice = OrigPriceA;
-         for each(_loc3_ in splitTests)
-         {
-            if(_loc3_.name == "GemValue1" && CurrencyType == "PREMIUM")
-            {
-               mPrice = Math.ceil(mPrice * _loc3_.value);
-            }
-         }
-         if(CurrencyType == "PREMIUM")
-         {
-            for each(_loc3_ in splitTests)
-            {
-               if(_loc3_.name == "InDungeonHealthBombSale" && Id == 51304)
-               {
-                  mPrice = Math.ceil(mPrice * Number(_loc3_.value));
-               }
-            }
-         }
+         return get_isOnSaleNow();
       }
       
-      public function getDisplayName(gameMaster:GameMaster, defaultName:String = "", isLegendary:Boolean = false) : String
+      public function get_isNew() : Boolean
       {
-         var _loc10_:GMOfferDetail = null;
-         var _loc6_:GMHero = null;
-         var _loc4_:GMWeaponItem = null;
-         var _loc5_:GMWeaponAesthetic = null;
-         var _loc7_:GMNpc = null;
-         var _loc9_:GMSkin = null;
-         var _loc8_:String = defaultName;
-         if(this.IsBundle)
-         {
-            _loc8_ = this.BundleName.toUpperCase();
-         }
-         else
-         {
-            _loc10_ = this.Details[0];
-            if(_loc10_.HeroId)
-            {
-               _loc6_ = gameMaster.heroById.itemFor(_loc10_.HeroId);
-               if(_loc6_)
-               {
-                  _loc8_ = _loc6_.Name.toUpperCase();
-               }
-            }
-            else if(_loc10_.WeaponId)
-            {
-               _loc4_ = gameMaster.weaponItemById.itemFor(_loc10_.WeaponId);
-               _loc5_ = _loc4_.getWeaponAesthetic(_loc10_.Level,isLegendary);
-               _loc8_ = _loc5_.Name.toUpperCase();
-            }
-            else if(_loc10_.PetId)
-            {
-               _loc7_ = gameMaster.npcById.itemFor(_loc10_.PetId);
-               if(_loc7_)
-               {
-                  _loc8_ = _loc7_.Name.toUpperCase();
-               }
-            }
-            else if(_loc10_.SkinId)
-            {
-               _loc9_ = gameMaster.getSkinByType(_loc10_.SkinId);
-               if(_loc9_)
-               {
-                  _loc8_ = _loc9_.Name.toUpperCase();
-               }
-            }
-         }
-         return _loc8_;
+         return mSpecial == GMOffer.SPECIAL_NEW;
       }
       
-      public function getOfferItemConstant(gameMaster:GameMaster, defaultName:String = "", isLegendary:Boolean = false) : String
+      public function get isNew() : Boolean
       {
-         var _loc10_:GMOfferDetail = null;
-         var _loc7_:GMHero = null;
-         var _loc4_:GMWeaponItem = null;
-         var _loc5_:GMWeaponAesthetic = null;
-         var _loc8_:GMNpc = null;
-         var _loc9_:GMSkin = null;
-         var _loc6_:String = defaultName;
-         if(this.IsBundle)
+         return get_isNew();
+      }
+      
+      public function get_isFeatured() : Boolean
+      {
+         var _loc1_:GMOffer = get_isOnSaleNow();
+         if(_loc1_ != null && _loc1_.mSpecial == GMOffer.SPECIAL_FEATURED)
          {
-            _loc6_ = this.BundleName.toUpperCase();
+            return true;
          }
-         else
+         return mSpecial == GMOffer.SPECIAL_FEATURED;
+      }
+      
+      public function get isFeatured() : Boolean
+      {
+         return get_isFeatured();
+      }
+      
+      public function get_Special() : Boolean
+      {
+         var _loc1_:* = null as String;
+         if(get_isFeatured())
          {
-            _loc10_ = this.Details[0];
-            if(_loc10_.HeroId)
-            {
-               _loc7_ = gameMaster.heroById.itemFor(_loc10_.HeroId);
-               if(_loc7_)
-               {
-                  _loc6_ = _loc7_.Constant;
-               }
-            }
-            else if(_loc10_.WeaponId)
-            {
-               _loc4_ = gameMaster.weaponItemById.itemFor(_loc10_.WeaponId);
-               _loc5_ = _loc4_.getWeaponAesthetic(_loc10_.Level,isLegendary);
-               _loc6_ = _loc5_.Constant;
-            }
-            else if(_loc10_.PetId)
-            {
-               _loc8_ = gameMaster.npcById.itemFor(_loc10_.PetId);
-               if(_loc8_)
-               {
-                  _loc6_ = _loc8_.Constant;
-               }
-            }
-            else if(_loc10_.SkinId)
-            {
-               _loc9_ = gameMaster.getSkinByType(_loc10_.SkinId);
-               if(_loc9_)
-               {
-                  _loc6_ = _loc9_.Constant;
-               }
-            }
-            else if(!_loc10_.StackableId)
-            {
-            }
+            return true;
          }
-         return _loc6_;
+         if(get_isOnSaleNow() != null && get_isSale())
+         {
+            return true;
+         }
+         _loc1_ = mSpecial;
+         if(_loc1_ != null)
+         {
+            return _loc1_.length > 0;
+         }
+         return false;
+      }
+      
+      public function get Special() : Boolean
+      {
+         return get_Special();
+      }
+      
+      public function get_Price() : Number
+      {
+         return mPrice;
       }
       
       public function get Price() : Number
       {
-         return mPrice;
+         return get_Price();
+      }
+      
+      public function getOfferItemConstant(gameMaster:GameMaster, defaultName:String = undefined, isLegendary:Boolean = false) : String
+      {
+         var _loc5_:* = null as GMOfferDetail;
+         var _loc6_:* = null as GMHero;
+         var _loc7_:* = null as GMWeaponItem;
+         var _loc8_:* = null as GMWeaponAesthetic;
+         var _loc9_:* = null as GMNpc;
+         var _loc10_:* = null as GMSkin;
+         var _loc11_:Boolean = false;
+         if(defaultName == null)
+         {
+            defaultName = "";
+         }
+         var _loc4_:String = defaultName;
+         if(IsBundle)
+         {
+            _loc4_ = BundleName.toUpperCase();
+         }
+         else
+         {
+            _loc5_ = Details[0];
+            if(_loc5_.HeroId != 0)
+            {
+               _loc6_ = gameMaster.heroById.itemFor(_loc5_.HeroId);
+               if(_loc6_ != null)
+               {
+                  _loc4_ = _loc6_.Constant;
+               }
+            }
+            else if(_loc5_.WeaponId != 0)
+            {
+               _loc7_ = gameMaster.weaponItemById.itemFor(_loc5_.WeaponId);
+               _loc8_ = _loc7_.getWeaponAesthetic(_loc5_.Level,isLegendary);
+               _loc4_ = _loc8_.Constant;
+            }
+            else if(_loc5_.PetId != 0)
+            {
+               _loc9_ = gameMaster.npcById.itemFor(_loc5_.PetId);
+               if(_loc9_ != null)
+               {
+                  _loc4_ = _loc9_.Constant;
+               }
+            }
+            else if(_loc5_.SkinId != 0)
+            {
+               _loc10_ = gameMaster.getSkinByType(_loc5_.SkinId);
+               if(_loc10_ != null)
+               {
+                  _loc4_ = _loc10_.Constant;
+               }
+            }
+            else
+            {
+               _loc11_ = _loc5_.StackableId != 0;
+            }
+         }
+         return _loc4_;
+      }
+      
+      public function getDisplayName(gameMaster:GameMaster, defaultName:String = undefined, isLegendary:Boolean = false) : String
+      {
+         var _loc5_:* = null as GMOfferDetail;
+         var _loc6_:* = null as GMHero;
+         var _loc7_:* = null as GMWeaponItem;
+         var _loc8_:* = null as GMWeaponAesthetic;
+         var _loc9_:* = null as GMNpc;
+         var _loc10_:* = null as GMSkin;
+         if(defaultName == null)
+         {
+            defaultName = "";
+         }
+         var _loc4_:String = defaultName;
+         if(IsBundle)
+         {
+            _loc4_ = BundleName.toUpperCase();
+         }
+         else
+         {
+            _loc5_ = Details[0];
+            if(_loc5_.HeroId != 0)
+            {
+               _loc6_ = gameMaster.heroById.itemFor(_loc5_.HeroId);
+               if(_loc6_ != null)
+               {
+                  _loc4_ = _loc6_.get_Name().toUpperCase();
+               }
+            }
+            else if(_loc5_.WeaponId != 0)
+            {
+               _loc7_ = gameMaster.weaponItemById.itemFor(_loc5_.WeaponId);
+               _loc8_ = _loc7_.getWeaponAesthetic(_loc5_.Level,isLegendary);
+               _loc4_ = _loc8_.Name.toUpperCase();
+            }
+            else if(_loc5_.PetId != 0)
+            {
+               _loc9_ = gameMaster.npcById.itemFor(_loc5_.PetId);
+               if(_loc9_ != null)
+               {
+                  _loc4_ = _loc9_.get_Name().toUpperCase();
+               }
+            }
+            else if(_loc5_.SkinId != 0)
+            {
+               _loc10_ = gameMaster.getSkinByType(_loc5_.SkinId);
+               if(_loc10_ != null)
+               {
+                  _loc4_ = _loc10_.get_Name().toUpperCase();
+               }
+            }
+         }
+         return _loc4_;
+      }
+      
+      public function determinePrice(jsonAsset:Object, splitTests:*) : void
+      {
+         var _loc3_:int = 0;
+         var _loc4_:* = null as Array;
+         var _loc5_:* = null;
+         OrigPriceA = uint(jsonAsset.Price);
+         mPrice = OrigPriceA;
+         _loc3_ = 0;
+         _loc4_ = As3Compat.values(splitTests);
+         while(_loc3_ < int(_loc4_.length))
+         {
+            _loc5_ = _loc4_[_loc3_];
+            _loc3_++;
+            if(_loc5_.name == "GemValue1" && CurrencyType == GMOffer.PREMIUM_CURRENCY)
+            {
+               mPrice = int(int(Math.ceil(mPrice * As3Compat.toFloat(_loc5_.value))));
+            }
+         }
+         if(CurrencyType == GMOffer.PREMIUM_CURRENCY)
+         {
+            _loc3_ = 0;
+            _loc4_ = As3Compat.values(splitTests);
+            while(_loc3_ < int(_loc4_.length))
+            {
+               _loc5_ = _loc4_[_loc3_];
+               _loc3_++;
+               if(_loc5_.name == "InDungeonHealthBombSale" && Id == DBGlobal.RESSURECTION_POTION_OFFER_ID)
+               {
+                  mPrice = int(int(Math.ceil(mPrice * As3Compat.toFloat(_loc5_.value))));
+               }
+            }
+         }
       }
    }
 }

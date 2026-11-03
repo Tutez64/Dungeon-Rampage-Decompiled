@@ -1,19 +1,28 @@
 package Box2D.Collision
 {
+   import flash.Boot;
+   
    public class b2SimplexCache
    {
       
       public var metric:Number;
       
-      public var count:uint;
+      public var indexB:Array;
       
-      public var indexA:Vector.<int> = new Vector.<int>(3);
+      public var indexA:Array;
       
-      public var indexB:Vector.<int> = new Vector.<int>(3);
+      public var count:int;
       
       public function b2SimplexCache()
       {
-         super();
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         count = 0;
+         metric = 0;
+         indexA = [];
+         indexB = [];
       }
    }
 }

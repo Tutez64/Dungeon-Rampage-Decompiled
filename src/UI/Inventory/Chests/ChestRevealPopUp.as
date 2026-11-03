@@ -4,21 +4,21 @@ package UI.Inventory.Chests
    import Account.ItemInfo;
    import Account.StoreServices;
    import Actor.Revealer;
-   import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
    import Brain.Clock.GameClock;
    import Brain.Logger.Logger;
    import Brain.Render.MovieClipRenderer;
-   import Brain.SceneGraph.SceneGraphComponent;
    import Brain.Sound.SoundAsset;
    import Brain.Sound.SoundHandle;
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
+   import Collections.IMapIterator;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
-   import FacebookAPI.DBFacebookBragFeedPost;
    import GameMasterDictionary.GMAttack;
    import GameMasterDictionary.GMChest;
    import GameMasterDictionary.GMModifier;
@@ -39,13 +39,13 @@ package UI.Inventory.Chests
    import flash.geom.Point;
    import flash.geom.Rectangle;
    import flash.text.TextField;
-   import flash.text.TextFormat;
-   import org.as3commons.collections.framework.IMapIterator;
    
-   public class ChestRevealPopUp
+   public class ChestRevealPopUp extends DBUIPopup
    {
       
       public static const popUpName:String = "reveal_chest_popup";
+      
+      private static const DESCRIPTION_MAX_LINES:int = 2;
       
       public static const SLOT_MACHINE_ANIMATION_WEAPON_NAME:String = "reveal_chest_slotMachine";
       
@@ -59,13 +59,7 @@ package UI.Inventory.Chests
       
       public static const REVEALED_ITEM_PET:uint = 3;
       
-      private var mDBFacade:DBFacade;
-      
-      private var mAssetLoadingComponent:AssetLoadingComponent;
-      
       private var mChestGM:GMChest;
-      
-      private var mSceneGraphComponent:SceneGraphComponent;
       
       private var mSoundComponent:DBSoundComponent;
       
@@ -85,11 +79,7 @@ package UI.Inventory.Chests
       
       private var mWeaponTextField:TextField;
       
-      private var mCloseButton:UIButton;
-      
       private var mItemName:String;
-      
-      private var mItemFeedPostImagePath:String;
       
       private var mItemDesc:String;
       
@@ -101,7 +91,7 @@ package UI.Inventory.Chests
       
       private var mItemOfferId:uint;
       
-      private var mCloseCallback:Function;
+      private var mRevealCloseCallback:Function;
       
       private var mWaitForWeaponFromServerPopUp:DBUIPopup;
       
@@ -155,48 +145,59 @@ package UI.Inventory.Chests
       
       public function ChestRevealPopUp(dbFacade:DBFacade, chestGM:GMChest, closeCallback:Function, goToStorageCallback:Function)
       {
-         super();
-         mDBFacade = dbFacade;
-         mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          mChestGM = chestGM;
-         mCloseCallback = closeCallback;
+         mRevealCloseCallback = closeCallback;
          mGoToStorageCallback = goToStorageCallback;
-         mSoundComponent = new DBSoundComponent(mDBFacade);
-         mSceneGraphComponent = new SceneGraphComponent(mDBFacade,"ChestRevealPopUp");
-         mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"ChestRevealPopUp");
+         mSoundComponent = new DBSoundComponent(dbFacade);
+         mLogicalWorkComponent = new LogicalWorkComponent(dbFacade,"ChestRevealPopUp");
+         super(dbFacade,"","",null,false,true,null,false,false);
          mItemOfferId = 0;
          mUpdateToInventoryDone = false;
          mNewWeaponDBID = 0;
          mModifiersList = new Vector.<UIModifier>();
-         loadUI();
+         loadSounds();
       }
       
-      public function loadUI() : void
+      private static function growUpToFit(field:TextField) : void
       {
-         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),"guitar_wank07",function(param1:SoundAsset):void
+         var _loc2_:Number = (field.textHeight + 4) * field.scaleY;
+         if(_loc2_ > field.height)
+         {
+            field.y -= _loc2_ - field.height;
+            field.height = _loc2_;
+         }
+      }
+      
+      override protected function getSwfPath() : String
+      {
+         return mChestGM.InventoryRevealSwf;
+      }
+      
+      private function loadSounds() : void
+      {
+         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),"guitar_wank07",function(param1:SoundAsset):void
          {
             mSound1 = param1;
          });
-         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),"guitar_wank18",function(param1:SoundAsset):void
+         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),"guitar_wank18",function(param1:SoundAsset):void
          {
             mSound2 = param1;
          });
-         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),"guitar_wank21",function(param1:SoundAsset):void
+         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),"guitar_wank21",function(param1:SoundAsset):void
          {
             mSound3 = param1;
          });
-         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),"guitar_wank26",function(param1:SoundAsset):void
+         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),"guitar_wank26",function(param1:SoundAsset):void
          {
             mSound4 = param1;
          });
-         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),"chestKeyOpen",function(param1:SoundAsset):void
+         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),"chestKeyOpen",function(param1:SoundAsset):void
          {
             mChestOpenSfx = param1;
          });
-         mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(mChestGM.InventoryRevealSwf),setupUI);
       }
       
-      private function setupUI(swfAsset:SwfAsset) : void
+      override protected function setupUI(swfAsset:SwfAsset, titleText:String, content:*, allowClose:Boolean, closeCallback:Function) : void
       {
          var bounds:Rectangle;
          var rarity:GMRarity;
@@ -204,14 +205,17 @@ package UI.Inventory.Chests
          var slotMachineAnimation:Class;
          var weaponClass:Class;
          var itemInfoCardSwfClass:Class;
+         mSwfAsset = swfAsset;
          var backgroundSwfClass:Class = swfAsset.getClass("reveal_chest_popup");
          mPopUpMC = new backgroundSwfClass() as MovieClip;
-         mPopUpMC.title_label.text = GameMasterLocale.getGameMasterSubString("CHEST_NAME",mChestGM.Rarity);
-         mPopUpMC.scaleX = mPopUpMC.scaleY = 1.8;
-         bounds = mPopUpMC.getBounds(mDBFacade.stageRef);
-         mPopUpMC.x = mDBFacade.stageRef.stageWidth / 2 - bounds.width / 2 - bounds.x;
-         mPopUpMC.y = mDBFacade.stageRef.stageHeight / 2 - bounds.height / 2 - bounds.y;
-         mPopUpMC.title_label.text = mChestGM.Name;
+         mPopup = mPopUpMC;
+         mRoot.addChild(mPopUpMC);
+         TextUtil.setText(mPopUpMC.title_label,GameMasterLocale.getGameMasterSubString("CHEST_NAME",mChestGM.Rarity));
+         mPopUpMC.scaleX = mPopUpMC.scaleY = DBGlobal.UI_16_TO_9_PORT_OBJECT_SCALE;
+         bounds = mPopUpMC.getBounds(mDBFacade.scalingRoot);
+         mPopUpMC.x = mDBFacade.viewWidth / 2 - bounds.width / 2 - bounds.x;
+         mPopUpMC.y = mDBFacade.viewHeight / 2 - bounds.height / 2 - bounds.y;
+         TextUtil.setText(mPopUpMC.title_label,mChestGM.Name);
          rarity = mDBFacade.gameMaster.rarityByConstant.itemFor(mChestGM.Rarity);
          if(rarity != null && rarity.TextColor)
          {
@@ -250,8 +254,6 @@ package UI.Inventory.Chests
          });
          mPopUpMC.addChild(mItemInfoCardMC);
          mItemInfoCardMC.visible = false;
-         mSceneGraphComponent.showPopupCurtain();
-         mSceneGraphComponent.addChild(mPopUpMC,105);
          revealChest();
       }
       
@@ -295,11 +297,13 @@ package UI.Inventory.Chests
          var swfPath:String;
          var iconClass:String;
          var name:String;
+         var unlockMetricsDetails:Object;
          var offerDetail:GMOfferDetail;
          var gmStackable:GMStackable;
          var gmPet:GMNpc;
          var aesthetic:GMWeaponAesthetic;
-         var unlockMetricsDetails:Object = {};
+         mDBFacade.steamAchievementsHelper.addValueToStatInt(1,"CHESTS_OPENED");
+         unlockMetricsDetails = {};
          unlockMetricsDetails.isWeapon = false;
          mNewWeaponDBID = 0;
          if(details.hasOwnProperty("NewWeaponDetails"))
@@ -488,7 +492,6 @@ package UI.Inventory.Chests
          var preNameModifiers:String;
          var modifierList:Vector.<GMModifier>;
          var i:int;
-         var format:TextFormat;
          var isWeapon:Boolean = false;
          var isEquippable:Boolean = true;
          var typeOfUnequippable:uint = 0;
@@ -526,7 +529,7 @@ package UI.Inventory.Chests
                   chargeAttackName = "MAKO" + chargeAttack.Name.toUpperCase();
                }
             }
-            if(currentlySelectedAvatarInfo && currentlySelectedAvatarInfo.level >= weaponRequiredLevel)
+            if(currentlySelectedAvatarInfo && currentlySelectedAvatarInfo.levelForWeaponComparison >= weaponRequiredLevel)
             {
                isEquippable = true;
             }
@@ -564,7 +567,6 @@ package UI.Inventory.Chests
                });
             }
             price = uint(mRevealedItemInfo.sellCoins);
-            mItemFeedPostImagePath = "Resources/Art2D/facebook/feedposts/weapons/" + gmWeaponItem.getWeaponAesthetic(mRevealedItemLevel,mRevealedItemInfo.legendaryModifier > 0).IconName + ".png";
          }
          else if(mItemType == 2)
          {
@@ -584,7 +586,7 @@ package UI.Inventory.Chests
                   if(gmOffer.Details[0].StackableId)
                   {
                      mItemInfoCardMC.number_label.visible = true;
-                     mItemInfoCardMC.number_label.text = "x" + gmOffer.Details[0].StackableCount.toString();
+                     TextUtil.setText(mItemInfoCardMC.number_label,"x" + gmOffer.Details[0].StackableCount.toString());
                      mItemInfoCardMC.number_label.x += 100;
                   }
                }
@@ -624,24 +626,24 @@ package UI.Inventory.Chests
             mItemInfoCardMC.weapon_type_label.visible = typeOfUnequippable != 2;
             mItemInfoCardMC.level_requirement_not_met.visible = typeOfUnequippable == 1;
             mItemInfoCardMC.level_requirement.visible = typeOfUnequippable != 1;
-            mItemInfoCardMC.weapon_type_label.text = weaponType;
-            mItemInfoCardMC.level_requirement.text = levelRequirement;
-            mItemInfoCardMC.weapon_type_label_unequippable.text = weaponType;
-            mItemInfoCardMC.level_requirement_not_met.text = levelRequirement;
+            TextUtil.setText(mItemInfoCardMC.weapon_type_label,weaponType);
+            TextUtil.setText(mItemInfoCardMC.level_requirement,levelRequirement);
+            TextUtil.setText(mItemInfoCardMC.weapon_type_label_unequippable,weaponType);
+            TextUtil.setText(mItemInfoCardMC.level_requirement_not_met,levelRequirement);
          }
          switch(int(typeOfUnequippable))
          {
             case 0:
-               mItemInfoCardMC.description.text = mItemDesc;
+               setDescription(mItemDesc);
                break;
             case 1:
-               mItemInfoCardMC.description.text = Locale.getString("ITEM_CARD_UNUSABLE_LEVEL");
+               setDescription(Locale.getString("ITEM_CARD_UNUSABLE_LEVEL"));
                break;
             case 2:
-               mItemInfoCardMC.description.text = Locale.getString("ITEM_CARD_UNUSABLE_MASTERCLASS");
+               setDescription(Locale.getString("ITEM_CARD_UNUSABLE_MASTERCLASS"));
          }
-         mItemInfoCardMC.ability.label_tap.text = Locale.getString("TAP");
-         mItemInfoCardMC.ability.label.text = Locale.getString("HOLD");
+         Locale.setText(mItemInfoCardMC.ability.label_tap,"TAP");
+         Locale.setText(mItemInfoCardMC.ability.label,"HOLD");
          if(isWeapon)
          {
             mPopUpMC.title_label.textColor = mRevealedItemInfo.getTextColor();
@@ -701,8 +703,8 @@ package UI.Inventory.Chests
          }
          if(isWeapon)
          {
-            mItemInfoCardMC.power.attack_label.text = Locale.getString("POWER");
-            mItemInfoCardMC.power.label.text = power;
+            Locale.setText(mItemInfoCardMC.power.attack_label,"POWER");
+            TextUtil.setText(mItemInfoCardMC.power.label,power);
          }
          else
          {
@@ -710,19 +712,22 @@ package UI.Inventory.Chests
          }
          mItemInfoCardMC.unequippable.visible = !isEquippable;
          mItemInfoCardSellButton = new UIButton(mDBFacade,mItemInfoCardMC.sell);
-         mItemInfoCardSellButton.label.text = Locale.getString("ITEM_CARD_SELL");
+         Locale.setText(mItemInfoCardSellButton.label,"ITEM_CARD_SELL");
          mItemInfoCardSellButton.visible = isSellable;
          mItemInfoCardSellButton.enabled = isSellable;
          if(isSellable)
          {
-            mItemInfoCardMC.sell.sell_text.text = price.toString();
+            TextUtil.setText(mItemInfoCardMC.sell.sell_text,price.toString());
          }
          mItemInfoCardSellButton.releaseCallback = sellRevealedItem;
          mItemInfoCardStoreButton = new UIButton(mDBFacade,mItemInfoCardMC.store);
-         mItemInfoCardStoreButton.label.text = Locale.getString("KEEP");
-         mItemInfoCardStoreButton.releaseCallback = preCloseCallback;
+         Locale.setText(mItemInfoCardStoreButton.label,"KEEP");
+         mItemInfoCardStoreButton.releaseCallback = function():void
+         {
+            preCloseCallback(true);
+         };
          mItemInfoCardEquipButton = new UIButton(mDBFacade,mItemInfoCardMC.equip);
-         mItemInfoCardEquipButton.label.text = Locale.getString("ITEM_CARD_EQUIP");
+         Locale.setText(mItemInfoCardEquipButton.label,"ITEM_CARD_EQUIP");
          if(isEquippable)
          {
             mItemInfoCardEquipButton.releaseCallback = goToStorage;
@@ -740,7 +745,7 @@ package UI.Inventory.Chests
          {
             preNameModifiers = "";
             modifierList = mRevealedItemInfo.modifiers;
-            mItemInfoCardMC.ability.label_modifier.text = Locale.getString("MODIFIERS");
+            Locale.setText(mItemInfoCardMC.ability.label_modifier,"MODIFIERS");
             i = 0;
             while(i < modifierList.length)
             {
@@ -755,35 +760,44 @@ package UI.Inventory.Chests
                mItemName = GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",mRevealedItemInfo.gmWeaponItem.getWeaponAesthetic(0,true).Constant);
             }
          }
-         format = new TextFormat();
-         if(mItemName.length <= 32)
+         TextUtil.setText(mPopUpMC.title_label,mItemName.toUpperCase());
+         if(mItemType == 1 || mItemType == 3)
          {
-            format.size = 18;
+            mDBFacade.menuNavigationController.pushNewLayer("POPUP_WEAPON_CHEST_REVEALER",closeFromNavigationCallback,mItemInfoCardStoreButton,mItemInfoCardEquipButton);
+            mItemInfoCardSellButton.isToTheLeftOf(mItemInfoCardStoreButton);
+            mItemInfoCardStoreButton.isToTheLeftOf(mItemInfoCardEquipButton);
+            mCloseButton.isAbove(mItemInfoCardEquipButton);
+            mItemInfoCardSellButton.upNavigation = mCloseButton;
+            mItemInfoCardStoreButton.upNavigation = mCloseButton;
          }
-         else
+         else if(mItemType == 2)
          {
-            format.size = 11;
+            mDBFacade.menuNavigationController.pushNewLayer("POPUP_WEAPON_CHEST_REVEALER",closeFromNavigationCallback,mItemInfoCardStoreButton,mItemInfoCardStoreButton);
+            mCloseButton.isAbove(mItemInfoCardStoreButton);
          }
-         mPopUpMC.title_label.defaultTextFormat = format;
-         mPopUpMC.title_label.text = mItemName.toUpperCase();
-         mDBFacade.menuNavigationController.pushNewLayer("POPUP_WEAPON_CHEST_REVEALER",destroy,mItemInfoCardStoreButton,mItemInfoCardEquipButton);
-         mItemInfoCardSellButton.isToTheLeftOf(mItemInfoCardStoreButton);
-         mItemInfoCardStoreButton.isToTheLeftOf(mItemInfoCardEquipButton);
-         mCloseButton.isAbove(mItemInfoCardEquipButton);
-         mItemInfoCardSellButton.upNavigation = mCloseButton;
-         mItemInfoCardStoreButton.upNavigation = mCloseButton;
+      }
+      
+      private function setDescription(text:String) : void
+      {
+         var _loc2_:TextField = mItemInfoCardMC.description;
+         TextUtil.setText(_loc2_,text,1.55);
+         if(_loc2_.numLines > 2)
+         {
+            TextUtil.setText(_loc2_,text);
+         }
+         growUpToFit(_loc2_);
       }
       
       private function sellRevealedItem() : void
       {
          var _loc1_:GMWeaponItem = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc2_:IMapIterator = null;
          var _loc4_:ItemInfo = null;
          if(mItemType == 1)
          {
             _loc1_ = mDBFacade.gameMaster.weaponItemById.itemFor(mRevealedItemId);
-            _loc3_ = uint(mNewWeaponDBID);
+            _loc3_ = mNewWeaponDBID;
             if(_loc3_ == 0)
             {
                Logger.error(" sellRevealedItem  had to find a weapon .. arg  Somethign is rong ");
@@ -810,7 +824,7 @@ package UI.Inventory.Chests
       
       private function sellSuccessFunction(details:*) : void
       {
-         preCloseCallback(false);
+         preCloseCallback();
       }
       
       private function sellFailureFunction(e:Error) : void
@@ -818,43 +832,17 @@ package UI.Inventory.Chests
          Logger.error("Trying to sell revealed item but failed");
       }
       
-      private function chestRevealFeedPost() : void
+      private function closeFromNavigationCallback() : void
       {
-         var _loc2_:String = null;
-         var _loc1_:String = null;
-         var _loc4_:GMOffer = null;
-         var _loc3_:uint = mDBFacade.dbConfigManager.getConfigNumber("min_feedpost_weapon_rarity",2);
-         if(mItemType == 1 && mRevealedItemInfo.rarity.Id >= _loc3_)
-         {
-            _loc2_ = mRevealedItemInfo.gmWeaponAesthetic.Name;
-            _loc1_ = mItemName;
-            _loc1_ += ", Power " + mRevealedItemInfo.power.toString();
-            _loc1_ += ", " + Locale.getString(mRevealedItemInfo.rarity.Constant) + "!";
-            DBFacebookBragFeedPost.openChestBrag(mDBFacade,_loc2_,_loc1_,mRevealedItemIcon,mItemFeedPostImagePath,mItemType,mAssetLoadingComponent);
-         }
-         else if(mItemType == 2)
-         {
-            _loc4_ = mDBFacade.gameMaster.offerByStackableId.itemFor(mRevealedItemId);
-            if(_loc4_ != null)
-            {
-               if(_loc4_.IsBundle && _loc4_.Details[0].Gems > 0)
-               {
-                  DBFacebookBragFeedPost.openChestBrag(mDBFacade,mItemName,mItemName,mRevealedItemIcon,"",_loc4_.Id,mAssetLoadingComponent);
-               }
-            }
-         }
+         preCloseCallback();
       }
       
-      private function preCloseCallback(wantFeedPost:Boolean = false) : void
+      private function preCloseCallback(keptItem:Boolean = false) : void
       {
          mUpdateToInventoryDone = true;
-         if(wantFeedPost)
+         if(mRevealCloseCallback != null)
          {
-            this.chestRevealFeedPost();
-         }
-         if(mCloseCallback != null)
-         {
-            mCloseCallback(mItemType,mItemOfferId,false);
+            mRevealCloseCallback(mItemType,mItemOfferId,keptItem);
          }
          else
          {
@@ -872,12 +860,16 @@ package UI.Inventory.Chests
          else
          {
             mDBFacade.mainStateMachine.enterTownInventoryState(mItemType,mItemOfferId,callEquip);
-            preCloseCallback(false);
+            preCloseCallback();
          }
       }
       
-      public function destroy() : void
+      override public function destroy() : void
       {
+         if(mDBFacade == null)
+         {
+            return;
+         }
          if(mHoldTooltip)
          {
             mHoldTooltip.destroy();
@@ -897,7 +889,6 @@ package UI.Inventory.Chests
             }
          }
          mModifiersList = null;
-         mDBFacade = null;
          mChestGM = null;
          if(mChestRenderer)
          {
@@ -914,18 +905,11 @@ package UI.Inventory.Chests
             mItemRenderer.destroy();
          }
          mItemRenderer = null;
-         mSceneGraphComponent.removePopupCurtain();
-         mSceneGraphComponent.removeChild(mPopUpMC);
          if(mLogicalWorkComponent)
          {
             mLogicalWorkComponent.destroy();
          }
          mLogicalWorkComponent = null;
-         if(mAssetLoadingComponent)
-         {
-            mAssetLoadingComponent.destroy();
-            mAssetLoadingComponent = null;
-         }
          if(mWeaponRevealer)
          {
             mWeaponRevealer.destroy();
@@ -933,11 +917,6 @@ package UI.Inventory.Chests
          }
          mAnimationMC = null;
          mSlotMachineAnimationMC = null;
-         if(mSceneGraphComponent)
-         {
-            mSceneGraphComponent.destroy();
-         }
-         mSceneGraphComponent = null;
          mPopUpMC = null;
          mSoundComponent.destroy();
          mSoundComponent = null;
@@ -949,6 +928,7 @@ package UI.Inventory.Chests
          }
          mSound3 = null;
          mChestOpenSfx = null;
+         super.destroy();
       }
    }
 }

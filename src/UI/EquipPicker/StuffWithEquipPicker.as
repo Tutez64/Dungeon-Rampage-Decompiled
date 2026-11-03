@@ -34,7 +34,7 @@ package UI.EquipPicker
       
       private var mCurrentStartIndex:uint = 0;
       
-      public function StuffWithEquipPicker(dbFacade:DBFacade, root:MovieClip, heroTooltipClass:Class, getSelectedHeroIndexCallback:Function = null, setSelectedHeroIndexCallback:Function = null)
+      public function StuffWithEquipPicker(dbFacade:DBFacade, root:MovieClip, heroTooltipClass:Class, getSelectedHeroIndexCallback:Function = null, setSelectedHeroIndexCallback:Function = null, isActiveCallback:Function = null)
       {
          super(dbFacade,root);
          mDBFacade = dbFacade;
@@ -70,19 +70,22 @@ package UI.EquipPicker
          mShiftLeft.releaseCallback = shiftLeft;
          mShiftRight = new UIButton(mDBFacade,mRoot.shift_right);
          mShiftRight.releaseCallback = shiftRight;
-         mShiftLeft.visible = false;
-         mShiftRight.visible = false;
          mTotalGMHeroes = mDBFacade.gameMaster.Heroes.length;
-         mRoot.label.text = Locale.getString("INVENTORY_STUFF_DESCRIPTION");
+         mShiftLeft.visible = mTotalGMHeroes > mHeroSlots.length;
+         mShiftRight.visible = mShiftLeft.visible;
+         Locale.setText(mRoot.label,"INVENTORY_STUFF_DESCRIPTION");
          mEventComponent.addListener("DB_ACCOUNT_INFO_RESPONSE",function(param1:DBAccountResponseEvent):void
          {
-            refresh();
+            if(isActiveCallback == null || isActiveCallback())
+            {
+               refresh();
+            }
          });
       }
       
       private function populateHeroSlots() : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc3_:Vector.<GMHero> = mDBFacade.gameMaster.Heroes;
          var _loc1_:uint = mCurrentStartIndex;
          _loc2_ = 0;
@@ -136,6 +139,22 @@ package UI.EquipPicker
          populateHeroSlots();
       }
       
+      private function rotateRosterLeft() : void
+      {
+         if(mCurrentStartIndex > 0)
+         {
+            shiftLeft();
+         }
+      }
+      
+      private function rotateRosterRight() : void
+      {
+         if(mCurrentStartIndex + mHeroSlots.length < mTotalGMHeroes)
+         {
+            shiftRight();
+         }
+      }
+      
       override public function destroy() : void
       {
          mEventComponent.destroy();
@@ -159,7 +178,41 @@ package UI.EquipPicker
          {
             setActiveAvatarAsCurrentSelection();
          }
+         if(selectedHeroIndex < mCurrentStartIndex || selectedHeroIndex >= mCurrentStartIndex + mHeroSlots.length)
+         {
+            setCurrentIndexToShowSelectedHero();
+         }
          populateHeroSlots();
+      }
+      
+      public function getFirstUIObject() : UIObject
+      {
+         return mHeroSlots[0];
+      }
+      
+      public function setupMenuNavigation(returnObject:UIObject) : void
+      {
+         var _loc2_:uint = 0;
+         _loc2_ = 0;
+         while(_loc2_ < mHeroSlots.length)
+         {
+            mHeroSlots[_loc2_].upNavigation = returnObject;
+            if(_loc2_ > 0)
+            {
+               mHeroSlots[_loc2_ - 1].isToTheLeftOf(mHeroSlots[_loc2_]);
+            }
+            _loc2_++;
+         }
+         mHeroSlots[0].leftNavigationAdditionalInteraction = rotateRosterLeft;
+         mHeroSlots[mHeroSlots.length - 1].rightNavigationAdditionalInteraction = rotateRosterRight;
+      }
+      
+      public function resetMenuNavigation() : void
+      {
+         for each(var _loc1_:UIObject in mHeroSlots)
+         {
+            _loc1_.clearNavigationAndInteractions();
+         }
       }
       
       private function setActiveAvatarAsCurrentSelection() : void
@@ -217,7 +270,7 @@ package UI.EquipPicker
       
       private function determineSelectedElement() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          _loc1_ = 0;
          while(_loc1_ < mHeroSlots.length)
          {
@@ -245,7 +298,7 @@ package UI.EquipPicker
       
       private function findHeroIndex(avatarId:uint) : uint
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc3_:Vector.<GMHero> = mDBFacade.gameMaster.Heroes;
          _loc2_ = 0;
          while(_loc2_ < _loc3_.length)

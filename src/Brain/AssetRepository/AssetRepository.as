@@ -3,8 +3,8 @@ package Brain.AssetRepository
    import Brain.Facade.Facade;
    import Brain.Sound.SoundAsset;
    import Brain.Utils.MemoryTracker;
+   import Collections.Map;
    import flash.media.Sound;
-   import org.as3commons.collections.Map;
    
    public class AssetRepository
    {

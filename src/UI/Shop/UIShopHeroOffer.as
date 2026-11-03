@@ -1,16 +1,12 @@
 package UI.Shop
 {
-   import Brain.UI.UIButton;
-   import Brain.Utils.MemoryTracker;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import GameMasterDictionary.GMHero;
    import GameMasterDictionary.GMOffer;
    import GameMasterDictionary.GMOfferDetail;
    import GameMasterDictionary.GMSkin;
-   import Town.TownHeader;
-   import UI.*;
-   import UI.Popup.UIHeroUpsellPopup;
    
    public class UIShopHeroOffer extends UIShopOffer
    {
@@ -19,35 +15,9 @@ package UI.Shop
       
       protected var mGMOfferHero:GMHero;
       
-      protected var mInfoButton:UIButton;
-      
-      private var mTownHeader:TownHeader;
-      
-      public function UIShopHeroOffer(townHeader:TownHeader, dbFacade:DBFacade, templateClass:Class, buyCallback:Function = null)
+      public function UIShopHeroOffer(dbFacade:DBFacade, templateClass:Class, buyCallback:Function = null)
       {
          super(dbFacade,templateClass,buyCallback);
-         mInfoButton = new UIButton(mDBFacade,mRoot.icon);
-         mInfoButton.releaseCallback = this.showInfo;
-         mTownHeader = townHeader;
-      }
-      
-      private function showInfo() : void
-      {
-         var _loc1_:UIHeroUpsellPopup = null;
-         if(this.requirementsMetForPurchase())
-         {
-            _loc1_ = new UIHeroUpsellPopup(mTownHeader,mDBFacade,this.offer,null);
-            MemoryTracker.track(_loc1_,"UIHeroUpsellPopup - created in UIShopHeroOffer.showInfo()");
-         }
-      }
-      
-      override public function destroy() : void
-      {
-         if(mInfoButton)
-         {
-            mInfoButton.destroy();
-            mInfoButton = null;
-         }
       }
       
       override public function showOffer(gmOffer:GMOffer, gmHero:GMHero) : void
@@ -65,7 +35,7 @@ package UI.Shop
       
       override protected function get nativeIconSize() : Number
       {
-         return 72;
+         return DBGlobal.HERO_ICON_NATIVE_SIZE;
       }
       
       override protected function get offerDescription() : String

@@ -7,12 +7,12 @@ package UI.EquipPicker
    import Brain.Logger.Logger;
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
-   import Brain.UI.UIPopup;
    import Events.DBAccountResponseEvent;
    import Facade.DBFacade;
    import Facade.Locale;
    import GameMasterDictionary.GMHero;
    import UI.Inventory.UIInventoryItem;
+   import UI.Popup.DBUIPopup;
    import flash.display.MovieClip;
    
    public class PetsWithEquipPicker extends UIObject
@@ -36,6 +36,8 @@ package UI.EquipPicker
       
       private var mCurrentStartIndex:uint = 0;
       
+      private var mFirstSlotLeftNavigation:UIObject;
+      
       private var mEquipResponseCallback:Function;
       
       private var mTotalGMHeroes:uint;
@@ -46,7 +48,7 @@ package UI.EquipPicker
       
       private var mShiftRight:UIButton;
       
-      public function PetsWithEquipPicker(dbFacade:DBFacade, root:MovieClip, weaponTooltipClass:Class, heroTooltipClass:Class, clickedEquippedPetCallback:Function = null, getSelectedHeroIndexCallback:Function = null, setSelectedHeroIndexCallback:Function = null, equipResponseFinishedCallback:Function = null, allowEquipmentSwapping:Boolean = false)
+      public function PetsWithEquipPicker(dbFacade:DBFacade, root:MovieClip, weaponTooltipClass:Class, heroTooltipClass:Class, clickedEquippedPetCallback:Function = null, getSelectedHeroIndexCallback:Function = null, setSelectedHeroIndexCallback:Function = null, equipResponseFinishedCallback:Function = null, allowEquipmentSwapping:Boolean = false, isActiveCallback:Function = null)
       {
          super(dbFacade,root);
          mDBFacade = dbFacade;
@@ -55,7 +57,7 @@ package UI.EquipPicker
          mEquipResponseCallback = equipResponseFinishedCallback;
          mSetSelectedHeroCallback = setSelectedHeroIndexCallback;
          mGetSelectedHeroCallback = getSelectedHeroIndexCallback;
-         mRoot.label.text = Locale.getString("PET_PICKER_LABEL");
+         Locale.setText(mRoot.label,"PET_PICKER_LABEL");
          mEquipElements = new Vector.<AvatarEquipElement>();
          mEquipElements.push(new AvatarEquipElement(mDBFacade,"",mRoot.UI_pet.equip_slot_1,weaponTooltipClass,unequipPet,handleItemDrop,0,equippedPetClicked,equipResponseFinishedCallback,allowEquipmentSwapping));
          mRoot.UI_pet.equip_slot_0.visible = false;
@@ -79,18 +81,21 @@ package UI.EquipPicker
          mShiftLeft.releaseCallback = shiftLeft;
          mShiftRight = new UIButton(mDBFacade,mRoot.shift_right);
          mShiftRight.releaseCallback = shiftRight;
-         mShiftLeft.visible = false;
-         mShiftRight.visible = false;
          mTotalGMHeroes = mDBFacade.gameMaster.Heroes.length;
+         mShiftLeft.visible = mTotalGMHeroes > mHeroSlots.length;
+         mShiftRight.visible = mShiftLeft.visible;
          mEventComponent.addListener("DB_ACCOUNT_INFO_RESPONSE",function(param1:DBAccountResponseEvent):void
          {
-            refresh();
+            if(isActiveCallback == null || isActiveCallback())
+            {
+               refresh();
+            }
          });
       }
       
       private function populateHeroSlots() : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc3_:Vector.<GMHero> = mDBFacade.gameMaster.Heroes;
          var _loc1_:uint = mCurrentStartIndex;
          _loc2_ = 0;
@@ -109,6 +114,7 @@ package UI.EquipPicker
             _loc2_++;
          }
          updateShiftButtons();
+         updateFirstSlotLeftNavigation();
          determineSelectedElement();
       }
       
@@ -144,7 +150,7 @@ package UI.EquipPicker
       
       private function determineSelectedElement() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          _loc1_ = 0;
          while(_loc1_ < mHeroSlots.length)
          {
@@ -187,7 +193,7 @@ package UI.EquipPicker
          if(mClickedEquippedPetCallback != null && equipElement.itemInfo != null)
          {
             equipElement.select();
-            mClickedEquippedPetCallback(equipElement.itemInfo);
+            mClickedEquippedPetCallback(equipElement.itemInfo,equipElement);
          }
       }
       
@@ -213,6 +219,10 @@ package UI.EquipPicker
          if(selectedHeroIndex == -1 || resync)
          {
             setActiveAvatarAsCurrentSelection();
+         }
+         if(selectedHeroIndex < mCurrentStartIndex || selectedHeroIndex >= mCurrentStartIndex + mHeroSlots.length)
+         {
+            setCurrentIndexToShowSelectedHero();
          }
          setEquipSlots();
          populateHeroSlots();
@@ -241,6 +251,13 @@ package UI.EquipPicker
          selectedHeroIndex = findHeroIndex(_loc1_.avatarType);
       }
       
+      private function get selectedAvatarInfo() : AvatarInfo
+      {
+         var _loc2_:Vector.<GMHero> = mDBFacade.gameMaster.Heroes;
+         var _loc1_:int = selectedHeroIndex;
+         return _loc1_ >= 0 && _loc1_ < _loc2_.length ? mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(_loc2_[_loc1_].Id) : null;
+      }
+      
       private function setCurrentIndexToShowSelectedHero() : void
       {
          if(selectedHeroIndex < mHeroSlots.length)
@@ -253,7 +270,7 @@ package UI.EquipPicker
       
       private function findHeroIndex(avatarId:uint) : uint
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc3_:Vector.<GMHero> = mDBFacade.gameMaster.Heroes;
          _loc2_ = 0;
          while(_loc2_ < _loc3_.length)
@@ -270,7 +287,7 @@ package UI.EquipPicker
       
       private function setEquipSlots() : void
       {
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          _loc3_ = 0;
          while(_loc3_ < mEquipElements.length)
          {
@@ -313,7 +330,7 @@ package UI.EquipPicker
       {
          var doEquip:Function;
          var equippedItems:Vector.<PetInfo>;
-         var avatarInfo:AvatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mHeroSlots[selectedHeroIndex].gmHero.Id);
+         var avatarInfo:AvatarInfo = selectedAvatarInfo;
          if(avatarInfo)
          {
             doEquip = function():void
@@ -321,18 +338,18 @@ package UI.EquipPicker
                var equipServiceResponse:Function = function():void
                {
                   equippingModal.destroy();
+                  if(mDBFacade != null)
+                  {
+                     mDBFacade.steamAchievementsHelper.unlockAchievement("EQUIP_PET");
+                  }
                   if(responseFinishedCallback != null)
                   {
                      responseFinishedCallback();
                   }
                };
-               var equippingModal:UIPopup = UIPopup.show(mDBFacade,Locale.getString("EQUIPPING_MODAL"));
+               var equippingModal:DBUIPopup = createEquippingModal();
                var avatarId:uint = avatarInfo.id;
-               mDBFacade.dbAccountInfo.inventoryInfo.equipPetOnAvatar(avatarId,info.databaseId,equipServiceResponse,errorCallback);
-               if(mDBFacade.steamAchievementsManager)
-               {
-                  mDBFacade.steamAchievementsManager.setAchievement("EQUIP_PET");
-               }
+               mDBFacade.dbAccountInfo.inventoryInfo.equipPetOnAvatar(avatarId,info.databaseId,equipServiceResponse,closeEquippingModalOnError(equippingModal,errorCallback));
             };
             equippedItems = mDBFacade.dbAccountInfo.inventoryInfo.getEquipedPetsOnAvatar(avatarInfo.id);
             if(equippedItems.length > 0)
@@ -348,7 +365,7 @@ package UI.EquipPicker
       
       public function unequipPet(info:PetInfo, responseFinishedCallback:Function = null, errorCallback:Function = null) : void
       {
-         var equippingModal:UIPopup = UIPopup.show(mDBFacade,Locale.getString("EQUIPPING_MODAL"));
+         var equippingModal:DBUIPopup = createEquippingModal();
          var equipServiceResponse:Function = function():void
          {
             equippingModal.destroy();
@@ -357,7 +374,24 @@ package UI.EquipPicker
                responseFinishedCallback();
             }
          };
-         mDBFacade.dbAccountInfo.inventoryInfo.unequipPet(info,equipServiceResponse,errorCallback);
+         mDBFacade.dbAccountInfo.inventoryInfo.unequipPet(info,equipServiceResponse,closeEquippingModalOnError(equippingModal,errorCallback));
+      }
+      
+      private function createEquippingModal() : DBUIPopup
+      {
+         return new DBUIPopup(mDBFacade,"",Locale.getString("EQUIPPING_MODAL"),null,false);
+      }
+      
+      private function closeEquippingModalOnError(modal:DBUIPopup, callback:Function) : Function
+      {
+         return function(... rest):void
+         {
+            modal.destroy();
+            if(callback != null)
+            {
+               callback.apply(null,rest);
+            }
+         };
       }
       
       public function highlightItem(info:InventoryBaseInfo) : void
@@ -366,12 +400,63 @@ package UI.EquipPicker
       
       public function deselectEquipment() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          _loc1_ = 0;
          while(_loc1_ < mEquipElements.length)
          {
             mEquipElements[_loc1_].deselect();
             _loc1_++;
+         }
+      }
+      
+      public function getFirstUIObject() : UIObject
+      {
+         return mHeroSlots[0];
+      }
+      
+      public function setupMenuNavigation(returnObject:UIObject) : void
+      {
+         var _loc2_:uint = 0;
+         _loc2_ = 0;
+         while(_loc2_ < mEquipElements.length)
+         {
+            mEquipElements[_loc2_].upNavigation = returnObject;
+            if(_loc2_ > 0)
+            {
+               mEquipElements[_loc2_ - 1].isToTheLeftOf(mEquipElements[_loc2_]);
+            }
+            _loc2_++;
+         }
+         if(mEquipElements.length > 0)
+         {
+            mEquipElements[mEquipElements.length - 1].isToTheLeftOf(mHeroSlots[0]);
+         }
+         _loc2_ = 0;
+         while(_loc2_ < mHeroSlots.length)
+         {
+            mHeroSlots[_loc2_].upNavigation = returnObject;
+            if(_loc2_ > 0)
+            {
+               mHeroSlots[_loc2_ - 1].isToTheLeftOf(mHeroSlots[_loc2_]);
+            }
+            _loc2_++;
+         }
+         mHeroSlots[0].leftNavigationAdditionalInteraction = rotateRosterLeft;
+         mHeroSlots[mHeroSlots.length - 1].rightNavigationAdditionalInteraction = rotateRosterRight;
+         mFirstSlotLeftNavigation = mEquipElements.length > 0 ? mEquipElements[mEquipElements.length - 1] : null;
+         updateFirstSlotLeftNavigation();
+      }
+      
+      public function resetMenuNavigation() : void
+      {
+         mFirstSlotLeftNavigation = null;
+         for each(var _loc2_:UIObject in mEquipElements)
+         {
+            _loc2_.clearNavigationAndInteractions();
+         }
+         for each(var _loc1_:UIObject in mHeroSlots)
+         {
+            _loc1_.clearNavigationAndInteractions();
          }
       }
       
@@ -385,6 +470,36 @@ package UI.EquipPicker
       {
          mCurrentStartIndex = mCurrentStartIndex + 1;
          populateHeroSlots();
+      }
+      
+      private function rotateRosterLeft() : void
+      {
+         if(mCurrentStartIndex > 0)
+         {
+            shiftLeft();
+         }
+      }
+      
+      private function rotateRosterRight() : void
+      {
+         if(mCurrentStartIndex + mHeroSlots.length < mTotalGMHeroes)
+         {
+            shiftRight();
+         }
+      }
+      
+      private function updateFirstSlotLeftNavigation() : void
+      {
+         var _loc1_:Function = mHeroSlots[0].leftNavigationAdditionalInteraction;
+         mHeroSlots[0].clearLeftNavigation();
+         if(_loc1_ != null)
+         {
+            mHeroSlots[0].leftNavigationAdditionalInteraction = _loc1_;
+         }
+         if(mCurrentStartIndex == 0 && mFirstSlotLeftNavigation != null)
+         {
+            mHeroSlots[0].leftNavigation = mFirstSlotLeftNavigation;
+         }
       }
       
       public function handleItemDrop(dropObject:UIObject, petInfo:InventoryBaseInfo, equipSlot:uint) : Boolean

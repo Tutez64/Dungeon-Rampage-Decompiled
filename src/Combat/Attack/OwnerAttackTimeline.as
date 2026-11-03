@@ -30,66 +30,71 @@ package Combat.Attack
       
       override protected function parseAction(actionObj:Object) : AttackTimelineAction
       {
-         var _loc3_:* = null;
-         var _loc4_:String = actionObj.type as String;
-         var _loc2_:AttackTimelineAction = null;
-         switch(_loc4_)
+         var _loc5_:WeaponController = null;
+         var _loc3_:RumbleTimelineAction = null;
+         var _loc2_:String = actionObj.type as String;
+         var _loc4_:AttackTimelineAction = null;
+         switch(_loc2_)
          {
             case "attemptRevive":
-               _loc2_ = AttemptReviveTimeLineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc4_ = AttemptReviveTimeLineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "proposeRevive":
-               _loc2_ = ProposeReviveTimeLineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc4_ = ProposeReviveTimeLineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "lockAttack":
-               _loc2_ = LockAttackTimeLineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade);
+               _loc4_ = LockAttackTimeLineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade);
                break;
             case "circleCollider":
-               _loc2_ = CircleColliderAttackTimelineAction.buildFromJson(mWeapon,mActorGameObject,mActorView,mDBFacade,mDistributedDungeonFloor,actionObj,combatResultCallback);
+               _loc4_ = CircleColliderAttackTimelineAction.buildFromJson(mWeapon,mActorGameObject,mActorView,mDBFacade,mDistributedDungeonFloor,actionObj,combatResultCallback);
                break;
             case "rectangleCollider":
-               _loc2_ = RectangleColliderTimelineAction.buildFromJson(mWeapon,mActorGameObject,mActorView,mDBFacade,mDistributedDungeonFloor,actionObj,combatResultCallback);
+               _loc4_ = RectangleColliderTimelineAction.buildFromJson(mWeapon,mActorGameObject,mActorView,mDBFacade,mDistributedDungeonFloor,actionObj,combatResultCallback);
                break;
             case "zoom":
-               _loc2_ = CameraZoomTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc4_ = CameraZoomTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
                break;
             case "timeScale":
                break;
             case "projectile":
-               _loc2_ = ProjectileAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,mDistributedDungeonFloor,actionObj,mWeapon,combatResultCallback);
+               _loc4_ = ProjectileAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,mDistributedDungeonFloor,actionObj,mWeapon,combatResultCallback);
                break;
             case "inputType":
-               _loc2_ = InputTypeTimelineAction.buildFromJson(mHeroGameObjectOwner,mActorView,mDBFacade,actionObj);
+               _loc4_ = InputTypeTimelineAction.buildFromJson(mHeroGameObjectOwner,mActorView,mDBFacade,actionObj);
                break;
             case "startCooldown":
-               for each(_loc3_ in mHeroGameObjectOwner.weaponControllers)
+               for each(_loc5_ in mHeroGameObjectOwner.weaponControllers)
                {
-                  if(_loc3_.weapon == mWeapon)
+                  if(_loc5_.weapon == mWeapon)
                   {
-                     mWeaponController = _loc3_;
+                     mWeaponController = _loc5_;
                      break;
                   }
                }
-               _loc2_ = CoolDownAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,mWeaponController,actionObj);
+               _loc4_ = CoolDownAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,mWeaponController,actionObj);
                break;
             case "queueAttack":
                if(mHeroGameObjectOwner && mHeroGameObjectOwner.weaponControllers)
                {
-                  for each(_loc3_ in mHeroGameObjectOwner.weaponControllers)
+                  for each(_loc5_ in mHeroGameObjectOwner.weaponControllers)
                   {
-                     if(_loc3_.weapon == mWeapon)
+                     if(_loc5_ != null && _loc5_.weapon == mWeapon)
                      {
-                        mWeaponController = _loc3_;
+                        mWeaponController = _loc5_;
                         break;
                      }
                   }
-                  _loc2_ = QueueAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,mWeaponController,actionObj);
+                  _loc4_ = QueueAttackTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,mWeaponController,actionObj);
                }
+               break;
+            case "rumbleEffect":
+               _loc3_ = RumbleTimelineAction.buildFromJson(mActorGameObject,mActorView,mDBFacade,actionObj);
+               _loc4_ = _loc3_;
                break;
             default:
                return super.parseAction(actionObj);
          }
-         return _loc2_;
+         return _loc4_;
       }
       
       override public function play(playSpeed:Number, target:ActorGameObject, finishedCallback:Function = null, stopCallback:Function = null, loop:Boolean = false) : void
@@ -139,7 +144,7 @@ package Combat.Attack
       
       protected function combatResultCallback(combatResult:CombatResult) : void
       {
-         var _loc3_:* = undefined;
+         var _loc3_:Vector.<CombatResult> = undefined;
          combatResult.scalingMaxPowerMultiplier = mPowerMultiplier;
          if(!mChoreographed)
          {

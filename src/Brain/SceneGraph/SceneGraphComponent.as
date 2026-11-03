@@ -3,29 +3,29 @@ package Brain.SceneGraph
    import Brain.Component.Component;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
+   import Brain.Render.Tweens.TweenHandle;
    import Brain.Utils.MemoryTracker;
-   import com.greensock.TweenMax;
+   import Collections.ISetIterator;
+   import Collections.Set;
    import flash.display.DisplayObject;
    import flash.display.Sprite;
-   import org.as3commons.collections.Set;
-   import org.as3commons.collections.framework.ISetIterator;
    
    public class SceneGraphComponent extends Component
    {
       
       private static var mFadeSprite:Sprite;
       
-      private static var mFadeTween:TweenMax;
+      private static var mFadeTween:TweenHandle;
       
       protected var mDisplayObjects:Set;
       
       private var mCurtainActive:Boolean = false;
       
-      public function SceneGraphComponent(facade:Facade, ownerName:String = null)
+      public function SceneGraphComponent(facade:Facade, ownerName:String = null, category:String = "brain")
       {
          super(facade);
          mDisplayObjects = new Set();
-         MemoryTracker.track(this,"SceneGraphComponent - " + (ownerName || "unknown"),"brain");
+         MemoryTracker.track(this,"SceneGraphComponent - " + (ownerName || "unknown"),category);
       }
       
       public static function bringToFront(child:DisplayObject) : void
@@ -110,7 +110,7 @@ package Brain.SceneGraph
       {
          if(mFadeTween != null)
          {
-            mFadeTween.kill();
+            mFacade.mTween.killTween(mFadeTween);
             mFadeTween = null;
          }
       }
@@ -128,7 +128,7 @@ package Brain.SceneGraph
             return;
          }
          this.addChild(mFadeSprite,100);
-         mFadeTween = TweenMax.to(mFadeSprite,fadeLength,{
+         mFadeTween = mFacade.mTween.tweenMaxTo(mFadeSprite,fadeLength,{
             "alpha":0,
             "onComplete":finishFadeIn
          });
@@ -156,7 +156,7 @@ package Brain.SceneGraph
             mFadeSprite.alpha = 1;
             return;
          }
-         mFadeTween = TweenMax.to(mFadeSprite,fadeLength,{
+         mFadeTween = mFacade.mTween.tweenMaxTo(mFadeSprite,fadeLength,{
             "alpha":alphaValue,
             "onComplete":finishFadeOut
          });

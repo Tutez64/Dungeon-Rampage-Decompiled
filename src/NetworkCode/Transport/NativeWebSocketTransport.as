@@ -196,7 +196,7 @@ package NetworkCode.Transport
       {
          var _loc3_:ByteArray = null;
          var _loc2_:Object = null;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc5_:String = null;
          try
          {

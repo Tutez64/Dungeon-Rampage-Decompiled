@@ -2,12 +2,13 @@ package Combat.Attack
 {
    import Actor.ActorGameObject;
    import Brain.AssetRepository.JsonAsset;
+   import Brain.Utils.MemoryTracker;
+   import Collections.Map;
    import Combat.Weapon.WeaponGameObject;
    import DistributedObjects.DistributedDungeonFloor;
    import DistributedObjects.HeroGameObjectOwner;
    import Facade.DBFacade;
    import avmplus.getQualifiedClassName;
-   import org.as3commons.collections.Map;
    
    public class TimelineFactory
    {
@@ -68,6 +69,15 @@ package Combat.Attack
          return mSecurityValue;
       }
       
+      public function getTimelineJson(timelineName:String) : Object
+      {
+         if(timelineName == null)
+         {
+            return null;
+         }
+         return mTimelines.itemFor(timelineName);
+      }
+      
       public function createAttackTimeline(timelineName:String, weapon:WeaponGameObject, actor:ActorGameObject, floor:DistributedDungeonFloor) : AttackTimeline
       {
          var _loc6_:AttackTimeline = null;
@@ -80,14 +90,16 @@ package Combat.Attack
          {
             _loc6_ = new AttackTimeline(weapon,actor,actor.actorView,_loc5_,mDBFacade,floor);
          }
+         MemoryTracker.track(_loc6_,"AttackTimeline \'" + timelineName + "\' - created in TimelineFactory.createAttackTimeline()");
          return _loc6_;
       }
       
       public function createScriptTimeline(timelineName:String, actor:ActorGameObject, floor:DistributedDungeonFloor) : ScriptTimeline
       {
-         var _loc5_:* = null;
          var _loc4_:Object = mTimelines.itemFor(timelineName);
-         return new ScriptTimeline(actor,actor.actorView,_loc4_,mDBFacade,floor);
+         var _loc5_:ScriptTimeline = new ScriptTimeline(actor,actor.actorView,_loc4_,mDBFacade,floor);
+         MemoryTracker.track(_loc5_,"ScriptTimeline \'" + timelineName + "\' - created in TimelineFactory.createScriptTimeline()");
+         return _loc5_;
       }
    }
 }

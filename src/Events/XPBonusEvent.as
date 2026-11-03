@@ -12,9 +12,9 @@ package Events
       
       private var mIsActive:Boolean;
       
-      public function XPBonusEvent(type:String, isActive:Boolean, xpMultiplier:Number = 1, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function XPBonusEvent(inType:String, isActive:Boolean, xpMultiplier:Number = 1, bubbles:Boolean = false, cancelable:Boolean = false)
       {
-         super(type,bubbles,cancelable);
+         super(inType,bubbles,cancelable);
          mIsActive = isActive;
          mXPMultiplier = xpMultiplier;
       }

@@ -3,17 +3,21 @@ package UI
    import Account.PlayerSpecialStatus;
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.Event.EventComponent;
+   import Brain.Event.EventListeners;
    import Brain.Logger.Logger;
+   import Brain.Render.Tweens.TweenHandle;
    import Brain.SceneGraph.SceneGraphComponent;
    import Brain.UI.UIButton;
    import Brain.UI.UIInputText;
    import Brain.UI.UISlider;
+   import Brain.Utils.TextUtil;
    import DistributedObjects.HeroGameObjectOwner;
    import Events.ChatEvent;
    import Events.ChatLogEvent;
    import Facade.DBFacade;
    import Facade.Locale;
-   import com.greensock.TweenMax;
+   import com.amanitadesign.steam.SteamEvent;
+   import flash.display.DisplayObject;
    import flash.display.MovieClip;
    import flash.events.FocusEvent;
    import flash.events.KeyboardEvent;
@@ -55,6 +59,8 @@ package UI
       
       private static var mChats:Vector.<ChatTextFieldHelper>;
       
+      private static var sChatsVersion:int = 0;
+      
       private var mDBFacade:DBFacade;
       
       private var mChatLog:TextField;
@@ -65,7 +71,7 @@ package UI
       
       private var mChatLogContainer:MovieClip;
       
-      private var mFadeTween:TweenMax;
+      private var mFadeTween:TweenHandle;
       
       private var mSceneGraphComponent:SceneGraphComponent;
       
@@ -87,9 +93,19 @@ package UI
       
       private var mChatLogShowing:Boolean;
       
+      private var mChatPromptVisible:Boolean = true;
+      
+      private var mStarlingPrompt:Function;
+      
       private var mHeroOwner:HeroGameObjectOwner;
       
       private var mEnabledChatEnterEvent:Boolean = true;
+      
+      private var mRenderedVersion:int = -1;
+      
+      private var mRenderedLength:int = -1;
+      
+      private var mDefaultFormat:TextFormat;
       
       private var mPreviousHeight:Number = 1;
       
@@ -112,6 +128,54 @@ package UI
          enable();
       }
       
+      private static function growToFloor(field:TextField, sizeModifier:Number) : void
+      {
+         var _loc3_:TextFormat = field.defaultTextFormat;
+         var _loc5_:Number = Number(_loc3_.size);
+         _loc3_.size = Math.round(_loc5_ * TextUtil.scaleToFloor(_loc5_,sizeModifier));
+         field.defaultTextFormat = _loc3_;
+         if(field.multiline)
+         {
+            return;
+         }
+         var _loc4_:Number = field.height * Number(_loc3_.size) / _loc5_;
+         field.y -= (_loc4_ - field.height) / 2;
+         field.height = _loc4_;
+      }
+      
+      public static function growLogUp(chatLogContainer:MovieClip, scale:Number) : void
+      {
+         var _loc7_:int = 0;
+         var _loc4_:DisplayObject = null;
+         var _loc5_:TextField = chatLogContainer.chatLog;
+         var _loc3_:MovieClip = chatLogContainer.slider;
+         var _loc6_:Number = 0;
+         _loc7_ = 0;
+         while(_loc7_ < chatLogContainer.numChildren)
+         {
+            _loc4_ = chatLogContainer.getChildAt(_loc7_);
+            if(!(_loc4_ == _loc5_ || _loc4_ == _loc3_))
+            {
+               if(!_loc6_)
+               {
+                  _loc6_ = _loc4_.height * (scale - 1);
+               }
+               stretchUp(_loc4_,_loc6_);
+            }
+            _loc7_++;
+         }
+         stretchUp(_loc5_,_loc6_);
+         _loc3_.y -= _loc6_;
+         _loc3_.back.height += _loc6_ / _loc3_.scaleY;
+      }
+      
+      private static function stretchUp(object:DisplayObject, extra:Number) : void
+      {
+         var _loc3_:Number = object.getBounds(object.parent).bottom;
+         object.height += extra;
+         object.y += _loc3_ - object.getBounds(object.parent).bottom;
+      }
+      
       public function set heroOwner(hero:HeroGameObjectOwner) : void
       {
          mHeroOwner = hero;
@@ -121,17 +185,39 @@ package UI
       {
          this.disable();
          mEventComponent.addListener("CHAT_LOG_EVENT",chatEventHandler);
-         mChatInputText.root.addEventListener("focusIn",onChatTextFieldFocus);
-         mChatInputText.root.addEventListener("focusOut",onChatTextFieldLoseFocus);
-         mDBFacade.stageRef.addEventListener("keyDown",checkKeyEvent);
+         EventListeners.add(mChatInputText.root,"focusIn",onChatTextFieldFocus);
+         EventListeners.add(mChatInputText.root,"focusOut",onChatTextFieldLoseFocus);
+         EventListeners.add(mDBFacade.stageRef,"keyDown",checkKeyEvent);
+         EventListeners.add(mDBFacade.mSteamworks,SteamEvent.STEAM_RESPONSE,onSteamResponse);
       }
       
       public function disable() : void
       {
          mEventComponent.removeListener("CHAT_LOG_EVENT");
-         mChatInputText.root.removeEventListener("focusIn",onChatTextFieldFocus);
-         mChatInputText.root.removeEventListener("focusOut",onChatTextFieldLoseFocus);
-         mDBFacade.stageRef.removeEventListener("keyDown",checkKeyEvent);
+         EventListeners.remove(mChatInputText.root,"focusIn",onChatTextFieldFocus);
+         EventListeners.remove(mChatInputText.root,"focusOut",onChatTextFieldLoseFocus);
+         EventListeners.remove(mDBFacade.stageRef,"keyDown",checkKeyEvent);
+         EventListeners.remove(mDBFacade.mSteamworks,SteamEvent.STEAM_RESPONSE,onSteamResponse);
+      }
+      
+      private function onSteamResponse(event:SteamEvent) : void
+      {
+         if(event.req_type != 35 && event.req_type != 34)
+         {
+            return;
+         }
+         if(mChatInputText == null || mDBFacade == null)
+         {
+            return;
+         }
+         if(mDBFacade.stageRef.focus != mChatInputText.textField)
+         {
+            return;
+         }
+         mToggledOpen = false;
+         mChatInputText.releaseKeyboardFocus();
+         hideChatLog();
+         mDBFacade.inputManager.clear();
       }
       
       private function onChatTextFieldFocus(event:FocusEvent) : void
@@ -157,12 +243,24 @@ package UI
          mChatInputText = new UIInputText(mDBFacade,chatTextField);
          mChatInputText.defaultText = Locale.getString("DEFAULT_CHAT_PROMPT");
          mChatInputText.enterCallback = sendChat;
+         mChatInputText.focusOutCallback = function():void
+         {
+            if(mChatInputText.text == "")
+            {
+               resetChatPrompt();
+            }
+         };
          mChatInputText.textField.maxChars = 169;
          mChatLogButton = new UIButton(mDBFacade,chatLogButton);
          mChatLogButton.releaseCallback = toggleChatLog;
          mChatSendButton = new UIButton(mDBFacade,sendChatButton);
          mChatSendButton.releaseCallback = function():void
          {
+            if(mChatInputText.text == "")
+            {
+               focusChatInput();
+               return;
+            }
             sendChat(mChatInputText.text);
          };
       }
@@ -175,6 +273,65 @@ package UI
          if(value)
          {
             mEventComponent.dispatchEvent(new ChatEvent("ChatEvent_OUTGOING_CHAT_UPDATE",0,value));
+         }
+         else
+         {
+            resetChatPrompt();
+         }
+      }
+      
+      private function resetChatPrompt() : void
+      {
+         if(mStarlingPrompt != null)
+         {
+            mChatInputText.defaultText = "";
+            updateStarlingPrompt();
+            return;
+         }
+         mChatInputText.defaultText = mChatPromptVisible ? Locale.getString("DEFAULT_CHAT_PROMPT") : "";
+      }
+      
+      public function set starlingPrompt(value:Function) : void
+      {
+         mStarlingPrompt = value;
+         mChatInputText.focusInCallback = value != null ? updateStarlingPrompt : null;
+         if(mChatInputText.showingDefaultText)
+         {
+            resetChatPrompt();
+         }
+      }
+      
+      public function get promptColor() : uint
+      {
+         return mChatInputText.defaultTextColor;
+      }
+      
+      private function updateStarlingPrompt() : void
+      {
+         if(mStarlingPrompt != null)
+         {
+            mStarlingPrompt(mChatPromptVisible && mChatInputText.showingDefaultText && mDBFacade.stageRef.focus != mChatInputText.textField);
+         }
+      }
+      
+      public function setChatPromptVisible(inVisible:Boolean) : void
+      {
+         mChatPromptVisible = inVisible;
+         if(mChatInputText.text == "")
+         {
+            resetChatPrompt();
+         }
+      }
+      
+      public function set textSizeModifier(value:Number) : void
+      {
+         growToFloor(mChatLog,value);
+         growToFloor(mChatInputText.textField,value);
+         mDefaultFormat = null;
+         constructAndRenderNewChat();
+         if(mChatInputText.showingDefaultText)
+         {
+            resetChatPrompt();
          }
       }
       
@@ -198,6 +355,10 @@ package UI
          {
             showChatLog();
          }
+         if(mDBFacade.steamInputManager.usesSteamOnScreenKeyboard)
+         {
+            mDBFacade.steamInputManager.showFloatingGamepadTextInputForField(mChatInputText.textField);
+         }
       }
       
       private function chatTextFieldLostFocus() : void
@@ -214,12 +375,21 @@ package UI
          {
             if(event.keyCode == 13 && mEnabledChatEnterEvent)
             {
-               mDBFacade.stageRef.focus = mChatInputText.textField;
+               focusChatInput();
             }
-            else if(event.keyCode == 220 && mDBFacade.mainStateMachine.currentStateName == "RunState")
-            {
-               toggleChatLog();
-            }
+         }
+      }
+      
+      public function focusChatInput() : void
+      {
+         mDBFacade.stageRef.focus = mChatInputText.textField;
+      }
+      
+      public function tryToggleChatLog() : void
+      {
+         if(mDBFacade.mainStateMachine.currentStateName == "RunState")
+         {
+            toggleChatLog();
          }
       }
       
@@ -273,63 +443,98 @@ package UI
       
       private function addChatLog(chat:String, color:uint, playerName:String = "") : void
       {
-         var _loc8_:ChatTextFieldHelper = null;
-         var _loc6_:* = 0;
+         var _loc10_:ChatTextFieldHelper = null;
          if(!mChatLog)
          {
             return;
          }
-         var _loc7_:ChatTextFieldHelper = new ChatTextFieldHelper();
+         var _loc9_:ChatTextFieldHelper = new ChatTextFieldHelper();
+         if(chat.indexOf("\r\n") >= 0)
+         {
+            chat = chat.split("\r\n").join("\n");
+         }
          chat += "\n";
          var _loc5_:uint = uint(mChatLog.length);
-         _loc7_.chatText = chat;
-         _loc7_.color = color;
-         _loc7_.playerName = playerName;
-         _loc7_.colorStartIndex = _loc5_;
-         _loc7_.colorEndIndex = _loc5_ + chat.length;
-         mChats.push(_loc7_);
+         var _loc7_:int = sChatsVersion++;
+         _loc9_.chatText = chat;
+         _loc9_.color = color;
+         _loc9_.playerName = playerName;
+         _loc9_.colorStartIndex = _loc5_;
+         _loc9_.colorEndIndex = _loc5_ + chat.length;
+         mChats.push(_loc9_);
+         var _loc6_:uint = 0;
          if(mChats.length > MAX_CHATS)
          {
-            _loc8_ = mChats.shift();
-            _loc6_ = uint(_loc8_.colorEndIndex - _loc8_.colorStartIndex);
+            _loc10_ = mChats.shift();
+            _loc6_ = _loc10_.colorEndIndex - _loc10_.colorStartIndex;
             for each(var _loc4_:ChatTextFieldHelper in mChats)
             {
                _loc4_.colorEndIndex -= _loc6_;
                _loc4_.colorStartIndex -= _loc6_;
             }
          }
-         constructAndRenderNewChat();
+         if(mRenderedVersion != _loc7_ || mChatLog.length != mRenderedLength)
+         {
+            constructAndRenderNewChat();
+            return;
+         }
+         if(_loc6_ > 0)
+         {
+            mChatLog.replaceText(0,_loc6_,"");
+         }
+         var _loc8_:int = mChatLog.length;
+         mChatLog.appendText(chat);
+         if(!mDefaultFormat)
+         {
+            mDefaultFormat = mChatLog.defaultTextFormat;
+         }
+         mChatLog.setTextFormat(mDefaultFormat,_loc8_,mChatLog.length);
+         formatChat(_loc9_);
+         mRenderedVersion = sChatsVersion;
+         mRenderedLength = mChatLog.length;
+         checkToShowSlider();
+         adjustSlider();
       }
       
       private function constructAndRenderNewChat() : void
       {
-         var _loc1_:TextFormat = null;
-         var _loc2_:* = 0;
          mChatLog.text = "";
-         for each(var _loc3_:ChatTextFieldHelper in mChats)
+         var _loc1_:uint = 0;
+         for each(var _loc2_:ChatTextFieldHelper in mChats)
          {
-            mChatLog.text = mChatLog.text.concat(_loc3_.chatText);
+            mChatLog.text = mChatLog.text.concat(_loc2_.chatText);
+            _loc2_.colorStartIndex = _loc1_;
+            _loc1_ += _loc2_.chatText.length;
+            _loc2_.colorEndIndex = _loc1_;
          }
-         for each(_loc3_ in mChats)
+         for each(_loc2_ in mChats)
          {
-            _loc2_ = _loc3_.colorStartIndex;
-            if(_loc3_.playerName != "")
-            {
-               _loc1_ = new TextFormat();
-               _loc1_.color = PlayerSpecialStatus.getSpecialTextColor(_loc3_.playerName,NAME_CHAT_COLOR);
-               mChatLog.setTextFormat(_loc1_,_loc2_,_loc2_ + _loc3_.playerName.length + 1);
-               _loc2_ += _loc3_.playerName.length + 1;
-               _loc1_ = null;
-            }
-            if(_loc3_.color != 0)
-            {
-               _loc1_ = new TextFormat();
-               _loc1_.color = _loc3_.color;
-               mChatLog.setTextFormat(_loc1_,_loc2_,_loc3_.colorEndIndex);
-            }
+            formatChat(_loc2_);
          }
+         mRenderedVersion = sChatsVersion;
+         mRenderedLength = mChatLog.length;
          checkToShowSlider();
          adjustSlider();
+      }
+      
+      private function formatChat(chat:ChatTextFieldHelper) : void
+      {
+         var _loc2_:TextFormat = null;
+         var _loc3_:uint = chat.colorStartIndex;
+         if(chat.playerName != "")
+         {
+            _loc2_ = new TextFormat();
+            _loc2_.color = PlayerSpecialStatus.getSpecialTextColor(chat.playerName,NAME_CHAT_COLOR);
+            mChatLog.setTextFormat(_loc2_,_loc3_,_loc3_ + chat.playerName.length + 1);
+            _loc3_ += chat.playerName.length + 1;
+         }
+         if(chat.color == 0)
+         {
+            return;
+         }
+         _loc2_ = new TextFormat();
+         _loc2_.color = chat.color;
+         mChatLog.setTextFormat(_loc2_,_loc3_,chat.colorEndIndex);
       }
       
       private function adjustSlider() : void
@@ -369,12 +574,12 @@ package UI
             return;
          }
          mChatLogShowing = false;
-         if(mFadeTween && mFadeTween.currentProgress != 1)
+         if(mFadeTween && mDBFacade.mTween.getCurrentProgress(mFadeTween) != 1)
          {
-            mFadeTween.complete();
+            mDBFacade.mTween.completeTween(mFadeTween);
          }
          mChatLogContainer.alpha = 1;
-         mFadeTween = TweenMax.to(mChatLogContainer,0.3,{
+         mFadeTween = mDBFacade.mTween.tweenMaxTo(mChatLogContainer,0.3,{
             "alpha":0,
             "onComplete":function():void
             {
@@ -391,13 +596,13 @@ package UI
             return;
          }
          mChatLogShowing = true;
-         if(mFadeTween && mFadeTween.currentProgress != 1)
+         if(mFadeTween && mDBFacade.mTween.getCurrentProgress(mFadeTween) != 1)
          {
-            mFadeTween.complete();
+            mDBFacade.mTween.completeTween(mFadeTween);
          }
          mChatLogContainer.visible = true;
          mChatLogContainer.alpha = 0;
-         mFadeTween = TweenMax.to(mChatLogContainer,0.3,{"alpha":1});
+         mFadeTween = mDBFacade.mTween.tweenMaxTo(mChatLogContainer,0.3,{"alpha":1});
          constructAndRenderNewChat();
          checkToShowSlider();
       }
@@ -412,9 +617,9 @@ package UI
       
       public function destroy() : void
       {
-         if(mFadeTween && mFadeTween.currentProgress != 1)
+         if(mFadeTween && mDBFacade.mTween.getCurrentProgress(mFadeTween) != 1)
          {
-            mFadeTween.complete();
+            mDBFacade.mTween.completeTween(mFadeTween);
          }
          disable();
          if(mAssetLoadingComponent)
@@ -442,6 +647,19 @@ package UI
             mChatLogButton.destroy();
          }
          mChatLogButton = null;
+         if(mChatSendButton)
+         {
+            mChatSendButton.destroy();
+         }
+         mChatSendButton = null;
+         mStarlingPrompt = null;
+         if(mChatInputText)
+         {
+            mChatInputText.destroy();
+         }
+         mChatInputText = null;
+         mHeroOwner = null;
+         mFadeTween = null;
          mEventComponent = null;
          mDBFacade = null;
          mChatLog = null;
@@ -456,6 +674,16 @@ package UI
       public function get enabledChatEnterEvent() : Boolean
       {
          return mEnabledChatEnterEvent;
+      }
+      
+      public function get chatLogButton() : UIButton
+      {
+         return mChatLogButton;
+      }
+      
+      public function get chatSendButton() : UIButton
+      {
+         return mChatSendButton;
       }
    }
 }

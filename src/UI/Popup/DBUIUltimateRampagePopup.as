@@ -1,5 +1,6 @@
 package UI.Popup
 {
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.Locale;
    
@@ -14,11 +15,12 @@ package UI.Popup
       {
          var _loc3_:String = Locale.getString("INFINITE_MAP_POPUP_TITLE");
          var _loc2_:String = Locale.getString("INFINITE_MAP_POPUP_MESSAGE");
-         super(dbFacade,_loc3_,_loc2_);
-         mPopup.message_label1.text = Locale.getString("INFINITE_MAP_POPUP_MESSAGE_LABEL_1");
-         mPopup.message_label2.text = Locale.getString("INFINITE_MAP_POPUP_MESSAGE_LABEL_2");
-         mPopup.message_label3.text = Locale.getString("INFINITE_MAP_POPUP_MESSAGE_LABEL_3");
-         mPopup.message_label4.text = Locale.getString("INFINITE_MAP_POPUP_MESSAGE_LABEL_4");
+         super(dbFacade,"ULTIMATE_RAMPAGE_POPUP",_loc3_,_loc2_);
+         Locale.setText(mPopup.message_label1,"INFINITE_MAP_POPUP_MESSAGE_LABEL_1");
+         Locale.setText(mPopup.message_label2,"INFINITE_MAP_POPUP_MESSAGE_LABEL_2");
+         Locale.setText(mPopup.message_label3,"INFINITE_MAP_POPUP_MESSAGE_LABEL_3");
+         Locale.setText(mPopup.message_label4,"INFINITE_MAP_POPUP_MESSAGE_LABEL_4",null,1.55);
+         TextUtil.fitToField(mPopup.message_label4);
       }
       
       override protected function getClassName() : String

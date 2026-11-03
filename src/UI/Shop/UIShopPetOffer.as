@@ -1,5 +1,6 @@
 package UI.Shop
 {
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import GameMasterDictionary.GMHero;
@@ -29,7 +30,7 @@ package UI.Shop
       
       override protected function get nativeIconSize() : Number
       {
-         return 68;
+         return DBGlobal.PET_ICON_NATIVE_SIZE;
       }
       
       override protected function get offerDescription() : String

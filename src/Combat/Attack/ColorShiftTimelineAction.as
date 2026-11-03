@@ -151,11 +151,12 @@ package Combat.Attack
             if(mFramesElapsed > mDuration)
             {
                ResetColorTransform();
-               return;
             }
-            return;
          }
-         ResetColorTransform();
+         else
+         {
+            ResetColorTransform();
+         }
       }
       
       private function ResetColorTransform() : void

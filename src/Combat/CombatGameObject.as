@@ -6,8 +6,12 @@ package Combat
    import Brain.GameObject.GameObject;
    import Brain.Logger.Logger;
    import Brain.Utils.GeometryUtil;
+   import Collections.IIterator;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import Combat.Attack.CombatCollider;
    import Combat.Weapon.WeaponGameObject;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.DistributedDungeonFloor;
    import DistributedObjects.HeroGameObjectOwner;
    import DistributedObjects.NPCGameObject;
@@ -20,9 +24,6 @@ package Combat
    import GeneratedCode.Attack;
    import GeneratedCode.CombatResult;
    import flash.geom.Vector3D;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IIterator;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class CombatGameObject extends FloorObject
    {
@@ -253,7 +254,7 @@ package Combat
          }
          if(_loc7_.blocked == 0)
          {
-            if(actorGameObject.hasAbility(1))
+            if(actorGameObject.hasAbility(DBGlobal.ABILITY_SUFFER_IMMUNITY))
             {
                _loc7_.suffer = 0;
             }
@@ -311,8 +312,9 @@ package Combat
       private function updateRecurringHits() : void
       {
          var _loc1_:IMapIterator = mCurrentHitMap.iterator() as IMapIterator;
-         while(_loc1_.next())
+         while(_loc1_.hasNext())
          {
+            _loc1_.next();
             mCurrentHitMap.replaceFor(_loc1_.key,mCurrentHitMap.itemFor(_loc1_.key) - 1);
          }
       }

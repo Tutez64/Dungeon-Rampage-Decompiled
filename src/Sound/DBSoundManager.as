@@ -3,9 +3,10 @@ package Sound
    import Brain.Logger.Logger;
    import Brain.Sound.SoundHandle;
    import Brain.Sound.SoundManager;
+   import Collections.Set;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
-   import org.as3commons.collections.Set;
+   import Settings.Model.LocalSettingsFile;
    
    public class DBSoundManager extends SoundManager
    {
@@ -16,11 +17,31 @@ package Sound
       
       protected var mCurrentMusic:SoundHandle;
       
+      protected var mDBFacade:DBFacade;
+      
       public function DBSoundManager(dbFacade:DBFacade)
       {
          super(dbFacade);
+         mDBFacade = dbFacade;
          setVolumeScaleForCategory("music",DBGlobal.MUSIC_VOLUME);
          setVolumeScaleForCategory("sfx",DBGlobal.SFX_VOLUME);
+      }
+      
+      public function applyStoredVolumeSettings() : void
+      {
+         var _loc1_:Object = new LocalSettingsFile().read();
+         if(_loc1_ == null)
+         {
+            return;
+         }
+         if(_loc1_.hasOwnProperty("sfxVolume") && _loc1_["sfxVolume"] is Number)
+         {
+            sfxVolumeScale = _loc1_["sfxVolume"];
+         }
+         if(_loc1_.hasOwnProperty("musicVolume") && _loc1_["musicVolume"] is Number)
+         {
+            musicVolumeScale = _loc1_["musicVolume"];
+         }
       }
       
       public function set musicVolumeScale(musicScale:Number) : void

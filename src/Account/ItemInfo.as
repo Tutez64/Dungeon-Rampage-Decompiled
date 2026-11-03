@@ -3,6 +3,7 @@ package Account
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
    import Brain.Logger.Logger;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import GameMasterDictionary.GMInventoryBase;
@@ -140,7 +141,7 @@ package Account
       
       override public function get iconScale() : Number
       {
-         return 100;
+         return DBGlobal.WEAPON_ICON_NATIVE_SIZE;
       }
       
       public function get power() : uint
@@ -285,7 +286,7 @@ package Account
                _loc2_ += _loc5_.MODIFIER_LEVEL;
             }
          }
-         var _loc6_:Number = mRequiredLevel / 100 * _loc3_.LevelWeight + _loc2_ * 1 / _loc4_ * _loc3_.ModifierWeight;
+         var _loc6_:Number = mRequiredLevel / 100 * _loc3_.LevelWeight + _loc2_ / _loc4_ * _loc3_.ModifierWeight;
          if(_loc8_)
          {
             _loc1_ = _loc8_.Price;

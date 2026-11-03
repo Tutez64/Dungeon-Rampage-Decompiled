@@ -26,8 +26,8 @@ package NetworkCode
       
       public function recvByIdLoop(packet:DcNetworkPacket) : void
       {
-         var _loc4_:* = 0;
-         var _loc2_:* = 0;
+         var _loc4_:uint = 0;
+         var _loc2_:uint = 0;
          var _loc3_:DcNetworkInterface = this as DcNetworkInterface;
          if(!packet.eof())
          {

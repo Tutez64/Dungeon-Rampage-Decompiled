@@ -37,7 +37,7 @@ package StateMachine.MainStateMachine
          super.destroy();
       }
       
-      private function errorDialogResponce() : void
+      private function errorDialogResponse() : void
       {
          NativeApplication.nativeApplication.exit();
       }
@@ -47,19 +47,19 @@ package StateMachine.MainStateMachine
          var _loc3_:DBUIOneButtonPopup = null;
          if(errorCode == 60)
          {
-            _loc3_ = new DBUIOneButtonPopup(mDBFacade,Locale.getString("SOCKET_CLOSE_60_HEADER"),Locale.getString("SOCKET_CLOSE_60_TEXT"),Locale.getString("EXIT"),errorDialogResponce,false);
+            _loc3_ = new DBUIOneButtonPopup(mDBFacade,"SOCKET_CLOSED_IDLE_POPUP",Locale.getString("SOCKET_CLOSE_60_HEADER"),Locale.getString("SOCKET_CLOSE_60_TEXT"),Locale.getString("EXIT"),errorDialogResponse,false);
          }
          else if(errorCode == 61)
          {
-            _loc3_ = new DBUIOneButtonPopup(mDBFacade,Locale.getString("SOCKET_CLOSE_61_HEADER"),Locale.getString("SOCKET_CLOSE_61_TEXT"),Locale.getString("EXIT"),errorDialogResponce,false);
+            _loc3_ = new DBUIOneButtonPopup(mDBFacade,"SOCKET_CLOSED_DUPLICATE_LOGIN_POPUP",Locale.getString("SOCKET_CLOSE_61_HEADER"),Locale.getString("SOCKET_CLOSE_61_TEXT"),Locale.getString("EXIT"),errorDialogResponse,false);
          }
          else if(errorCode == 1504)
          {
-            _loc3_ = new DBUIOneButtonPopup(mDBFacade,Locale.getString("SOCKET_CLOSE_61_HEADER"),errorText,Locale.getString("EXIT"),errorDialogResponce,false);
+            _loc3_ = new DBUIOneButtonPopup(mDBFacade,"MAINTENANCE_POPUP",Locale.getString("SOCKET_CLOSE_61_HEADER"),errorText,Locale.getString("EXIT"),errorDialogResponse,false);
          }
          else
          {
-            _loc3_ = new DBUIOneButtonPopup(mDBFacade,Locale.getString("SOCKET_UNEXPECT_CLOSE"),Locale.getError(errorCode) + "\n" + errorText,Locale.getString("CENTER_BUTTON_POPUP_RELOAD_TEXT"),errorDialogResponce,false);
+            _loc3_ = new DBUIOneButtonPopup(mDBFacade,"SOCKET_UNEXPECTED_CLOSE_POPUP",Locale.getString("SOCKET_UNEXPECT_CLOSE"),Locale.getError(errorCode) + "\n" + errorText,Locale.getString("CENTER_BUTTON_POPUP_RELOAD_TEXT"),errorDialogResponse,false);
          }
          MemoryTracker.track(_loc3_,"DBUIOneButtonPopup - created in SocketErrorState.enterReason()");
          mDBFacade.enteringSocketError();

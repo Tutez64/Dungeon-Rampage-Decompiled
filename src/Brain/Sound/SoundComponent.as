@@ -4,8 +4,8 @@ package Brain.Sound
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
    import Brain.Utils.MemoryTracker;
-   import org.as3commons.collections.Set;
-   import org.as3commons.collections.framework.ISetIterator;
+   import Collections.ISetIterator;
+   import Collections.Set;
    
    public class SoundComponent extends Component
    {

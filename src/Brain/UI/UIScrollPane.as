@@ -1,5 +1,6 @@
 package Brain.UI
 {
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import flash.display.MovieClip;
    import flash.events.MouseEvent;
@@ -72,11 +73,11 @@ package Brain.UI
          mMouseWheelDeltaMultiplier = deltaMultiplier;
          if(parentContainer == null)
          {
-            mRoot.addEventListener("mouseWheel",onMouseWheel);
+            EventListeners.add(mRoot,"mouseWheel",onMouseWheel);
          }
          else
          {
-            mParentContainer.addEventListener("mouseWheel",onMouseWheel);
+            EventListeners.add(mParentContainer,"mouseWheel",onMouseWheel);
          }
       }
       
@@ -92,17 +93,17 @@ package Brain.UI
          mMouseFlickDeltaMultiplier = deltaMultiplier;
          if(parentContainer == null)
          {
-            mRoot.addEventListener("mouseDown",onMouseDown);
-            mRoot.addEventListener("mouseMove",onMouseMove);
-            mRoot.addEventListener("mouseUp",onMouseUp);
+            EventListeners.add(mRoot,"mouseDown",onMouseDown);
+            EventListeners.add(mRoot,"mouseMove",onMouseMove);
+            EventListeners.add(mRoot,"mouseUp",onMouseUp);
          }
          else
          {
-            mParentContainer.addEventListener("mouseDown",onMouseDown);
-            mParentContainer.addEventListener("mouseMove",onMouseMove);
-            mParentContainer.addEventListener("mouseUp",onMouseUp);
+            EventListeners.add(mParentContainer,"mouseDown",onMouseDown);
+            EventListeners.add(mParentContainer,"mouseMove",onMouseMove);
+            EventListeners.add(mParentContainer,"mouseUp",onMouseUp);
          }
-         mFacade.stageRef.addEventListener("mouseUp",onMouseUp);
+         EventListeners.add(mFacade.stageRef,"mouseUp",onMouseUp);
       }
       
       public function onMouseDown(mEvt:MouseEvent) : void
@@ -143,19 +144,19 @@ package Brain.UI
          {
             if(mParentContainer == null)
             {
-               mRoot.removeEventListener("mouseWheel",onMouseWheel);
-               mRoot.removeEventListener("mouseDown",onMouseDown);
-               mRoot.removeEventListener("mouseMove",onMouseMove);
-               mRoot.removeEventListener("mouseUp",onMouseUp);
+               EventListeners.remove(mRoot,"mouseWheel",onMouseWheel);
+               EventListeners.remove(mRoot,"mouseDown",onMouseDown);
+               EventListeners.remove(mRoot,"mouseMove",onMouseMove);
+               EventListeners.remove(mRoot,"mouseUp",onMouseUp);
             }
             else
             {
-               mParentContainer.removeEventListener("mouseWheel",onMouseWheel);
-               mParentContainer.removeEventListener("mouseDown",onMouseDown);
-               mParentContainer.removeEventListener("mouseMove",onMouseMove);
-               mParentContainer.removeEventListener("mouseUp",onMouseUp);
+               EventListeners.remove(mParentContainer,"mouseWheel",onMouseWheel);
+               EventListeners.remove(mParentContainer,"mouseDown",onMouseDown);
+               EventListeners.remove(mParentContainer,"mouseMove",onMouseMove);
+               EventListeners.remove(mParentContainer,"mouseUp",onMouseUp);
             }
-            mFacade.stageRef.removeEventListener("mouseUp",onMouseUp);
+            EventListeners.remove(mFacade.stageRef,"mouseUp",onMouseUp);
          }
          mSlider = null;
          mParentContainer = null;

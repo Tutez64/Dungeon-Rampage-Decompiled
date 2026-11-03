@@ -9,12 +9,14 @@ package Effects
    import Brain.Utils.MemoryTracker;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
+   import Collections.IMapIterator;
+   import Collections.Map;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Floor.FloorObject;
    import Sound.DBSoundComponent;
    import flash.geom.Vector3D;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
+   import flash.utils.Dictionary;
    
    public class EffectManager
    {
@@ -24,6 +26,8 @@ package Effects
       private var mDBFacade:DBFacade;
       
       private var mManagedEffects:Map;
+      
+      private var mOutstandingEffects:Dictionary = new Dictionary();
       
       private var mSoundComponent:DBSoundComponent;
       
@@ -46,64 +50,78 @@ package Effects
          mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"EffectManager");
       }
       
+      private static function createPooledEffectRelease(effect:EffectGameObject, pool:EffectPool, outstanding:Dictionary) : Function
+      {
+         var release:Function = function():void
+         {
+            if(outstanding[effect] !== release)
+            {
+               return;
+            }
+            delete outstanding[effect];
+            if(!EffectView(effect.view).isArtLoaded)
+            {
+               effect.destroy();
+            }
+            else
+            {
+               pool.checkin(effect);
+            }
+         };
+         outstanding[effect] = release;
+         return release;
+      }
+      
       public function playLerpedEffect(swfPath:String, className:String, positionOffset:Vector3D, parentObject:FloorObject = null, lerpToActor:ActorGameObject = null, lerpSpeed:Number = 1, lerpGlowColor:uint = 13369344, behindAvatar:Boolean = false, scale:Number = 1, rotation:Number = 0, rotationX:Number = 0, rotationY:Number = 0, rotationZ:Number = 0, loop:Boolean = false, layerName:String = "sorted", isManaged:Boolean = false, playRate:Number = 1, assetLoadedCallback:Function = null) : void
       {
+         if(parentObject == null || !parentObject.hasPosition)
+         {
+            return;
+         }
          var _loc19_:LerpEffectGameObject = new LerpEffectGameObject(mDBFacade,swfPath,className,playRate,0,assetLoadedCallback,lerpToActor,lerpSpeed,lerpGlowColor);
          MemoryTracker.track(_loc19_,"LerpEffectGameObject \'" + swfPath + ":" + className + "\' - created in EffectManager.playLerpedEffect()","pool");
          _loc19_.view.root.scaleX = _loc19_.view.root.scaleY = _loc19_.view.root.scaleZ = scale;
          _loc19_.position = parentObject.position.add(positionOffset);
          _loc19_.layer = SceneGraphManager.getLayerFromName(layerName);
          _loc19_.view.addToStage();
+         EffectView(_loc19_.view).play(true,null);
       }
       
-      public function playEffect(swfPath:String, className:String, position:Vector3D, parentObject:FloorObject = null, behindAvatar:Boolean = false, scale:Number = 1, rotation:Number = 0, rotationX:Number = 0, rotationY:Number = 0, rotationZ:Number = 0, loop:Boolean = false, layerName:String = "sorted", isManaged:Boolean = false, playRate:Number = 1, assetLoadedCallback:Function = null) : uint
+      public function playEffect(swfPath:String, className:String, position:Vector3D, parentObject:FloorObject = null, behindAvatar:Boolean = false, scale:Number = 1, rotation:Number = 0, rotationX:Number = 0, rotationY:Number = 0, rotationZ:Number = 0, loop:Boolean = false, layerName:String = "sorted", isManaged:Boolean = false, playRate:Number = 1, assetLoadedCallback:Function = null, iconInsert:EffectIconInsert = null, fallbackCategory:String = null) : uint
       {
-         var effectGameObject:EffectGameObject;
-         var pool:EffectPool;
+         var _loc18_:EffectGameObject = null;
+         var _loc19_:Function = null;
          if(isManaged)
          {
-            effectGameObject = new EffectGameObject(mDBFacade,swfPath,className,playRate,0,assetLoadedCallback);
-            MemoryTracker.track(effectGameObject,"EffectGameObject \'" + swfPath + ":" + className + "\' - created in EffectManager.playEffect()","pool");
+            _loc18_ = new EffectGameObject(mDBFacade,swfPath,className,playRate,0,assetLoadedCallback,iconInsert,fallbackCategory);
+            MemoryTracker.track(_loc18_,"EffectGameObject \'" + swfPath + ":" + className + "\' - created in EffectManager.playEffect()","pool");
          }
          else
          {
-            effectGameObject = mDBFacade.effectPool.checkout(mDBFacade,swfPath,className,assetLoadedCallback) as EffectGameObject;
+            _loc18_ = mDBFacade.effectPool.checkout(mDBFacade,swfPath,className,assetLoadedCallback,iconInsert,playRate) as EffectGameObject;
+            _loc19_ = createPooledEffectRelease(_loc18_,mDBFacade.effectPool,mOutstandingEffects);
          }
-         effectGameObject.view.root.scaleX = effectGameObject.view.root.scaleY = effectGameObject.view.root.scaleZ = scale;
-         effectGameObject.rotation = rotation;
-         effectGameObject.view.rotationX = rotationX;
-         effectGameObject.view.rotationY = rotationY;
-         effectGameObject.view.rotationZ = rotationZ;
-         effectGameObject.position = position;
+         _loc18_.view.root.scaleX = _loc18_.view.root.scaleY = _loc18_.view.root.scaleZ = scale;
+         _loc18_.rotation = rotation;
+         _loc18_.view.rotationX = rotationX;
+         _loc18_.view.rotationY = rotationY;
+         _loc18_.view.rotationZ = rotationZ;
+         _loc18_.position = position;
          if(parentObject)
          {
-            if(behindAvatar)
-            {
-               parentObject.view.root.addChildAt(effectGameObject.view.root,0);
-            }
-            else
-            {
-               parentObject.view.root.addChild(effectGameObject.view.root);
-            }
+            EffectView(_loc18_.view).attachToParent(parentObject.view.root,behindAvatar);
          }
          else
          {
-            effectGameObject.layer = SceneGraphManager.getLayerFromName(layerName);
-            effectGameObject.view.addToStage();
+            _loc18_.layer = SceneGraphManager.getLayerFromName(layerName);
+            _loc18_.view.addToStage();
          }
-         pool = mDBFacade.effectPool;
-         EffectView(effectGameObject.view).play(loop,function():void
-         {
-            if(!isManaged)
-            {
-               pool.checkin(effectGameObject);
-            }
-         });
+         EffectView(_loc18_.view).play(loop,_loc19_);
          if(isManaged)
          {
-            mManagedEffects.add(effectGameObject.id,effectGameObject);
+            mManagedEffects.add(_loc18_.id,_loc18_);
          }
-         return effectGameObject.id;
+         return _loc18_.id;
       }
       
       public function playSoundEffect(soundSwfPath:String, soundName:String) : void
@@ -124,11 +142,17 @@ package Effects
          }
       }
       
+      public function managedEffectView(effectID:uint) : EffectView
+      {
+         var _loc2_:EffectGameObject = mManagedEffects != null ? mManagedEffects.itemFor(effectID) : null;
+         return _loc2_ != null ? _loc2_.view as EffectView : null;
+      }
+      
       public function playNotEnoughManaEffects() : void
       {
          if(mNotEnoughManaDisplayTask == null)
          {
-            playSoundEffect(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),"OutOfMana");
+            playSoundEffect(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),"OutOfMana");
             mDBFacade.hud.showNotEnoughMana();
             mNotEnoughManaDisplayTask = mLogicalWorkComponent.doLater(2,function(param1:GameClock):void
             {
@@ -140,8 +164,22 @@ package Effects
       
       public function destroy() : void
       {
-         var _loc2_:IMapIterator = null;
-         var _loc1_:EffectGameObject = null;
+         var _loc5_:Array = null;
+         var _loc4_:IMapIterator = null;
+         var _loc3_:EffectGameObject = null;
+         if(mOutstandingEffects)
+         {
+            _loc5_ = [];
+            for each(var _loc2_:Function in mOutstandingEffects)
+            {
+               _loc5_.push(_loc2_);
+            }
+            for each(var _loc1_:Function in _loc5_)
+            {
+               _loc1_();
+            }
+            mOutstandingEffects = null;
+         }
          mDBFacade = null;
          mLogicalWorkComponent.destroy();
          mLogicalWorkComponent = null;
@@ -151,11 +189,11 @@ package Effects
          mSoundComponent = null;
          if(mManagedEffects)
          {
-            _loc2_ = mManagedEffects.iterator() as IMapIterator;
-            while(_loc2_.hasNext())
+            _loc4_ = mManagedEffects.iterator() as IMapIterator;
+            while(_loc4_.hasNext())
             {
-               _loc1_ = _loc2_.next();
-               _loc1_.destroy();
+               _loc3_ = _loc4_.next();
+               _loc3_.destroy();
             }
             mManagedEffects.clear();
             mManagedEffects = null;

@@ -1,49 +1,80 @@
 package Box2D.Common
 {
    import Box2D.Common.Math.b2Math;
+   import flash.Boot;
    
    public class b2Color
    {
       
-      private var _r:uint = 0;
+      public var r:Number;
       
-      private var _g:uint = 0;
+      public var g:Number;
       
-      private var _b:uint = 0;
+      public var color:int;
       
-      public function b2Color(rr:Number, gg:Number, bb:Number)
+      public var b:Number;
+      
+      public var _r:int;
+      
+      public var _g:int;
+      
+      public var _b:int;
+      
+      public function b2Color(rr:Number = 0, gg:Number = 0, bb:Number = 0)
       {
-         super();
-         this._r = uint(255 * b2Math.Clamp(rr,0,1));
-         this._g = uint(255 * b2Math.Clamp(gg,0,1));
-         this._b = uint(255 * b2Math.Clamp(bb,0,1));
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         _r = int(255 * b2Math.clamp(rr,0,1));
+         _g = int(255 * b2Math.clamp(gg,0,1));
+         _b = int(255 * b2Math.clamp(bb,0,1));
+      }
+      
+      public function set_r(rr:Number) : Number
+      {
+         return _r = int(255 * b2Math.clamp(rr,0,1));
+      }
+      
+      public function set_g(gg:Number) : Number
+      {
+         return _g = int(255 * b2Math.clamp(gg,0,1));
+      }
+      
+      public function set_b(bb:Number) : Number
+      {
+         return _b = int(255 * b2Math.clamp(bb,0,1));
+      }
+      
+      public function set(rr:Number, gg:Number, bb:Number) : void
+      {
+         Set(rr,gg,bb);
+      }
+      
+      public function get_color() : int
+      {
+         return _r << 16 | _g << 8 | _b;
+      }
+      
+      public function getString(alpha:Number = 1) : String
+      {
+         return GetString(alpha);
       }
       
       public function Set(rr:Number, gg:Number, bb:Number) : void
       {
-         this._r = uint(255 * b2Math.Clamp(rr,0,1));
-         this._g = uint(255 * b2Math.Clamp(gg,0,1));
-         this._b = uint(255 * b2Math.Clamp(bb,0,1));
+         _r = int(255 * b2Math.clamp(rr,0,1));
+         _g = int(255 * b2Math.clamp(gg,0,1));
+         _b = int(255 * b2Math.clamp(bb,0,1));
       }
       
-      public function set r(rr:Number) : void
+      public function GetString(alpha:Number = 1) : String
       {
-         this._r = uint(255 * b2Math.Clamp(rr,0,1));
-      }
-      
-      public function set g(gg:Number) : void
-      {
-         this._g = uint(255 * b2Math.Clamp(gg,0,1));
-      }
-      
-      public function set b(bb:Number) : void
-      {
-         this._b = uint(255 * b2Math.Clamp(bb,0,1));
-      }
-      
-      public function get color() : uint
-      {
-         return this._r << 16 | this._g << 8 | this._b;
+         if(alpha == 1)
+         {
+            return "#" + StringTools.hex((_r & 0xFF) << 16 | (_g & 0xFF) << 8 | _b & 0xFF);
+         }
+         return "rgba(" + _r + "," + _g + "," + _b + "," + alpha + ")";
       }
    }
 }

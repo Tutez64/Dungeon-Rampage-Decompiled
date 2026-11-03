@@ -1,7 +1,7 @@
 package Brain.AssetRepository
 {
-   import org.as3commons.collections.Set;
-   import org.as3commons.collections.framework.core.SetIterator;
+   import Collections.Set;
+   import Collections.SetIterator;
    
    public class ActiveLoadBase
    {
@@ -51,7 +51,7 @@ package Brain.AssetRepository
       
       public function hasNoCallbacks() : Boolean
       {
-         return mPendingSuccessCallback.size != 0 || mPendingErrorCallbacks.size != 0;
+         return mPendingSuccessCallback.size == 0 && mPendingErrorCallbacks.size == 0;
       }
       
       public function executeErrorCallbacks(assetLoaderInfo:AssetLoaderInfo) : void

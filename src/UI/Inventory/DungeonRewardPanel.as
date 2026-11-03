@@ -2,6 +2,7 @@ package UI.Inventory
 {
    import Account.ChestInfo;
    import Brain.AssetRepository.AssetLoadingComponent;
+   import Brain.UI.UIObject;
    import DistributedObjects.DistributedDungeonSummary;
    import Facade.DBFacade;
    import GameMasterDictionary.GMChest;
@@ -37,8 +38,8 @@ package UI.Inventory
       {
          var _loc2_:DungeonRewardElement = null;
          var _loc3_:ChestInfo = null;
-         var _loc5_:* = 0;
-         var _loc4_:* = 0;
+         var _loc5_:uint = 0;
+         var _loc4_:uint = 0;
          clearRewardPanel();
          mDungeonRewardElements = new Vector.<DungeonRewardElement>();
          var _loc1_:DungeonReport = mDungeonSummary.report[0];
@@ -90,7 +91,7 @@ package UI.Inventory
       
       public function setChestAsSelected(chestGM:GMChest) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          _loc2_ = 0;
          while(_loc2_ < mDungeonRewardElements.length)
          {
@@ -110,7 +111,7 @@ package UI.Inventory
       
       private function clearRewardPanel() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          if(mDungeonRewardElements == null)
          {
             return;
@@ -118,14 +119,15 @@ package UI.Inventory
          _loc1_ = 0;
          while(_loc1_ < mDungeonRewardElements.length)
          {
-            mDungeonRewardElements[_loc1_].clear();
+            mDungeonRewardElements[_loc1_].destroy();
             _loc1_++;
          }
+         mDungeonRewardElements = null;
       }
       
       public function removeChestFromInventory(chestInfo:ChestInfo) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          _loc2_ = 0;
          while(_loc2_ < mDungeonRewardElements.length)
          {
@@ -149,7 +151,7 @@ package UI.Inventory
       
       public function highlightChest(chestInfo:ChestInfo) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          _loc2_ = 0;
          while(_loc2_ < mDungeonRewardElements.length)
          {
@@ -167,7 +169,7 @@ package UI.Inventory
       
       public function clearHighlights() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          _loc1_ = 0;
          while(_loc1_ < mDungeonRewardElements.length)
          {
@@ -176,9 +178,80 @@ package UI.Inventory
          }
       }
       
+      public function setupChestCardNavigation(abandonButton:UIObject, keepButton:UIObject, selectedChest:ChestInfo) : UIObject
+      {
+         var _loc4_:DungeonRewardElement = null;
+         var _loc5_:uint = 0;
+         var _loc6_:DungeonRewardElement = null;
+         _loc5_ = 0;
+         while(_loc5_ < mDungeonRewardElements.length)
+         {
+            _loc6_ = mDungeonRewardElements[_loc5_];
+            _loc6_.clearNavigationAndInteractions();
+            if(_loc5_ == 0)
+            {
+               abandonButton.downNavigation = _loc6_;
+               _loc6_.upNavigation = abandonButton;
+            }
+            else if(_loc5_ == 1)
+            {
+               keepButton.downNavigation = _loc6_;
+               _loc6_.upNavigation = keepButton;
+            }
+            if(_loc4_ != null)
+            {
+               _loc4_.isToTheLeftOf(_loc6_);
+            }
+            _loc4_ = _loc6_;
+            _loc5_++;
+         }
+         return getNavigationEntry(selectedChest);
+      }
+      
+      public function getNavigationEntry(selectedChest:ChestInfo) : UIObject
+      {
+         var _loc2_:DungeonRewardElement = null;
+         for each(var _loc3_:DungeonRewardElement in mDungeonRewardElements)
+         {
+            if(_loc2_ == null)
+            {
+               _loc2_ = _loc3_;
+            }
+            if(selectedChest != null && _loc3_.chestInfo.gmId == selectedChest.gmId)
+            {
+               return _loc3_;
+            }
+         }
+         return _loc2_;
+      }
+      
+      public function setupInventoryChestNavigation(abandonButton:UIObject) : void
+      {
+         var _loc2_:DungeonRewardElement = null;
+         var _loc3_:uint = 0;
+         var _loc4_:DungeonRewardElement = null;
+         _loc3_ = 0;
+         while(_loc3_ < mDungeonRewardElements.length)
+         {
+            _loc4_ = mDungeonRewardElements[_loc3_];
+            _loc4_.clearNavigationAndInteractions();
+            if(_loc3_ == 0)
+            {
+               abandonButton.downNavigation = _loc4_;
+               _loc4_.upNavigation = abandonButton;
+            }
+            if(_loc2_ != null)
+            {
+               _loc2_.isToTheLeftOf(_loc4_);
+            }
+            _loc2_ = _loc4_;
+            _loc3_++;
+         }
+      }
+      
       public function destroy() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          mDungeonSummary = null;
          mRewardPanel = null;
          mDBFacade = null;

@@ -7,9 +7,9 @@ package Events
       
       public static const EVENT_NAME:String = "PLAYER_ENDED_ATTACK_STATE";
       
-      public function HeroOwnerEndedAttackStateEvent(type:String, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function HeroOwnerEndedAttackStateEvent(inType:String, bubbles:Boolean = false, cancelable:Boolean = false)
       {
-         super(type,bubbles,cancelable);
+         super(inType,bubbles,cancelable);
       }
    }
 }

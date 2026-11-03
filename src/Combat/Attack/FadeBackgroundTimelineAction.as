@@ -46,6 +46,10 @@ package Combat.Attack
             return;
          }
          super.execute(timeline);
+         if(!mDBFacade.featureFlags.getFlagValue("want-buster-background-fade"))
+         {
+            return;
+         }
          var _loc2_:Array = [];
          _loc2_.push(mActorView.root);
          mDBFacade.camera.fadeBackground(_loc2_,mDuration,mTransitionDuration,mColor,mAlpha);

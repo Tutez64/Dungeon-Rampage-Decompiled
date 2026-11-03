@@ -19,6 +19,7 @@ package Projectile
    import DBGlobals.DBGlobal;
    import DistributedObjects.DistributedDungeonFloor;
    import DistributedObjects.HeroGameObjectOwner;
+   import DistributedObjects.NPCGameObject;
    import Dungeon.NavCollider;
    import Facade.DBFacade;
    import Floor.FloorObject;
@@ -93,9 +94,11 @@ package Projectile
       
       private var mLastHitWall:Boolean = false;
       
+      private var mFloorIsShuttingDown:Boolean = false;
+      
       protected var mRange:Number = 0;
       
-      public function ProjectileGameObject(dbFacade:DBFacade, actorId:uint, actorTeam:uint, attackType:uint, weapon:WeaponGameObject, distDungeonfloor:DistributedDungeonFloor, collisionPosition:Vector3D, directionVector:Vector3D, visualOffset:Vector3D, range:Number = 0, effectObject:Object = null, combatResultCallback:Function = null, autoAim:Boolean = true, dontRotate:Boolean = false, generation:uint = 0)
+      public function ProjectileGameObject(dbFacade:DBFacade, actorId:uint, actorTeam:uint, attackType:uint, weapon:WeaponGameObject, distDungeonFloor:DistributedDungeonFloor, collisionPosition:Vector3D, directionVector:Vector3D, visualOffset:Vector3D, range:Number = 0, effectObject:Object = null, combatResultCallback:Function = null, autoAim:Boolean = true, dontRotate:Boolean = false, generation:uint = 0)
       {
          mCombatResultCallback = combatResultCallback;
          mAttackType = attackType;
@@ -124,7 +127,7 @@ package Projectile
          mCollisionScale = weapon != null ? weapon.collisionScale() : 1;
          mRange = range == 0 ? mGMProjectile.Range : range;
          super(dbFacade);
-         this.layer = mGMProjectile.NoFade == true ? 46 : 20;
+         this.layer = mGMProjectile.NoFade ? 46 : 20;
          if(mEffectObject.layer == "foreground")
          {
             this.layer = 30;
@@ -137,7 +140,8 @@ package Projectile
          {
             this.layer = 20;
          }
-         distributedDungeonFloor = distDungeonfloor;
+         distributedDungeonFloor = distDungeonFloor;
+         mDistributedDungeonFloor.registerProjectile(this);
          mWeaponGameObject = weapon;
          var _loc22_:uint = 0;
          var _loc23_:uint = 0;
@@ -158,7 +162,7 @@ package Projectile
          var _loc17_:b2CircleShape = new b2CircleShape(mGMProjectile.CollisionSize * mCollisionScale / 50);
          _loc19_.shape = _loc17_;
          var _loc20_:b2FilterData = new b2FilterData();
-         _loc20_.categoryBits = 2;
+         _loc20_.categoryBits = DBGlobal.B2D_COMBAT_MASK;
          _loc20_.maskBits = 0;
          _loc20_.groupIndex = -1;
          if(mGMProjectile.CollisionSize > 0)
@@ -172,7 +176,7 @@ package Projectile
                   _loc20_.maskBits |= DBGlobal.b2dMaskForAllTeamsBut(mParentActorTeam);
             }
          }
-         _loc20_.maskBits |= 1;
+         _loc20_.maskBits |= DBGlobal.B2D_ENVIRONMENT_MASK;
          _loc19_.filter = _loc20_;
          _loc19_.isSensor = true;
          _loc19_.userData = this.id;
@@ -465,24 +469,42 @@ package Projectile
          }
       }
       
+      public function destroyForFloorShutdown() : void
+      {
+         mFloorIsShuttingDown = true;
+         destroy();
+      }
+      
       override public function destroy() : void
       {
+         var _loc1_:ActorGameObject = null;
          var _loc2_:GMNpc = null;
          var _loc3_:HeroGameObjectOwner = null;
-         if(mGMAttack.SetTeleport)
+         if(mIsDestroyed)
          {
-            setTeleDest();
+            return;
          }
-         if(mGMAttack.AttackOnHit)
+         if(!mFloorIsShuttingDown)
          {
-            doAttackOnHit();
+            if(mGMAttack.SetTeleport)
+            {
+               setTeleDest();
+            }
+            if(mGMAttack.AttackOnHit)
+            {
+               doAttackOnHit();
+            }
+            _loc1_ = mDistributedDungeonFloor.getActor(mParentActorId);
+            if(_loc1_ && _loc1_.isOwner && mGMProjectile && mGMProjectile.OnDeathNPC)
+            {
+               _loc2_ = mDBFacade.gameMaster.npcByConstant.itemFor(mGMProjectile.OnDeathNPC);
+               _loc3_ = _loc1_ as HeroGameObjectOwner;
+               _loc3_.ProposeCreateNPC(_loc2_.Id,this.weapon.slot,position.x,position.y);
+            }
          }
-         var _loc1_:ActorGameObject = mDistributedDungeonFloor.getActor(mParentActorId);
-         if(_loc1_ && _loc1_.isOwner && mGMProjectile && mGMProjectile.OnDeathNPC)
+         if(mDistributedDungeonFloor)
          {
-            _loc2_ = mDBFacade.gameMaster.npcByConstant.itemFor(mGMProjectile.OnDeathNPC);
-            _loc3_ = _loc1_ as HeroGameObjectOwner;
-            _loc3_.ProposeCreateNPC(_loc2_.Id,this.weapon.slot,position.x,position.y);
+            mDistributedDungeonFloor.unregisterProjectile(this);
          }
          mIsAlive = false;
          mWeaponGameObject = null;
@@ -518,6 +540,18 @@ package Projectile
             mCollisionComponent = null;
          }
          super.destroy();
+      }
+      
+      public function get belongsToRemotePlayer() : Boolean
+      {
+         var _loc1_:ActorGameObject = mDistributedDungeonFloor != null ? mDistributedDungeonFloor.getActor(mParentActorId) : null;
+         return _loc1_ != null && _loc1_.belongsToRemotePlayer;
+      }
+      
+      public function get backgroundLoadTier() : int
+      {
+         var _loc1_:ActorGameObject = mDistributedDungeonFloor != null ? mDistributedDungeonFloor.getActor(mParentActorId) : null;
+         return _loc1_ is NPCGameObject ? 4 : 2;
       }
       
       public function get parentActorSkinId() : uint

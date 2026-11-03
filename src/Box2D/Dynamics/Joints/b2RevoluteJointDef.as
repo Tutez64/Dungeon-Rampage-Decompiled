@@ -1,54 +1,62 @@
 package Box2D.Dynamics.Joints
 {
    import Box2D.Common.Math.b2Vec2;
-   import Box2D.Common.b2internal;
    import Box2D.Dynamics.b2Body;
-   
-   use namespace b2internal;
+   import flash.Boot;
    
    public class b2RevoluteJointDef extends b2JointDef
    {
       
-      public var localAnchorA:b2Vec2 = new b2Vec2();
-      
-      public var localAnchorB:b2Vec2 = new b2Vec2();
-      
-      public var referenceAngle:Number;
-      
-      public var enableLimit:Boolean;
-      
-      public var lowerAngle:Number;
-      
       public var upperAngle:Number;
       
-      public var enableMotor:Boolean;
+      public var referenceAngle:Number;
       
       public var motorSpeed:Number;
       
       public var maxMotorTorque:Number;
       
+      public var lowerAngle:Number;
+      
+      public var localAnchorB:b2Vec2;
+      
+      public var localAnchorA:b2Vec2;
+      
+      public var enableMotor:Boolean;
+      
+      public var enableLimit:Boolean;
+      
       public function b2RevoluteJointDef()
       {
-         super();
-         type = b2Joint.e_revoluteJoint;
-         this.localAnchorA.Set(0,0);
-         this.localAnchorB.Set(0,0);
-         this.referenceAngle = 0;
-         this.lowerAngle = 0;
-         this.upperAngle = 0;
-         this.maxMotorTorque = 0;
-         this.motorSpeed = 0;
-         this.enableLimit = false;
-         this.enableMotor = false;
+         if(!Boot.skip_constructor)
+         {
+            super();
+            localAnchorA = new b2Vec2();
+            localAnchorB = new b2Vec2();
+            type = 1;
+            localAnchorA.set(0,0);
+            localAnchorB.set(0,0);
+            referenceAngle = 0;
+            lowerAngle = 0;
+            upperAngle = 0;
+            maxMotorTorque = 0;
+            motorSpeed = 0;
+            enableLimit = false;
+            enableMotor = false;
+         }
+      }
+      
+      public function initialize(bA:b2Body, bB:b2Body, anchor:b2Vec2) : void
+      {
+         Initialize(bA,bB,anchor);
       }
       
       public function Initialize(bA:b2Body, bB:b2Body, anchor:b2Vec2) : void
       {
          bodyA = bA;
          bodyB = bB;
-         this.localAnchorA = bodyA.GetLocalPoint(anchor);
-         this.localAnchorB = bodyB.GetLocalPoint(anchor);
-         this.referenceAngle = bodyB.GetAngle() - bodyA.GetAngle();
+         localAnchorA = bodyA.getLocalPoint(anchor);
+         localAnchorB = bodyB.getLocalPoint(anchor);
+         referenceAngle = bodyB.getAngle() - bodyA.getAngle();
       }
    }
 }

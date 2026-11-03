@@ -158,7 +158,7 @@ package Brain.Render
       override protected function determineFrames(clip:MovieClip) : void
       {
          var _loc3_:Number = NaN;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc2_:String = null;
          if(clip.currentLabels)
          {

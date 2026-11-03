@@ -6,8 +6,6 @@ package Brain.Utils
    public class FeatureFlags
    {
       
-      public static const USE_HD_ASSETS:String = "use-hd-assets";
-      
       public static const WANT_ZOOM:String = "want-zoom";
       
       public static const WANT_DYNAMIC_RARITY_BACKGROUNDS:String = "want-dynamic-rarity-backgrounds";
@@ -32,7 +30,37 @@ package Brain.Utils
       
       public static const WANT_STEAM_ACHIEVEMENTS:String = "want-steam-achievements";
       
+      public static const FILE_LOGGING_BY_DEFAULT:String = "file-logging-by-default";
+      
+      public static const START_WINDOWED:String = "start-windowed";
+      
+      public static const DEBUG_OUTLINE_SWF_FALLBACK_PROPS:String = "debug-outline-swf-fallback-props";
+      
+      public static const DEBUG_OUTLINE_SWF_FALLBACK:String = "debug-outline-swf-fallback";
+      
+      public static const AUTO_SIZE_TEXT:String = "auto-size-text";
+      
+      public static const WANT_WEAPON_CURSORS:String = "want-weapon-cursors";
+      
+      public static const WANT_CONTROLLER_RUMBLE:String = "want-controller-rumble";
+      
       public static const EXPERIMENTAL_WEBSOCKET_RECONNECTS:String = "experimental-websocket-reconnects";
+      
+      public static const SUBPIXEL_CAMERA_TRANSLATION:String = "subpixel-camera-translation";
+      
+      public static const BAKE_STATIC_LAYERS:String = "bake-static-layers";
+      
+      public static const SMOOTH_RUN_AND_DIRECTION_STATES:String = "smooth-run-and-direction-states";
+      
+      public static const SKIP_ROOT_LABELLED_CLIP_FOLDERS:String = "skip-root-labelled-clip-folders";
+      
+      public static const LOADING_PREWARM_HOLD:String = "loading-prewarm-hold";
+      
+      public static const STARLING_OVERLAYS:String = "starling-overlays";
+      
+      public static const STARLING_HUD:String = "starling-hud";
+      
+      public static const STARLING_CHAT_PROMPT:String = "starling-chat-prompt";
       
       private var mFeatureFlags:Dictionary;
       
@@ -41,20 +69,34 @@ package Brain.Utils
          super();
          mFeatureFlags = new Dictionary();
          MemoryTracker.track(mFeatureFlags,"Dictionary - feature flags storage in FeatureFlags()","brain");
-         addFeatureFlag("use-hd-assets",false,"--experimental-use-hd-assets","experimental_use_hd_assets");
-         addFeatureFlag("want-zoom",false);
-         addFeatureFlag("want-dynamic-rarity-backgrounds",false);
-         addFeatureFlag("want-damage-floaters",false);
+         addFeatureFlag("want-zoom",true);
+         addFeatureFlag("want-dynamic-rarity-backgrounds",true);
+         addFeatureFlag("want-damage-floaters",true);
          addFeatureFlag("want-town-animations",false);
-         addFeatureFlag("want-buster-background-fade",false);
-         addFeatureFlag("want-pickup-ui-pop",false);
+         addFeatureFlag("want-buster-background-fade",true);
+         addFeatureFlag("want-pickup-ui-pop",true);
          addFeatureFlag("want-mana-bars",false);
          addFeatureFlag("quality-control-button",true);
          addFeatureFlag("want-numbered-hud",false);
-         addFeatureFlag("want-hud-refresh-on-floor-transition",false);
-         addFeatureFlag("experimental-use-steam-input",false);
+         addFeatureFlag("want-hud-refresh-on-floor-transition",true);
+         addFeatureFlag("experimental-use-steam-input",true);
+         addFeatureFlag("want-steam-achievements",true);
+         addFeatureFlag("start-windowed",false);
+         addFeatureFlag("file-logging-by-default",false);
+         addFeatureFlag("debug-outline-swf-fallback-props",false);
+         addFeatureFlag("debug-outline-swf-fallback",false);
+         addFeatureFlag("auto-size-text",true);
+         addFeatureFlag("want-weapon-cursors",false);
+         addFeatureFlag("want-controller-rumble",true);
          addFeatureFlag("experimental-websocket-reconnects",false);
-         addFeatureFlag("want-steam-achievements",false);
+         addFeatureFlag("subpixel-camera-translation",false);
+         addFeatureFlag("bake-static-layers",true);
+         addFeatureFlag("smooth-run-and-direction-states",false);
+         addFeatureFlag("skip-root-labelled-clip-folders",false);
+         addFeatureFlag("loading-prewarm-hold",true);
+         addFeatureFlag("starling-overlays",true);
+         addFeatureFlag("starling-hud",true);
+         addFeatureFlag("starling-chat-prompt",true);
       }
       
       private function addFeatureFlag(name:String, defaultValue:Boolean, commandLineFlag:String = null, configFileAttributeName:String = null) : void
@@ -67,6 +109,11 @@ package Brain.Utils
          return mFeatureFlags[name].currentValue;
       }
       
+      public function getFlagDefaultValue(name:String) : Boolean
+      {
+         return mFeatureFlags[name].defaultValue;
+      }
+      
       public function setFlagDatabaseValueOnFirstLoad(flagName:String, value:Boolean) : void
       {
          mFeatureFlags[flagName].setDbValue(value);
@@ -75,6 +122,21 @@ package Brain.Utils
       public function setFlagConfigFileValue(flagName:String, value:Boolean) : void
       {
          mFeatureFlags[flagName].setConfigFileValue(value);
+      }
+      
+      public function setFlagStoredSettingValue(flagName:String, value:Boolean) : void
+      {
+         mFeatureFlags[flagName].setStoredSettingValue(value);
+      }
+      
+      public function clearFlagPlayerValues(flagName:String) : void
+      {
+         mFeatureFlags[flagName].clearPlayerValues();
+      }
+      
+      public function setFlagCliValue(flagName:String, value:Boolean) : void
+      {
+         mFeatureFlags[flagName].setCliValue(value);
       }
       
       public function setFlagOverrideValue(flagName:String, value:Boolean) : void

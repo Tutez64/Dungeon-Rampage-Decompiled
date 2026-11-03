@@ -2,6 +2,7 @@ package DistributedObjects
 {
    import Actor.ActorData;
    import Actor.ActorGameObject;
+   import Actor.DamageCurve;
    import Actor.HeroData;
    import Actor.Player.HeroStateMachine;
    import Actor.Player.HeroView;
@@ -10,12 +11,13 @@ package DistributedObjects
    import Brain.Utils.MemoryTracker;
    import Combat.Attack.AttackTimeline;
    import Combat.Weapon.ConsumableWeaponGameObject;
+   import DBGlobals.DBGlobal;
    import Events.BusterPointsEvent;
    import Events.ChatEvent;
    import Events.ExperienceEvent;
-   import Events.FacebookLevelUpPostEvent;
    import Events.GameObjectEvent;
    import Events.HpEvent;
+   import Events.LevelUpPostEvent;
    import Events.ManaEvent;
    import Events.PlayerIsTypingEvent;
    import Facade.DBFacade;
@@ -41,6 +43,16 @@ package DistributedObjects
       
       public static const LEGENDARY_MOD_ACCELERATION:uint = 3;
       
+      public static const LEGENDARY_MOD_BEASTMASTER:uint = 4;
+      
+      public static const LEGENDARY_MOD_BARRIER:uint = 10;
+      
+      public static const LEGENDARY_MOD_COVER:uint = 11;
+      
+      public static const LEGENDARY_MOD_COMPREHENSION:uint = 12;
+      
+      private static const LEGENDARY_MOD_DEFENSE:Number = 0.5;
+      
       public static const MAX_HEALTH_BOMBS_PER_DUNGEON:uint = 3;
       
       public static const MAX_PARTY_BOMBS_PER_DUNGEON:uint = 3;
@@ -56,6 +68,8 @@ package DistributedObjects
       protected var mBusterPoints:uint;
       
       protected var mExperiencePoints:uint;
+      
+      protected var mAscensionLevel:uint;
       
       protected var mHeroView:HeroView;
       
@@ -77,11 +91,19 @@ package DistributedObjects
       
       protected var mHealthBombsUsed:uint = 0;
       
-      protected var mStaminaModMultiplier:Number;
+      protected var mStaminaModMultiplier:Number = 0;
       
-      protected var mAptitudeModMultiplier:Number;
+      protected var mAptitudeModMultiplier:Number = 0;
       
-      protected var mAccelerationModMultiplier:Number;
+      protected var mAccelerationModMultiplier:Number = 0;
+      
+      protected var mBeastMasterModMultiplier:Number = 0;
+      
+      protected var mBarrierModMultiplier:Number = 0;
+      
+      protected var mCoverModMultiplier:Number = 0;
+      
+      protected var mComprehensionModMultiplier:Number = 0;
       
       protected var mConsumableDetails:Vector.<ConsumableDetails>;
       
@@ -98,6 +120,11 @@ package DistributedObjects
       override protected function processJsonNavCollisions(navCollisions:Array, addFunc:Function) : void
       {
          super.processJsonNavCollisions(navCollisions,addFunc);
+      }
+      
+      override public function get belongsToRemotePlayer() : Boolean
+      {
+         return !isOwner;
       }
       
       override protected function buildView() : void
@@ -203,7 +230,6 @@ package DistributedObjects
             if(mGMSkin == null)
             {
                Logger.error("Unable to find default skin with constant: " + gMHero.DefaultSkin);
-               return;
             }
          }
       }
@@ -238,18 +264,23 @@ package DistributedObjects
       public function set experiencePoints(exp:uint) : void
       {
          var _loc2_:uint = mLevel;
+         var _loc3_:uint = uint(actorData ? this.gMHero.getBaseLevelFromExp(mExperiencePoints) : 0);
          mExperiencePoints = exp;
          if(actorData)
          {
-            this.level = this.gMHero.getLevelFromExp(mExperiencePoints);
+            this.level = this.gMHero.getLevelFromExp(mExperiencePoints,mAscensionLevel);
+            if(this.gMHero.getBaseLevelFromExp(mExperiencePoints) != _loc3_)
+            {
+               refreshStatVector();
+            }
          }
          if(mLevel != _loc2_)
          {
             mHeroView.playHeroLevelUpEffects();
-            mDBFacade.steamAchievementsManager.setHeroLevelStat(mLevel,this.gMHero);
             if(this is HeroGameObjectOwner)
             {
-               mFacade.eventManager.dispatchEvent(new FacebookLevelUpPostEvent("FacebookLevelUpPostEvent",mLevel));
+               mDBFacade.steamAchievementsHelper.updateHeroLevelStat(this.gMHero.Constant,mLevel,mAscensionLevel);
+               mFacade.eventManager.dispatchEvent(new LevelUpPostEvent("LevelUpPostEvent",mLevel));
             }
          }
          mFacade.eventManager.dispatchEvent(new ExperienceEvent("ExperienceEvent_EXPERIENCE_UPDATE",id,mExperiencePoints));
@@ -269,6 +300,16 @@ package DistributedObjects
       public function get experiencePoints() : uint
       {
          return mExperiencePoints;
+      }
+      
+      public function set ascensionLevel(val:uint) : void
+      {
+         mAscensionLevel = val;
+      }
+      
+      public function get ascensionLevel() : uint
+      {
+         return mAscensionLevel;
       }
       
       public function set maxBusterPoints(val:uint) : void
@@ -307,6 +348,10 @@ package DistributedObjects
       public function set healthBombsUsed(val:uint) : void
       {
          mHealthBombsUsed = val;
+         if(isOwner)
+         {
+            mDBFacade.steamAchievementsHelper.setHighestStatValueAchieved(mHealthBombsUsed,"MOST_HEALTH_BOMBS_IN_DUNGEON");
+         }
       }
       
       public function set partyBombsUsed(val:uint) : void
@@ -334,6 +379,7 @@ package DistributedObjects
       
       override public function postGenerate() : void
       {
+         processLegendaryModifiers();
          super.postGenerate();
          mFacade.eventManager.dispatchEvent(new ManaEvent("ManaEvent_MANA_UPDATE",id,mMana,this.maxManaPoints));
          mFacade.eventManager.dispatchEvent(new BusterPointsEvent("BusterPointEvent_BUSTER_POINTS_UPDATE",id,mBusterPoints,mMaxBusterPoints));
@@ -354,7 +400,6 @@ package DistributedObjects
                ShowPlayerisTyping(false);
             }
          });
-         processLegendaryModifiers();
       }
       
       public function processLegendaryModifiers() : void
@@ -362,6 +407,10 @@ package DistributedObjects
          mStaminaModMultiplier = 0;
          mAptitudeModMultiplier = 0;
          mAccelerationModMultiplier = 0;
+         mBeastMasterModMultiplier = 0;
+         mBarrierModMultiplier = 0;
+         mCoverModMultiplier = 0;
+         mComprehensionModMultiplier = 0;
          for each(var _loc1_:WeaponDetails in mWeaponDetails)
          {
             switch(int(_loc1_.legendarymodifier) - 1)
@@ -374,8 +423,25 @@ package DistributedObjects
                   break;
                case 2:
                   mAccelerationModMultiplier += 0.1;
+                  break;
+               case 3:
+                  mBeastMasterModMultiplier += 10 + _loc1_.requiredlevel * 0.9;
+                  break;
+               case 9:
+                  mBarrierModMultiplier = 0.5;
+                  break;
+               case 10:
+                  mCoverModMultiplier = 0.5;
+                  break;
+               case 11:
+                  mComprehensionModMultiplier = 0.5;
             }
          }
+      }
+      
+      public function get beastMasterModMultiplier() : Number
+      {
+         return mBeastMasterModMultiplier;
       }
       
       override public function get maxHitPoints() : Number
@@ -431,31 +497,43 @@ package DistributedObjects
       
       override protected function refreshStatVector() : void
       {
-         var _loc3_:int = 0;
-         var _loc5_:int = 0;
-         var _loc1_:GMHero = gMHero;
-         this.level = _loc1_.getLevelFromExp(mExperiencePoints);
-         var _loc2_:StatVector = new StatVector();
-         _loc3_ = 0;
-         while(_loc3_ < 4)
+         var _loc7_:int = 0;
+         var _loc9_:int = 0;
+         var _loc2_:GMHero = gMHero;
+         this.level = _loc2_.getLevelFromExp(mExperiencePoints,mAscensionLevel);
+         var _loc3_:uint = _loc2_.getBaseLevelFromExp(mExperiencePoints);
+         var _loc5_:StatVector = new StatVector();
+         _loc7_ = 0;
+         while(_loc7_ < 4)
          {
-            _loc5_ = 0;
-            while(_loc5_ < _loc1_.UpgradeToSlotOffset[_loc3_].length)
+            _loc9_ = 0;
+            while(_loc9_ < _loc2_.UpgradeToSlotOffset[_loc7_].length)
             {
-               var _loc7_:int = _loc1_.UpgradeToSlotOffset[_loc3_][_loc5_];
-               var _loc8_:Number = _loc2_.values[_loc7_] + mSlotPoints[_loc3_];
-               _loc2_.values[_loc7_] = _loc8_;
-               _loc5_++;
+               var _loc12_:int = _loc2_.UpgradeToSlotOffset[_loc7_][_loc9_];
+               var _loc13_:Number = _loc5_.values[_loc12_] + mSlotPoints[_loc7_];
+               _loc5_.values[_loc12_] = _loc13_;
+               _loc9_++;
             }
-            _loc3_++;
+            _loc7_++;
          }
-         var _loc6_:StatVector = StatVector.add(mActorData.baseValues,StatVector.multiplyScalar(mActorData.levelValues,mLevel));
-         _loc6_ = StatVector.add(_loc6_,StatVector.multiply(_loc1_.Normalized_upgrades,_loc2_));
-         var _loc4_:StatVector = StatVector.add(StatVector.multiply(_loc6_,mDBFacade.gameMaster.stat_BonusMultiplier),mDBFacade.gameMaster.stat_bias);
-         mStats = StatVector.clone(_loc4_);
-         mStats.values[0] = mActorData.hp + _loc4_.values[0];
-         mStats.values[1] = mActorData.mp + _loc4_.values[1];
-         mStats.values[13] = _loc1_.BaseMove * _loc4_.values[13];
+         var _loc11_:StatVector = StatVector.multiply(_loc2_.Normalized_upgrades,_loc5_);
+         var _loc10_:StatVector = StatVector.add(mActorData.baseValues,StatVector.multiplyScalar(mActorData.levelValues,_loc3_));
+         _loc10_ = StatVector.add(_loc10_,_loc11_);
+         var _loc8_:StatVector = StatVector.add(StatVector.multiply(_loc10_,mDBFacade.gameMaster.stat_BonusMultiplier),mDBFacade.gameMaster.stat_bias);
+         var _loc4_:StatVector = StatVector.add(mActorData.baseValues,StatVector.multiplyScalar(mActorData.levelValues,DamageCurve.heroAttackCurve(_loc3_)));
+         _loc4_ = StatVector.add(_loc4_,_loc11_);
+         var _loc6_:StatVector = StatVector.add(StatVector.multiply(_loc4_,mDBFacade.gameMaster.stat_BonusMultiplier),mDBFacade.gameMaster.stat_bias);
+         var _loc1_:StatVector = StatVector.clone(_loc8_);
+         _loc1_.values[DBGlobal.HP_BOOST] = mActorData.hp + _loc8_.values[DBGlobal.HP_BOOST];
+         _loc1_.values[DBGlobal.MP_BOOST] = mActorData.mp + _loc8_.values[DBGlobal.MP_BOOST];
+         _loc1_.values[DBGlobal.MELEE_ATK] = _loc6_.values[DBGlobal.MELEE_ATK];
+         _loc1_.values[DBGlobal.SHOOT_ATK] = _loc6_.values[DBGlobal.SHOOT_ATK];
+         _loc1_.values[DBGlobal.MAGIC_ATK] = _loc6_.values[DBGlobal.MAGIC_ATK];
+         _loc1_.values[DBGlobal.MELEE_DEF] += mBarrierModMultiplier;
+         _loc1_.values[DBGlobal.SHOOT_DEF] += mCoverModMultiplier;
+         _loc1_.values[DBGlobal.MAGIC_DEF] += mComprehensionModMultiplier;
+         _loc1_.values[DBGlobal.MOVEMENT] = _loc2_.BaseMove * _loc8_.values[DBGlobal.MOVEMENT];
+         stats = _loc1_;
       }
       
       public function IsInvulnerable() : Boolean

@@ -7,15 +7,15 @@ package Events
       
       public var id:uint;
       
-      public function GameObjectEvent(type:String, id:uint, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function GameObjectEvent(gameObjectEventType:String, id:uint, bubbles:Boolean = false, cancelable:Boolean = false)
       {
          this.id = id;
-         super(uniqueEvent(type,id),bubbles,cancelable);
+         super(uniqueEvent(gameObjectEventType,id),bubbles,cancelable);
       }
       
-      public static function uniqueEvent(type:String, id:uint) : String
+      public static function uniqueEvent(inType:String, id:uint) : String
       {
-         return type + "_" + id.toString();
+         return inType + "_" + id.toString();
       }
    }
 }

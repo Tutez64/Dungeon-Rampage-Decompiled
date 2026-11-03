@@ -11,13 +11,13 @@ package Events
       
       public var cacheSwf:Vector.<String>;
       
-      public var tilelibraryname:Vector.<String>;
+      public var tileLibraryName:Vector.<String>;
       
-      public function CacheLoadRequestNpcEvent(cachenpc:Vector.<uint>, cacheswf:Vector.<String>, tilelibrary:Vector.<String>, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function CacheLoadRequestNpcEvent(inCacheNpc:Vector.<uint>, inCacheSwf:Vector.<String>, inTileLibraryName:Vector.<String>, bubbles:Boolean = false, cancelable:Boolean = false)
       {
-         cacheSwf = cacheswf;
-         cacheNpc = cachenpc;
-         tilelibraryname = tilelibrary;
+         cacheSwf = inCacheSwf;
+         cacheNpc = inCacheNpc;
+         tileLibraryName = inTileLibraryName;
          super("Busterncpccahche_event",bubbles,cancelable);
       }
    }

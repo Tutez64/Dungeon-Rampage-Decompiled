@@ -58,6 +58,8 @@ package GeneratedCode
       
       function set setAFK(val:uint) : void;
       
+      function set ascensionLevel(val:uint) : void;
+      
       function PartyBomb(bomberId:uint) : void;
       
       function setStateAndAttackChoreography(targetState:String, attackChoreography:AttackChoreography) : void;

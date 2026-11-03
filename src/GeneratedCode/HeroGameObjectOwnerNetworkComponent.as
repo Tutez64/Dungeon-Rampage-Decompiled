@@ -29,7 +29,7 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 168)
+         switch(int(fieldid) - 170)
          {
             case 0:
                recv_ReportBuffEffect(packet);
@@ -70,13 +70,14 @@ package GeneratedCode
          recv_slotPoints(packet);
          recv_dungeonBusterPoints(packet);
          recv_setAFK(packet);
+         recv_ascensionLevel(packet);
          recvByIdLoop(packet);
       }
       
       public function send_position(position:Vector3D) : void
       {
          var _loc2_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc2_,147);
+         Prepare_FieldUpdate(_loc2_,148);
          _loc2_.writeFloat(position.x);
          _loc2_.writeFloat(position.y);
          Send_packet(_loc2_);
@@ -85,7 +86,7 @@ package GeneratedCode
       public function send_heading(heading:Number) : void
       {
          var _loc2_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc2_,148);
+         Prepare_FieldUpdate(_loc2_,149);
          _loc2_.writeFloat(heading);
          Send_packet(_loc2_);
       }
@@ -93,7 +94,7 @@ package GeneratedCode
       public function send_ReceiveAttackChoreography(attackChoreography:AttackChoreography) : void
       {
          var _loc2_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc2_,159);
+         Prepare_FieldUpdate(_loc2_,160);
          attackChoreography.writeToPacket(_loc2_);
          Send_packet(_loc2_);
       }
@@ -125,10 +126,10 @@ package GeneratedCode
       {
          var combatResultsfunc:Function;
          var outpacket:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(outpacket,171);
+         Prepare_FieldUpdate(outpacket,173);
          combatResultsfunc = function():void
          {
-            var _loc2_:* = 0;
+            var _loc2_:uint = 0;
             var _loc1_:uint = combatResults.length;
             var _loc3_:DcNetworkPacket = outpacket;
             outpacket = new DcNetworkPacket();
@@ -149,7 +150,7 @@ package GeneratedCode
       public function send_ProposeAttackChoreography(attackChoreography:AttackChoreography) : void
       {
          var _loc2_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc2_,172);
+         Prepare_FieldUpdate(_loc2_,174);
          attackChoreography.writeToPacket(_loc2_);
          Send_packet(_loc2_);
       }
@@ -157,7 +158,7 @@ package GeneratedCode
       public function send_ProposeRevive(revivee:uint) : void
       {
          var _loc2_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc2_,173);
+         Prepare_FieldUpdate(_loc2_,175);
          _loc2_.writeUnsignedInt(revivee);
          Send_packet(_loc2_);
       }
@@ -165,7 +166,7 @@ package GeneratedCode
       public function send_ProposeSelfRevive(isParty:uint) : void
       {
          var _loc2_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc2_,174);
+         Prepare_FieldUpdate(_loc2_,176);
          _loc2_.writeByte(isParty);
          Send_packet(_loc2_);
       }
@@ -180,7 +181,7 @@ package GeneratedCode
       public function send_ProposeCreateNPC(npcId:uint, weaponSlot:uint, x:Number, y:Number) : void
       {
          var _loc5_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc5_,177);
+         Prepare_FieldUpdate(_loc5_,179);
          _loc5_.writeUnsignedInt(npcId);
          _loc5_.writeUnsignedInt(weaponSlot);
          _loc5_.writeFloat(x);
@@ -191,7 +192,7 @@ package GeneratedCode
       public function send_StopChoreography() : void
       {
          var _loc1_:DcNetworkPacket = new DcNetworkPacket();
-         Prepare_FieldUpdate(_loc1_,179);
+         Prepare_FieldUpdate(_loc1_,181);
          Send_packet(_loc1_);
       }
    }

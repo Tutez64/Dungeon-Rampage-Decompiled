@@ -57,6 +57,10 @@ package Actor.StateMachine.SubStateMachine
             }
             mCurrentScript = mQueuedScript;
             mQueuedScript = null;
+            if(mActorGameObject.persistentHidePending)
+            {
+               mActorGameObject.healAbandonedPersistentHide();
+            }
             mCurrentScript.play(mQueuedPlaySpeed,mQueuedTargetActor,mQueuedFinishedCallback,mQueuedStopCallback,mQueuedLoop);
          }
          else

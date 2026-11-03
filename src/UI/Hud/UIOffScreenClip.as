@@ -7,6 +7,7 @@ package UI.Hud
    import Brain.Clock.GameClock;
    import Brain.Event.EventComponent;
    import Brain.UI.UIProgressBar;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
    import DistributedObjects.HeroGameObject;
@@ -15,8 +16,11 @@ package UI.Hud
    import Events.HpEvent;
    import Events.PlayerIsTypingEvent;
    import Facade.DBFacade;
+   import Facade.Locale;
    import flash.display.MovieClip;
    import flash.filters.ColorMatrixFilter;
+   import flash.geom.Rectangle;
+   import flash.text.TextField;
    
    public class UIOffScreenClip
    {
@@ -31,7 +35,11 @@ package UI.Hud
       
       public static const REVIVE_PIC_TOGGLE_TIME:Number = 0.25;
       
-      public static const MAX_FACEBOOK_PIC_SHOW_COUNT:uint = 5;
+      public static const MAX_STEAM_AVATAR_SHOW_COUNT:uint = 5;
+      
+      private static const DEATH_ICON_SWF_PATH:String = "Resources/Art2D/Icons/Avatars/db_icon_death.swf";
+      
+      private static const TEXT_GUTTER:Number = 4;
       
       protected var mOffScreenPlayerClip:MovieClip;
       
@@ -63,9 +71,13 @@ package UI.Hud
       
       private var mFlashTask:Task;
       
-      private var mFacebookPicShowCount:uint = 0;
+      private var mSteamAvatarShowCount:uint = 0;
       
       private var mIsAHero:Boolean = false;
+      
+      private var mNameX:Number;
+      
+      private var mAlertX:Number;
       
       public function UIOffScreenClip(dbFacade:DBFacade, clip:MovieClip, player:ActorGameObject, nametagAsset:SwfAsset)
       {
@@ -75,6 +87,8 @@ package UI.Hud
          mDBFacade = dbFacade;
          mOffScreenPlayerClip = clip;
          mPlayer = player;
+         mNameX = clip.NametagText.x;
+         mAlertX = clip.AlertText.x;
          if(mPlayer is HeroGameObject)
          {
             mIsAHero = true;
@@ -90,6 +104,7 @@ package UI.Hud
          mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
          mEventComponent = new EventComponent(mDBFacade);
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(_loc6_),setupAvatarPic);
+         mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/Icons/Avatars/db_icon_death.swf"),setupDeathPic);
          setupUI();
       }
       
@@ -116,7 +131,7 @@ package UI.Hud
          mChatBalloon = new ChatBalloon();
          mChatBalloon.visible = false;
          balloon = new balloonClass();
-         mChatBalloon.initializeChatBalloon(mNametagSwfAsset);
+         mChatBalloon.initializeChatBalloon(mNametagSwfAsset,null,1.82);
          mChatBalloon.y = -40;
          mOffScreenPlayerClip.addChild(mChatBalloon);
          if(mIsAHero)
@@ -145,7 +160,7 @@ package UI.Hud
                   showPlayerIsTypingNotification(false);
                }
             });
-            showFacebookPicture();
+            showSteamAvatar();
          }
       }
       
@@ -169,27 +184,31 @@ package UI.Hud
             return;
          }
          var _loc5_:Class = mAvatarSwfAsset.getClass(_loc3_);
-         var _loc6_:Class = mAvatarSwfAsset.getClass("death_icon");
          mAvatarPic = new _loc5_();
          mOffScreenPlayerClip.UI_avatar.addChild(mAvatarPic);
-         if(_loc6_)
+      }
+      
+      private function setupDeathPic(iconsSwfAsset:SwfAsset) : void
+      {
+         var _loc2_:Class = iconsSwfAsset.getClass("death_icon");
+         if(_loc2_)
          {
-            mDeathPic = new _loc6_();
+            mDeathPic = new _loc2_();
          }
       }
       
-      public function showFacebookPicture() : void
+      public function showSteamAvatar() : void
       {
          var _loc1_:HeroGameObject = null;
          if(mIsAHero)
          {
             _loc1_ = mPlayer as HeroGameObject;
-            if(mFacebookPicShowCount >= 5 || !_loc1_ || _loc1_.isDestroyed)
+            if(mSteamAvatarShowCount >= 5 || !_loc1_ || _loc1_.isDestroyed)
             {
                return;
             }
-            mFacebookPicShowCount = mFacebookPicShowCount + 1;
-            _loc1_.heroView.nametag.showFacebookPicture(_loc1_.playerID);
+            mSteamAvatarShowCount = mSteamAvatarShowCount + 1;
+            _loc1_.heroView.nametag.showSteamAvatar(_loc1_.playerID);
          }
       }
       
@@ -232,16 +251,77 @@ package UI.Hud
          });
       }
       
+      public function keepChatOnScreen(viewWidth:Number, viewHeight:Number) : void
+      {
+         if(!mChatBalloon || !mChatBalloon.visible || !mOffScreenPlayerClip.parent)
+         {
+            return;
+         }
+         mChatBalloon.x = 0;
+         mChatBalloon.y = -40;
+         var _loc5_:Rectangle = mChatBalloon.getBounds(mOffScreenPlayerClip.parent);
+         var _loc3_:Number = 0;
+         var _loc4_:Number = 0;
+         if(_loc5_.left < 0)
+         {
+            _loc3_ = -_loc5_.left;
+         }
+         else if(_loc5_.right > viewWidth)
+         {
+            _loc3_ = viewWidth - _loc5_.right;
+         }
+         if(_loc5_.top < 0)
+         {
+            _loc4_ = -_loc5_.top;
+         }
+         else if(_loc5_.bottom > viewHeight)
+         {
+            _loc4_ = viewHeight - _loc5_.bottom;
+         }
+         mChatBalloon.x += _loc3_ / mOffScreenPlayerClip.scaleX;
+         mChatBalloon.y += _loc4_ / mOffScreenPlayerClip.scaleY;
+      }
+      
+      public function keepTextOnScreen(viewWidth:Number) : void
+      {
+         if(!mOffScreenPlayerClip.parent)
+         {
+            return;
+         }
+         keepFieldOnScreen(mOffScreenPlayerClip.NametagText,mNameX,viewWidth);
+         keepFieldOnScreen(mOffScreenPlayerClip.AlertText,mAlertX,viewWidth);
+      }
+      
+      private function keepFieldOnScreen(field:TextField, authoredX:Number, viewWidth:Number) : void
+      {
+         field.x = authoredX;
+         var _loc7_:Rectangle = field.getBounds(mOffScreenPlayerClip.parent);
+         var _loc4_:Number = Math.min(_loc7_.width,(field.textWidth + 4) * mOffScreenPlayerClip.scaleX) / 2;
+         var _loc6_:Number = _loc7_.x + _loc7_.width / 2 - _loc4_;
+         var _loc8_:Number = _loc6_ + _loc4_ * 2;
+         var _loc5_:Number = 0;
+         if(_loc6_ < 0)
+         {
+            _loc5_ = -_loc6_;
+         }
+         else if(_loc8_ > viewWidth)
+         {
+            _loc5_ = viewWidth - _loc8_;
+         }
+         field.x += _loc5_ / mOffScreenPlayerClip.scaleX;
+      }
+      
       public function handlePicChange(picType:String) : void
       {
          var cmf:ColorMatrixFilter;
          if(picType == "REVIVE")
          {
-            mOffScreenPlayerClip.AlertText.text = "Rescue!";
-            if(mDeathPic)
+            Locale.setText(mOffScreenPlayerClip.AlertText,"NAMETAG_RESCUE",null,1.36);
+            TextUtil.fitToField(mOffScreenPlayerClip.AlertText,1.27);
+            if(mDeathPic && mAvatarPic)
             {
                mOffScreenPlayerClip.UI_avatar.addChild(mDeathPic);
-               cmf = new ColorMatrixFilter(new Array(2.5,0,0,0,0,0,0.25,0,0,0,0,0,0.25,0,0,0,0,0,1,0));
+               cmf = new ColorMatrixFilter([2.5,0,0,0,0,0,0.25,0,0,0,0,0,0.25,0,0,0,0,0,1,0]);
                mAvatarPic.filters = [cmf];
                mFlashTask = mLogicalWorkComponent.doEverySeconds(0.25,function(param1:GameClock):void
                {

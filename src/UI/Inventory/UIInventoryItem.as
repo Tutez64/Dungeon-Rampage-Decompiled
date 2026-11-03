@@ -8,6 +8,7 @@ package UI.Inventory
    import Brain.Logger.Logger;
    import Brain.Render.MovieClipRenderer;
    import Brain.UI.UIButton;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
    import DBGlobals.DBGlobal;
@@ -69,7 +70,7 @@ package UI.Inventory
          this.tooltipPos = new Point(0,this.root.height * -0.4);
          mWeaponTooltip.visible = false;
          mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"UIInventoryItem");
-         mPressCallback = function():void
+         mReleaseCallback = function():void
          {
             mClickedCallback(mInfo);
          };
@@ -104,7 +105,7 @@ package UI.Inventory
       public function set info(info:InventoryBaseInfo) : void
       {
          var _loc3_:ItemInfo = null;
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          mInfo = info;
          while(mIcon.numChildren)
          {
@@ -116,7 +117,7 @@ package UI.Inventory
          {
             loadItemIcon();
             mNewLabel.visible = mInfo.isNew;
-            mNewLabel.text = Locale.getString("INV_NEW");
+            Locale.setText(mNewLabel,"INV_NEW");
             this.enabled = true;
             _loc3_ = mInfo as ItemInfo;
             if(_loc3_ && _loc3_.gmWeaponItem)
@@ -127,7 +128,7 @@ package UI.Inventory
             if(mInfo as StackableInfo)
             {
                _loc2_ = uint(StackableInfo(mInfo).count);
-               mStackCountLabel.text = "x" + _loc2_.toString();
+               TextUtil.setText(mStackCountLabel,"x" + _loc2_.toString());
                mStackCountLabel.visible = true;
             }
          }

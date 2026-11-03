@@ -2,14 +2,15 @@ package UI.Popup
 {
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
+   import Brain.Event.EventListeners;
    import Brain.Logger.Logger;
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.Locale;
    import GameMasterDictionary.GMOffer;
-   import com.greensock.TweenMax;
    import flash.display.MovieClip;
    import flash.display.Sprite;
    import flash.events.KeyboardEvent;
@@ -56,7 +57,7 @@ package UI.Popup
       
       protected var mUILayerName:String;
       
-      public function DBUIPopup(dbFacade:DBFacade, titleText:String = "", content:* = null, allowClose:Boolean = true, wantCurtain:Boolean = true, closeCallback:Function = null, useOriginalPopUp:Boolean = false, scalePopup:Boolean = true, UILayerName:String = "")
+      public function DBUIPopup(dbFacade:DBFacade, uiLayerName:String, titleText:String = "", content:* = null, allowClose:Boolean = true, wantCurtain:Boolean = true, closeCallback:Function = null, useOriginalPopUp:Boolean = false, scalePopup:Boolean = true)
       {
          mDBFacade = dbFacade;
          super(dbFacade,new MovieClip());
@@ -64,17 +65,22 @@ package UI.Popup
          mScalePopup = scalePopup;
          mWantCurtain = wantCurtain;
          makeCurtain();
+         if(waitsOnPlayer() && mDBFacade.uiHideToggle)
+         {
+            mDBFacade.uiHideToggle.reveal();
+         }
          if(allowClose)
          {
             mCloseCallback = closeCallback;
-            mDBFacade.stageRef.addEventListener("keyDown",handleKeyDown);
+            EventListeners.add(mDBFacade.stageRef,"keyDown",handleKeyDown);
          }
-         mUILayerName = UILayerName;
+         mUILayerName = uiLayerName;
          mDBFacade.sceneGraphManager.addChild(mRoot,105);
          mAssetLoadingComponent = new AssetLoadingComponent(dbFacade);
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(getSwfPath()),function(param1:SwfAsset):void
          {
             setupUI(param1,titleText,content,allowClose,closeCallback);
+            completeMenuNavigationSetup();
          });
       }
       
@@ -85,6 +91,11 @@ package UI.Popup
       }
       
       protected function useCurtain() : Boolean
+      {
+         return true;
+      }
+      
+      protected function waitsOnPlayer() : Boolean
       {
          return true;
       }
@@ -120,11 +131,12 @@ package UI.Popup
          }
          if(mUILayerName)
          {
-            popMenuNavigationLayer();
+            removeMenuNavigationLayer();
          }
-         TweenMax.killTweensOf(mRoot);
+         mDBFacade.mTween.killTweensOf(mRoot);
+         mDBFacade.sceneGraphManager.removeChild(mRoot);
          removeCurtain();
-         mDBFacade.stageRef.removeEventListener("keyDown",handleKeyDown);
+         EventListeners.remove(mDBFacade.stageRef,"keyDown",handleKeyDown);
          mDBFacade = null;
          mCloseCallback = null;
          if(mCloseButton)
@@ -176,7 +188,7 @@ package UI.Popup
          if(mPopup.title_label)
          {
             mTitle = mPopup.title_label;
-            mTitle.text = titleText;
+            TextUtil.setText(mTitle,titleText);
          }
          if(mPopup.message_label)
          {
@@ -190,7 +202,7 @@ package UI.Popup
          }
          else if(content is String)
          {
-            mMessage.text = content;
+            setMessageText(content);
          }
          if(mPopup.close)
          {
@@ -217,9 +229,14 @@ package UI.Popup
          {
             animatedEntrance();
          }
-         if(mUILayerName)
+      }
+      
+      private function setMessageText(text:String) : void
+      {
+         TextUtil.setText(mMessage,text,1.55);
+         if(mMessage.bottomScrollV < mMessage.numLines)
          {
-            initializeMenuNavigationLayer();
+            TextUtil.setText(mMessage,text);
          }
       }
       
@@ -250,24 +267,48 @@ package UI.Popup
       
       protected function scalePopup() : void
       {
-         mPopup.scaleX = mPopup.scaleY = 1.8;
+         mPopup.scaleX = mPopup.scaleY = DBGlobal.UI_16_TO_9_PORT_OBJECT_SCALE;
       }
       
       protected function centerPopup() : void
       {
-         var _loc1_:Rectangle = mPopup.getBounds(mDBFacade.stageRef);
-         mPopup.x = mDBFacade.stageRef.stageWidth / 2 - _loc1_.width / 2 - _loc1_.x;
-         mPopup.y = mDBFacade.stageRef.stageHeight / 2 - _loc1_.height / 2 - _loc1_.y;
+         var _loc1_:Rectangle = mPopup.getBounds(mDBFacade.scalingRoot);
+         mPopup.x = mDBFacade.viewWidth / 2 - _loc1_.width / 2 - _loc1_.x;
+         mPopup.y = mDBFacade.viewHeight / 2 - _loc1_.height / 2 - _loc1_.y;
       }
       
       protected function initializeMenuNavigationLayer() : void
       {
-         mDBFacade.menuNavigationController.pushNewLayer(mUILayerName,mCloseCallback,mCloseButton);
+         mDBFacade.menuNavigationController.pushNewLayer(mUILayerName,getNavigationExitCallback(),getDefaultNavigationObject(),getInitialFocusedNavigationObject());
       }
       
-      protected function popMenuNavigationLayer() : void
+      protected function getNavigationExitCallback() : Function
       {
-         mDBFacade.menuNavigationController.popLayer(mUILayerName);
+         return handleInputCalledClosed;
+      }
+      
+      protected function getDefaultNavigationObject() : UIObject
+      {
+         return mCloseButton;
+      }
+      
+      protected function getInitialFocusedNavigationObject() : UIObject
+      {
+         return null;
+      }
+      
+      protected function completeMenuNavigationSetup() : void
+      {
+         setupMenuNavigation();
+         if(mUILayerName)
+         {
+            initializeMenuNavigationLayer();
+         }
+      }
+      
+      protected function removeMenuNavigationLayer() : void
+      {
+         mDBFacade.menuNavigationController.removeLayer(mUILayerName);
       }
       
       protected function setupMenuNavigation() : void

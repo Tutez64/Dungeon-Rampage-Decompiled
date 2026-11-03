@@ -3,6 +3,7 @@ package Projectile
    import Actor.ActorGameObject;
    import Box2D.Collision.b2AABB;
    import Box2D.Dynamics.b2Fixture;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.DistributedDungeonFloor;
    import Dungeon.NavCollider;
    import Facade.DBFacade;
@@ -78,11 +79,11 @@ package Projectile
          {
             return false;
          }
-         if(_loc2_.team == 1 && newTarget.team != 1)
+         if(_loc2_.team == DBGlobal.TEAM_ENVIRONMENT && newTarget.team != DBGlobal.TEAM_ENVIRONMENT)
          {
             return true;
          }
-         if(_loc2_.team != 1 && newTarget.team != 1 || _loc2_.team == 1 && newTarget.team == 1)
+         if(_loc2_.team != DBGlobal.TEAM_ENVIRONMENT && newTarget.team != DBGlobal.TEAM_ENVIRONMENT || _loc2_.team == DBGlobal.TEAM_ENVIRONMENT && newTarget.team == DBGlobal.TEAM_ENVIRONMENT)
          {
             _loc3_ = calculateTargetScore(newTarget,_loc4_);
             if(_loc3_ > mBestScore)

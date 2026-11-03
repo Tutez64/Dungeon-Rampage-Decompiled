@@ -3,7 +3,9 @@ package UI.FriendManager.States
    import Account.FriendInfo;
    import Brain.Logger.Logger;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
    import Brain.jsonRPC.JSONRPCService;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.Locale;
    import Town.TownStateMachine;
@@ -32,7 +34,7 @@ package UI.FriendManager.States
       
       override public function enter() : void
       {
-         Logger.debug("Enterred Blocked State");
+         Logger.debug("Entered Blocked State");
          mUIFriendManager.updateHeading(Locale.getString("FRIEND_MANAGEMENT_HEADING_BLOCKED"));
          mUIFriendManager.updateDescription(Locale.getString("FRIEND_MANAGEMENT_DESCRIPTION_BLOCKED"));
          setupUI();
@@ -53,7 +55,7 @@ package UI.FriendManager.States
       
       private function refresh(list:Array) : void
       {
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          for each(var _loc2_:uint in list)
          {
             _loc3_ = 0;
@@ -76,6 +78,18 @@ package UI.FriendManager.States
          mListOfBlockedFriends = mDBFacade.dbAccountInfo.ignoredFriends;
          mFriendPopulater = new FriendPopulater(mDBFacade,mTownStateMachine,mListOfBlockedFriends,mUIFriendManager);
          mUnblockButton = createButton("friend_management_button",Locale.getString("UNBLOCK"),960,1000,unblockButtonCallback);
+         setupMenuNavigation();
+      }
+      
+      private function setupMenuNavigation() : void
+      {
+         mUnblockButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
+         mFriendPopulater.setupMenuNavigation(mUIFriendManager.currentTabButton,mUnblockButton);
+      }
+      
+      override public function getFirstNavigationUIObject() : UIObject
+      {
+         return mFriendPopulater.getFirstNavigationUIObject();
       }
       
       private function unblockButtonCallback() : void

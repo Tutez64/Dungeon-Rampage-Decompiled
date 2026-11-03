@@ -1,11 +1,10 @@
 package UI.Popup
 {
-   import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
    import Brain.Logger.Logger;
-   import Brain.SceneGraph.SceneGraphComponent;
    import Brain.UI.UIButton;
    import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.Locale;
    import GameMasterDictionary.GMOffer;
@@ -13,18 +12,16 @@ package UI.Popup
    import flash.display.MovieClip;
    import flash.text.TextField;
    
-   public class DBUIConfirmChestPurchasePopup extends UIObject
+   public class DBUIConfirmChestPurchasePopup extends DBUIPopup
    {
       
-      private var mAssetLoadingComponent:AssetLoadingComponent;
+      private static const TOWN_PATH:String = "Resources/Art2D/UI/db_UI_town.swf";
       
-      private var mSceneGraphComponent:SceneGraphComponent;
+      private static const POPUP_CLASS_NAME:String = "chest_shop_popup";
       
       private var mChestOffer:GMOffer;
       
       private var mSelectedHeroSkin:GMSkin;
-      
-      private var mCloseButton:UIButton;
       
       private var mCancelButton:UIButton;
       
@@ -42,72 +39,92 @@ package UI.Popup
       
       private var mBuyCallback:Function;
       
-      private var mCloseCallback:Function;
-      
-      public function DBUIConfirmChestPurchasePopup(dbFacade:DBFacade, root:MovieClip, buyCallback:Function, cancelCallback:Function, chestOffer:GMOffer, forHeroSkin:uint, allowClose:Boolean = true, closeCallback:Function = null)
+      public function DBUIConfirmChestPurchasePopup(dbFacade:DBFacade, buyCallback:Function, cancelCallback:Function, chestOffer:GMOffer, forHeroSkin:uint, allowClose:Boolean = true, closeCallback:Function = null)
       {
-         super(dbFacade,root);
-         mAssetLoadingComponent = new AssetLoadingComponent(mFacade);
-         mSceneGraphComponent = new SceneGraphComponent(mFacade,"DBUIConfirmChestPurchasePopup");
          mChestOffer = chestOffer;
-         mCloseCallback = cancelCallback;
          mBuyCallback = buyCallback;
          mSelectedHeroSkin = dbFacade.gameMaster.skinsById.itemFor(forHeroSkin) as GMSkin;
          if(mSelectedHeroSkin == null)
          {
             Logger.error("Unable to find GMSkin for skin id: " + forHeroSkin);
          }
-         setupGui();
+         super(dbFacade,"CONFIRM_CHEST_PURCHASE_POPUP","",null,allowClose,true,cancelCallback,false,false);
       }
       
-      private function setupGui() : void
+      override protected function getSwfPath() : String
       {
-         mCloseButton = new UIButton(mFacade,mRoot.close);
-         mCloseButton.releaseCallback = mCloseCallback;
-         mCancelButton = new UIButton(mFacade,mRoot.button_cancel);
-         mCancelButton.releaseCallback = mCloseCallback;
-         mCancelButton.label.text = Locale.getString("CANCEL");
-         mBuyButton = new UIButton(mFacade,mRoot.buy_button_gems);
+         return "Resources/Art2D/UI/db_UI_town.swf";
+      }
+      
+      override protected function getClassName() : String
+      {
+         return "chest_shop_popup";
+      }
+      
+      override protected function setupUI(swfAsset:SwfAsset, titleText:String, content:*, allowClose:Boolean, closeCallback:Function) : void
+      {
+         mSwfAsset = swfAsset;
+         var popupClass:Class = swfAsset.getClass("chest_shop_popup");
+         mPopup = new popupClass() as MovieClip;
+         mRoot.addChild(mPopup);
+         mCloseButton = new UIButton(mFacade,mPopup.close);
+         mCloseButton.releaseCallback = handleInputCalledClosed;
+         mCancelButton = new UIButton(mFacade,mPopup.button_cancel);
+         mCancelButton.releaseCallback = handleInputCalledClosed;
+         Locale.setText(mCancelButton.label,"CANCEL");
+         mBuyButton = new UIButton(mFacade,mPopup.buy_button_gems);
          mBuyButton.releaseCallback = mBuyCallback;
-         mBuyButton.label.text = mChestOffer.Price.toString();
+         TextUtil.setText(mBuyButton.label,mChestOffer.Price.toString());
          mBuyButton.root.original_price.visible = false;
          mBuyButton.root.icons_bundle.coin.visible = false;
          mBuyButton.root.icons_bundle.gift_icon.visible = false;
          mBuyButton.root.strike.visible = false;
-         mTitleLabel = mRoot.label;
-         mTitleLabel.text = Locale.getString("CONFIRM_SHOP_CHEST_PURCHASE");
-         mItemIcon = mRoot.icon_slot;
+         mTitleLabel = mPopup.label;
+         Locale.setText(mTitleLabel,"CONFIRM_SHOP_CHEST_PURCHASE");
+         mItemIcon = mPopup.icon_slot;
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(mChestOffer.BundleSwfFilepath),function(param1:SwfAsset):void
          {
             var _loc3_:Class = param1.getClass(mChestOffer.BundleIcon);
             var _loc2_:MovieClip = new _loc3_();
             mItemIcon.addChild(_loc2_);
          });
-         mHeroLabel = mRoot.hero_label;
-         mHeroLabel.text = Locale.getString("OPENING_WITH");
-         mTextContentLabel = mRoot.text;
-         mTextContentLabel.text = Locale.getString("PURCHASE_AND_OPEN_CHEST_TEXT_CONTENT");
-         mAvatarIcon = mRoot.avatar;
+         mHeroLabel = mPopup.hero_label;
+         Locale.setText(mHeroLabel,"OPENING_WITH");
+         mTextContentLabel = mPopup.text;
+         Locale.setText(mTextContentLabel,"PURCHASE_AND_OPEN_CHEST_TEXT_CONTENT");
+         mAvatarIcon = mPopup.avatar;
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(mSelectedHeroSkin.IconSwfFilepath),function(param1:SwfAsset):void
          {
             var _loc2_:Class = param1.getClass(mSelectedHeroSkin.IconName);
             var _loc3_:MovieClip = new _loc2_();
             mAvatarIcon.addChild(_loc3_);
          });
-         mSceneGraphComponent.addChild(mRoot,105);
-         mSceneGraphComponent.showPopupCurtain();
-         mRoot.x = mFacade.viewWidth * 0.5;
-         mRoot.y = mFacade.viewHeight * 0.5 - 50;
+         mPopup.x = mFacade.viewWidth * 0.5;
+         mPopup.y = mFacade.viewHeight * 0.5 - 50;
       }
       
-      private function close() : void
+      override protected function setupMenuNavigation() : void
       {
-         this.destroy();
+         mBuyButton.isToTheLeftOf(mCancelButton);
+         mCloseButton.isAbove(mBuyButton);
+      }
+      
+      override protected function getDefaultNavigationObject() : UIObject
+      {
+         return mCloseButton;
+      }
+      
+      override protected function getInitialFocusedNavigationObject() : UIObject
+      {
+         return mBuyButton;
       }
       
       override public function destroy() : void
       {
-         super.destroy();
+         if(mDBFacade == null)
+         {
+            return;
+         }
          if(mCloseButton != null)
          {
             mCloseButton.destroy();
@@ -123,18 +140,7 @@ package UI.Popup
             mBuyButton.destroy();
             mBuyButton = null;
          }
-         if(mAssetLoadingComponent != null)
-         {
-            mAssetLoadingComponent.destroy();
-            mAssetLoadingComponent = null;
-         }
-         if(mSceneGraphComponent != null)
-         {
-            mSceneGraphComponent.removePopupCurtain();
-            mSceneGraphComponent.removeChild(mRoot);
-            mSceneGraphComponent.destroy();
-            mSceneGraphComponent = null;
-         }
+         super.destroy();
       }
    }
 }

@@ -1,24 +1,29 @@
 package GameMasterDictionary
 {
+   import flash.Boot;
+   
    public class GMHints
    {
       
-      public var Constant:String;
+      public var Type:String;
       
       public var MinLevel:uint;
       
       public var MaxLevel:uint;
       
-      public var Type:String;
-      
       public var HintText:String;
       
-      public function GMHints(jsonAsset:Object)
+      public var Constant:String;
+      
+      public function GMHints(jsonAsset:Object = undefined)
       {
-         super();
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
          Constant = jsonAsset.Constant;
-         MinLevel = jsonAsset.MinLevel;
-         MaxLevel = jsonAsset.MaxLevel;
+         MinLevel = uint(jsonAsset.MinLevel);
+         MaxLevel = uint(jsonAsset.MaxLevel);
          Type = jsonAsset.Type;
          HintText = jsonAsset.HintText;
       }

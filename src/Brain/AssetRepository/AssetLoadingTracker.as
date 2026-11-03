@@ -29,7 +29,7 @@ package Brain.AssetRepository
          }
          if(assetLoadingComponent != null)
          {
-            assetLoadingComponent.RemoveLoader(this);
+            assetLoadingComponent.removeLoader(this);
          }
       }
       
@@ -41,7 +41,7 @@ package Brain.AssetRepository
          }
          if(assetLoadingComponent != null)
          {
-            assetLoadingComponent.RemoveLoader(this);
+            assetLoadingComponent.removeLoader(this);
          }
       }
       

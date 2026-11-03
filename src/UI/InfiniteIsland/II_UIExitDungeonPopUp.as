@@ -3,6 +3,7 @@ package UI.InfiniteIsland
    import Brain.AssetRepository.SwfAsset;
    import Brain.Event.EventComponent;
    import Brain.Render.MovieClipRenderController;
+   import Brain.Utils.TextUtil;
    import DistributedObjects.HeroGameObjectOwner;
    import Facade.DBFacade;
    import Facade.Locale;
@@ -10,9 +11,11 @@ package UI.InfiniteIsland
    import GameMasterDictionary.GMDoober;
    import GeneratedCode.InfiniteRewardData;
    import UI.Popup.DBUITwoButtonPopup;
+   import UI.Popup.ExitDungeonOptionsButton;
    import flash.display.DisplayObject;
    import flash.display.MovieClip;
    import flash.filters.ColorMatrixFilter;
+   import flash.geom.Point;
    import flash.text.TextField;
    
    public class II_UIExitDungeonPopUp extends DBUITwoButtonPopup
@@ -37,6 +40,12 @@ package UI.InfiniteIsland
       protected static const LOOT_SMALL_CLASS_NAME:String = "db_doobers_itemBox_small";
       
       protected static const LOOT_ROYAL_CLASS_NAME:String = "db_doobers_itemBox_royal";
+      
+      private static const OPTIONS_BUTTON_POSITION:Point = new Point(140,172);
+      
+      private var mOptionsCallback:Function;
+      
+      private var mOptionsButton:ExitDungeonOptionsButton;
       
       private var mDooberAsset:SwfAsset;
       
@@ -64,9 +73,30 @@ package UI.InfiniteIsland
       
       private var mEventComponent:EventComponent;
       
-      public function II_UIExitDungeonPopUp(dbFacade:DBFacade, leftCallback:Function, rightCallback:Function)
+      private var mRewards:Vector.<InfiniteRewardData>;
+      
+      private var mTotalGold:int;
+      
+      public function II_UIExitDungeonPopUp(dbFacade:DBFacade, leftCallback:Function, rightCallback:Function, optionsCallback:Function = null)
       {
-         super(dbFacade,Locale.getString("UI_HUD_EXIT_TITLE"),Locale.getString("II_UI_HUD_EXIT_MESSAGE"),Locale.getString("UI_HUD_EXIT_CONFIRM"),leftCallback,Locale.getString("UI_HUD_EXIT_CANCEL"),rightCallback);
+         mOptionsCallback = optionsCallback;
+         super(dbFacade,"EXIT_INFINITE_DUNGEON",Locale.getString("UI_HUD_EXIT_TITLE"),Locale.getString("II_UI_HUD_EXIT_MESSAGE"),Locale.getString("UI_HUD_EXIT_CONFIRM"),leftCallback,Locale.getString("UI_HUD_EXIT_CANCEL"),rightCallback);
+      }
+      
+      override protected function setupUI(swfAsset:SwfAsset, titleText:String, content:*, allowClose:Boolean, closeCallback:Function) : void
+      {
+         var _loc6_:HeroGameObjectOwner = mDBFacade.gameObjectManager.getReferenceFromId(mDBFacade.dbAccountInfo.activeAvatarInfo.id) as HeroGameObjectOwner;
+         if(_loc6_ == null || _loc6_.distributedDungeonFloor == null || _loc6_.distributedDungeonFloor.parentArea == null)
+         {
+            throw new Error("Infinite exit popup requires an active Infinite Dungeon");
+         }
+         mRewards = _loc6_.distributedDungeonFloor.parentArea.infiniteRewardData;
+         mTotalGold = _loc6_.distributedDungeonFloor.parentArea.infiniteTotalGold;
+         super.setupUI(swfAsset,titleText,content,allowClose,closeCallback);
+         if(mOptionsCallback != null)
+         {
+            mOptionsButton = new ExitDungeonOptionsButton(mDBFacade,mAssetLoadingComponent,mPopup,OPTIONS_BUTTON_POSITION,mCloseButton,null,mOptionsCallback);
+         }
          mEventComponent = new EventComponent(mDBFacade);
          mCurrentRewardTF = mPopup.current_reward.label_currentReward;
          mCoinTF = mPopup.coin_count;
@@ -76,6 +106,15 @@ package UI.InfiniteIsland
          mRewardSlots.push(mPopup.current_reward.loot_03);
          mRewardSlots.push(mPopup.current_reward.loot_04);
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/Icons/Items/db_icons_items.swf"),itemsLoaded);
+      }
+      
+      override protected function handleInputCalledClosed() : void
+      {
+         if(mDBFacade.hud)
+         {
+            mDBFacade.hud.suppressNextExitMenuToggle();
+         }
+         super.handleInputCalledClosed();
       }
       
       private function itemsLoaded(swfAsset:SwfAsset) : void
@@ -98,7 +137,7 @@ package UI.InfiniteIsland
       
       private function init() : void
       {
-         var _loc1_:* = null;
+         var _loc1_:InfiniteRewardData = null;
          var _loc3_:Boolean = false;
          var _loc4_:GMDoober = null;
          var _loc8_:GMChest = null;
@@ -106,13 +145,10 @@ package UI.InfiniteIsland
          var _loc9_:Class = null;
          var _loc5_:MovieClip = null;
          var _loc7_:MovieClipRenderController = null;
-         mCurrentRewardTF.text = Locale.getString("II_DINGELPUS_EXIT_POPUP_CURRENT_REWARD");
+         Locale.setText(mCurrentRewardTF,"II_DINGELPUS_EXIT_POPUP_CURRENT_REWARD");
          mRewardChests = new Vector.<MovieClip>();
-         var _loc11_:HeroGameObjectOwner = mDBFacade.gameObjectManager.getReferenceFromId(mDBFacade.dbAccountInfo.activeAvatarInfo.id) as HeroGameObjectOwner;
-         var _loc10_:Vector.<InfiniteRewardData> = _loc11_.distributedDungeonFloor.parentArea.infiniteRewardData;
-         var _loc12_:int = _loc11_.distributedDungeonFloor.parentArea.infiniteTotalGold;
          var _loc6_:int = 0;
-         for each(_loc1_ in _loc10_)
+         for each(_loc1_ in mRewards)
          {
             if(_loc6_ < mRewardSlots.length)
             {
@@ -160,7 +196,7 @@ package UI.InfiniteIsland
             }
             _loc6_++;
          }
-         mPopup.current_reward.coin_count.text = _loc12_.toString();
+         TextUtil.setText(mPopup.current_reward.coin_count,mTotalGold.toString());
       }
       
       public function desaturate(obj:DisplayObject) : void
@@ -187,12 +223,33 @@ package UI.InfiniteIsland
       
       override public function destroy() : void
       {
+         if(mDBFacade == null)
+         {
+            return;
+         }
          if(mEventComponent)
          {
             mEventComponent.destroy();
             mEventComponent = null;
          }
+         if(mOptionsButton)
+         {
+            mOptionsButton.destroy();
+            mOptionsButton = null;
+         }
+         mOptionsCallback = null;
+         mRewards = null;
+         if(mDBFacade.hud)
+         {
+            mDBFacade.hud.clearExitMenu();
+         }
          super.destroy();
+      }
+      
+      override protected function setupMenuNavigation() : void
+      {
+         mCloseButton.isAbove(mRightButton);
+         mRightButton.isAbove(mLeftButton);
       }
    }
 }

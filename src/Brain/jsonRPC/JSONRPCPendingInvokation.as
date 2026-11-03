@@ -1,10 +1,11 @@
 package Brain.jsonRPC
 {
+   import Brain.Event.EventListeners;
    import Brain.Utils.MemoryTracker;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import flash.events.EventDispatcher;
    import flash.net.URLStream;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class JSONRPCPendingInvokation extends EventDispatcher
    {
@@ -30,7 +31,7 @@ package Brain.jsonRPC
          }
          mDestroyCallback = null;
          this.dispatchEvent(new FaultEvent(e));
-         destory();
+         destroy();
       }
       
       public function handleResult(r:*) : void
@@ -41,7 +42,7 @@ package Brain.jsonRPC
          }
          mDestroyCallback = null;
          this.dispatchEvent(new ResultEvent(r));
-         destory();
+         destroy();
       }
       
       public function addDestroyCallback(f:Function) : void
@@ -52,24 +53,12 @@ package Brain.jsonRPC
       public function addListener(eventName:String, callback:Function) : void
       {
          mRegisteredListeners.add(eventName,callback);
-         addEventListener(eventName,callback);
+         EventListeners.add(this,eventName,callback);
       }
       
-      public function removeListener(eventName:String) : void
-      {
-         if(!mRegisteredListeners.has(eventName))
-         {
-            return;
-         }
-         var _loc2_:Function = mRegisteredListeners.itemFor(eventName);
-         removeEventListener(eventName,_loc2_);
-         mRegisteredListeners.remove(eventName);
-      }
-      
-      public function destory() : void
+      public function destroy() : void
       {
          removeAllListeners();
-         mRegisteredListeners.clear();
          mRegisteredListeners = null;
          mURLStream.close();
          mURLStream = null;
@@ -82,14 +71,14 @@ package Brain.jsonRPC
       
       public function removeAllListeners() : void
       {
-         var _loc2_:String = null;
+         var _loc2_:Function = null;
          var _loc1_:IMapIterator = mRegisteredListeners.iterator() as IMapIterator;
          while(_loc1_.hasNext())
          {
-            _loc1_.next();
-            _loc2_ = _loc1_.current as String;
-            removeListener(_loc2_);
+            _loc2_ = _loc1_.next();
+            EventListeners.remove(this,_loc1_.key,_loc2_);
          }
+         mRegisteredListeners.clear();
       }
    }
 }

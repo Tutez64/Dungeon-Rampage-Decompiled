@@ -10,11 +10,11 @@ package GeneratedCode
       
       private var the_instance:DistributedBuffGameObject;
       
-      public const FLID_type:uint = 292;
+      public const FLID_type:uint = 301;
       
-      public const FLID_effectedActor:uint = 293;
+      public const FLID_effectedActor:uint = 302;
       
-      public const FLID_attackerActor:uint = 294;
+      public const FLID_attackerActor:uint = 303;
       
       public function DistributedBuffGameObjectNetworkComponent(Inst:DistributedBuffGameObject, gs:GeneratedDcSocket, id:uint)
       {
@@ -34,7 +34,7 @@ package GeneratedCode
       
       override public function recvById(packet:DcNetworkPacket, fieldid:uint) : void
       {
-         switch(int(fieldid) - 292)
+         switch(int(fieldid) - 301)
          {
             case 0:
                recv_type(packet);

@@ -127,7 +127,7 @@ package Combat.Weapon
       
       override public function onWeaponUp(autoAim:Boolean = true) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          if(!mDBFacade.dbAccountInfo.dbAccountParams.hasRepeaterTutorialParam() && !mTutorialMessageSent)
          {
             mDBFacade.eventManager.dispatchEvent(new FirstRepeaterEvent());

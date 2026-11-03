@@ -30,7 +30,7 @@ package Combat.Attack
       override public function execute(timeline:ScriptTimeline) : void
       {
          super.execute(timeline);
-         mWeaponController.startCooldown();
+         mWeaponController.startCooldown(timeline.currentGMAttack);
       }
       
       override public function destroy() : void

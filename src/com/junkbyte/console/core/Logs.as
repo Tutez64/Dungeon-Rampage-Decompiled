@@ -2,243 +2,96 @@ package com.junkbyte.console.core
 {
    import com.junkbyte.console.Console;
    import com.junkbyte.console.vos.Log;
+   import flash.Boot;
    import flash.events.Event;
    import flash.utils.ByteArray;
    
    public class Logs extends ConsoleCore
    {
       
-      private var _channels:Object;
+      public var last:Log;
       
-      private var _repeating:uint;
-      
-      private var _lastRepeat:Log;
-      
-      private var _newRepeat:Log;
-      
-      private var _hasNewLog:Boolean;
-      
-      private var _timer:uint;
+      public var hasNewLog:Boolean;
       
       public var first:Log;
       
-      public var last:Log;
+      public var _timer:uint;
       
-      private var _length:uint;
+      public var _repeating:uint;
       
-      private var _lines:uint;
+      public var _newRepeat:Log;
       
-      public function Logs(console:Console)
+      public var _lines:uint;
+      
+      public var _length:uint;
+      
+      public var _lastRepeat:Log;
+      
+      public var _channels:Array;
+      
+      public function Logs(console:Console = undefined)
       {
-         super(console);
-         this._channels = new Object();
-         remoter.addEventListener(Event.CONNECT,this.onRemoteConnection);
-         remoter.registerCallback("log",function(bytes:ByteArray):void
+         var _gthis:Logs;
+         if(!Boot.skip_constructor)
          {
-            registerLog(Log.FromBytes(bytes));
-         });
-      }
-      
-      private function onRemoteConnection(e:Event) : void
-      {
-         var _loc2_:Log = this.first;
-         while(_loc2_)
-         {
-            this.send2Remote(_loc2_);
-            _loc2_ = _loc2_.next;
+            _gthis = this;
+            super(console);
+            _channels = [];
+            get_remoter().addEventListener(Event.CONNECT,onRemoteConnection);
+            get_remoter().registerCallback("log",function(bytes:ByteArray):void
+            {
+               _gthis.registerLog(Log.FromBytes(bytes));
+            });
          }
       }
       
-      private function send2Remote(line:Log) : void
+      public function update(time:uint) : void
       {
-         var _loc2_:ByteArray = null;
-         if(remoter.canSend)
+         _timer = time;
+         if(_repeating > 0)
+         {
+            --_repeating;
+         }
+         if(_newRepeat != null)
+         {
+            if(_lastRepeat != null)
+            {
+               remove(_lastRepeat);
+            }
+            _lastRepeat = _newRepeat;
+            _newRepeat = null;
+            push(_lastRepeat);
+         }
+      }
+      
+      public function send2Remote(line:Log) : void
+      {
+         var _loc2_:* = null as ByteArray;
+         if(get_remoter().get_canSend())
          {
             _loc2_ = new ByteArray();
             line.toBytes(_loc2_);
-            remoter.send("log",_loc2_);
+            get_remoter().send("log",_loc2_);
          }
       }
       
-      public function update(time:uint) : Boolean
+      public function remove(log:Log) : void
       {
-         this._timer = time;
-         if(this._repeating > 0)
+         if(first == log)
          {
-            --this._repeating;
+            first = log.next;
          }
-         if(this._newRepeat)
+         if(last == log)
          {
-            if(this._lastRepeat)
-            {
-               this.remove(this._lastRepeat);
-            }
-            this._lastRepeat = this._newRepeat;
-            this._newRepeat = null;
-            this.push(this._lastRepeat);
+            last = log.prev;
          }
-         var _loc2_:Boolean = this._hasNewLog;
-         this._hasNewLog = false;
-         return _loc2_;
-      }
-      
-      public function add(line:Log) : void
-      {
-         ++this._lines;
-         line.line = this._lines;
-         line.time = this._timer;
-         this.registerLog(line);
-      }
-      
-      private function registerLog(line:Log) : void
-      {
-         this._hasNewLog = true;
-         this.addChannel(line.ch);
-         line.lineStr = line.line + " ";
-         line.chStr = "[<a href=\"event:channel_" + line.ch + "\">" + line.ch + "</a>] ";
-         line.timeStr = config.timeStampFormatter(line.time) + " ";
-         this.send2Remote(line);
-         if(line.repeat)
+         if(log == _lastRepeat)
          {
-            if(this._repeating > 0 && Boolean(this._lastRepeat))
-            {
-               line.line = this._lastRepeat.line;
-               this._newRepeat = line;
-               return;
-            }
-            this._repeating = config.maxRepeats;
-            this._lastRepeat = line;
+            _lastRepeat = null;
          }
-         this.push(line);
-         while(this._length > config.maxLines && config.maxLines > 0)
+         if(log == _newRepeat)
          {
-            this.remove(this.first);
-         }
-         if(config.tracing && config.traceCall != null)
-         {
-            config.traceCall(line.ch,line.plainText(),line.priority);
-         }
-      }
-      
-      public function clear(channel:String = null) : void
-      {
-         var _loc2_:Log = null;
-         if(channel)
-         {
-            _loc2_ = this.first;
-            while(_loc2_)
-            {
-               if(_loc2_.ch == channel)
-               {
-                  this.remove(_loc2_);
-               }
-               _loc2_ = _loc2_.next;
-            }
-            delete this._channels[channel];
-         }
-         else
-         {
-            this.first = null;
-            this.last = null;
-            this._length = 0;
-            this._channels = new Object();
-         }
-      }
-      
-      public function getLogsAsString(splitter:String, incChNames:Boolean = true, filter:Function = null) : String
-      {
-         var _loc4_:String = "";
-         var _loc5_:Log = this.first;
-         while(_loc5_)
-         {
-            if(filter == null || Boolean(filter(_loc5_)))
-            {
-               if(this.first != _loc5_)
-               {
-                  _loc4_ += splitter;
-               }
-               _loc4_ += incChNames ? _loc5_.toString() : _loc5_.plainText();
-            }
-            _loc5_ = _loc5_.next;
-         }
-         return _loc4_;
-      }
-      
-      public function getChannels() : Array
-      {
-         var _loc3_:String = null;
-         var _loc1_:Array = new Array(Console.GLOBAL_CHANNEL);
-         this.addIfexist(Console.DEFAULT_CHANNEL,_loc1_);
-         this.addIfexist(Console.FILTER_CHANNEL,_loc1_);
-         this.addIfexist(LogReferences.INSPECTING_CHANNEL,_loc1_);
-         this.addIfexist(Console.CONSOLE_CHANNEL,_loc1_);
-         var _loc2_:Array = new Array();
-         for(_loc3_ in this._channels)
-         {
-            if(_loc1_.indexOf(_loc3_) < 0)
-            {
-               _loc2_.push(_loc3_);
-            }
-         }
-         return _loc1_.concat(_loc2_.sort(Array.CASEINSENSITIVE));
-      }
-      
-      private function addIfexist(n:String, arr:Array) : void
-      {
-         if(this._channels.hasOwnProperty(n))
-         {
-            arr.push(n);
-         }
-      }
-      
-      public function cleanChannels() : void
-      {
-         this._channels = new Object();
-         var _loc1_:Log = this.first;
-         while(_loc1_)
-         {
-            this.addChannel(_loc1_.ch);
-            _loc1_ = _loc1_.next;
-         }
-      }
-      
-      public function addChannel(n:String) : void
-      {
-         this._channels[n] = null;
-      }
-      
-      private function push(v:Log) : void
-      {
-         if(this.last == null)
-         {
-            this.first = v;
-         }
-         else
-         {
-            this.last.next = v;
-            v.prev = this.last;
-         }
-         this.last = v;
-         ++this._length;
-      }
-      
-      private function remove(log:Log) : void
-      {
-         if(this.first == log)
-         {
-            this.first = log.next;
-         }
-         if(this.last == log)
-         {
-            this.last = log.prev;
-         }
-         if(log == this._lastRepeat)
-         {
-            this._lastRepeat = null;
-         }
-         if(log == this._newRepeat)
-         {
-            this._newRepeat = null;
+            _newRepeat = null;
          }
          if(log.next != null)
          {
@@ -248,7 +101,174 @@ package com.junkbyte.console.core
          {
             log.prev.next = log.next;
          }
-         --this._length;
+         --_length;
+      }
+      
+      public function registerLog(line:Log) : void
+      {
+         hasNewLog = true;
+         addChannel(line.ch);
+         line.lineStr = "" + line.line + " ";
+         line.chStr = "[<a href=\"event:channel_" + line.ch + "\">" + line.ch + "</a>] ";
+         line.timeStr = Std.string(config.timeStampFormatter(line.time)) + " ";
+         send2Remote(line);
+         if(line.repeat)
+         {
+            if(_repeating > 0 && _lastRepeat != null)
+            {
+               line.line = _lastRepeat.line;
+               _newRepeat = line;
+               return;
+            }
+            _repeating = config.maxRepeats;
+            _lastRepeat = line;
+         }
+         push(line);
+         while(_length > config.maxLines && config.maxLines > 0)
+         {
+            remove(first);
+         }
+         if(config.tracing && config.traceCall != null)
+         {
+            config.traceCall(line.ch,line.plainText(),line.priority);
+         }
+      }
+      
+      public function push(v:Log) : void
+      {
+         if(last == null)
+         {
+            first = v;
+         }
+         else
+         {
+            last.next = v;
+            v.prev = last;
+         }
+         last = v;
+         ++_length;
+      }
+      
+      public function onRemoteConnection(e:Event) : void
+      {
+         var _loc2_:Log = first;
+         while(_loc2_ != null)
+         {
+            send2Remote(_loc2_);
+            _loc2_ = _loc2_.next;
+         }
+      }
+      
+      public function getLogsAsString(splitter:String, incChNames:Boolean = true, filter:* = undefined) : String
+      {
+         var _loc4_:Array = [];
+         var _loc5_:Log = first;
+         while(_loc5_ != null)
+         {
+            if(filter == null || Boolean(filter(_loc5_)))
+            {
+               _loc4_.push(incChNames ? _loc5_.toString() : _loc5_.plainText());
+            }
+            _loc5_ = _loc5_.next;
+         }
+         return _loc4_.join(splitter);
+      }
+      
+      public function getChannels() : Array
+      {
+         var _loc5_:* = null as String;
+         var _loc1_:Array = [" * "];
+         addIfexist("-",_loc1_);
+         addIfexist("~",_loc1_);
+         addIfexist("⌂",_loc1_);
+         addIfexist("C",_loc1_);
+         var _loc2_:Array = [];
+         var _loc3_:int = 0;
+         var _loc4_:Array = _channels;
+         while(_loc3_ < int(_loc4_.length))
+         {
+            _loc5_ = _loc4_[_loc3_];
+            _loc3_++;
+            if(_loc1_.indexOf(_loc5_) < 0)
+            {
+               _loc2_.push(_loc5_);
+            }
+         }
+         _loc2_.sort(function(a:String, b:String):int
+         {
+            a = a.toLowerCase();
+            b = b.toLowerCase();
+            if(a < b)
+            {
+               return -1;
+            }
+            if(a > b)
+            {
+               return 1;
+            }
+            return 0;
+         });
+         return _loc1_.concat(_loc2_);
+      }
+      
+      public function clear(channel:String = undefined) : void
+      {
+         var _loc2_:* = null as Log;
+         if(channel != null)
+         {
+            _loc2_ = first;
+            while(_loc2_ != null)
+            {
+               if(_loc2_.ch == channel)
+               {
+                  remove(_loc2_);
+               }
+               _loc2_ = _loc2_.next;
+            }
+            _channels.remove(channel);
+         }
+         else
+         {
+            first = null;
+            last = null;
+            _length = 0;
+            _channels = [];
+         }
+      }
+      
+      public function cleanChannels() : void
+      {
+         _channels = [];
+         var _loc1_:Log = first;
+         while(_loc1_ != null)
+         {
+            addChannel(_loc1_.ch);
+            _loc1_ = _loc1_.next;
+         }
+      }
+      
+      public function addIfexist(n:String, arr:Array) : void
+      {
+         if(_channels.indexOf(n) != -1)
+         {
+            arr.push(n);
+         }
+      }
+      
+      public function addChannel(n:String) : void
+      {
+         if(_channels.indexOf(n) == -1)
+         {
+            _channels.push(n);
+         }
+      }
+      
+      public function add(line:Log) : void
+      {
+         ++_lines;
+         line.line = _lines;
+         line.time = _timer;
+         registerLog(line);
       }
    }
 }

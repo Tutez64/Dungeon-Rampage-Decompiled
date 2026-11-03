@@ -68,8 +68,6 @@ package Town
       override public function enterState() : void
       {
          super.enterState();
-         mDBFacade.mouseCursorManager.disable = false;
-         mDBFacade.mouseCursorManager.pushMouseCursor("auto");
          mTimeEnter = mDBFacade.gameClock.realTime;
          mDBFacade.metrics.log("AreaEnter",{"areaType":this.name});
          mSceneGraphComponent = new SceneGraphComponent(mDBFacade,"TownSubState");
@@ -82,7 +80,6 @@ package Town
       
       override public function exitState() : void
       {
-         mDBFacade.mouseCursorManager.popMouseCursor();
          var _loc1_:uint = (mDBFacade.gameClock.realTime - mTimeEnter) / 1000;
          mDBFacade.metrics.log("AreaExit",{
             "areaType":this.name,

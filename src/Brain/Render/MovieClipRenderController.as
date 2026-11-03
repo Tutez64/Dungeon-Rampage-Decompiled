@@ -2,6 +2,7 @@ package Brain.Render
 {
    import Brain.Facade.Facade;
    import Brain.Utils.IPoolable;
+   import flash.display.DisplayObject;
    import flash.display.FrameLabel;
    import flash.display.MovieClip;
    
@@ -157,6 +158,25 @@ package Brain.Render
       public function set playRate(value:Number) : void
       {
          mRenderer.playRate = value;
+      }
+      
+      public function get displayObject() : DisplayObject
+      {
+         return mRenderer.clip;
+      }
+      
+      public function get rendererType() : String
+      {
+         return "MovieClipRenderer";
+      }
+      
+      public function set heading(value:Number) : void
+      {
+      }
+      
+      public function get backendType() : String
+      {
+         return "flash";
       }
    }
 }

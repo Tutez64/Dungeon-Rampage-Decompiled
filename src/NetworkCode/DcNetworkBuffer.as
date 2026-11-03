@@ -5,6 +5,8 @@ package NetworkCode
    public class DcNetworkBuffer extends ByteArray
    {
       
+      private static const sSlide:ByteArray = new ByteArray();
+      
       public function DcNetworkBuffer()
       {
          super();
@@ -13,7 +15,14 @@ package NetworkCode
       
       public function do_slide() : void
       {
-         var _loc1_:DcNetworkPacket = new DcNetworkPacket();
+         if(position == length)
+         {
+            length = 0;
+            position = 0;
+            return;
+         }
+         var _loc1_:ByteArray = sSlide;
+         _loc1_.length = 0;
          readBytes(_loc1_);
          length = 0;
          position = 0;

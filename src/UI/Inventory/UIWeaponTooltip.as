@@ -3,6 +3,7 @@ package UI.Inventory
    import Account.ItemInfo;
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
+   import Brain.Utils.TextUtil;
    import Combat.Weapon.WeaponGameObject;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
@@ -45,12 +46,19 @@ package UI.Inventory
          mRoot = new templateClass();
          this.addChild(mRoot);
          mNameLabel = mRoot.title_label;
+         mRoot.scaleX = mRoot.scaleY = tooltipScale(mNameLabel,1.09);
          mPowerLabel = mRoot.power.label;
-         mRoot.power.attack_label.text = Locale.getString("POWER");
+         Locale.setText(mRoot.power.attack_label,"POWER");
          mTapIcon = mRoot.tap_icon;
          mHoldIcon = mRoot.icon;
          mLevelLabel = mRoot.level_label;
          mModifiersList = new Vector.<UIModifier>();
+      }
+      
+      public static function tooltipScale(field:TextField, sizeModifier:Number) : Number
+      {
+         var _loc3_:Number = Number(field.defaultTextFormat.size);
+         return TextUtil.scaleToFloor(_loc3_ * TextUtil.scaleToFloor(_loc3_),sizeModifier);
       }
       
       public function destroy() : void
@@ -69,8 +77,8 @@ package UI.Inventory
          var _loc6_:GMRarity = mDBFacade.gameMaster.rarityById.itemFor(weaponGameObject.rarity);
          var _loc4_:uint = uint(_loc6_ != null && _loc6_.TextColor ? _loc6_.TextColor : 15463921);
          mNameLabel.textColor = _loc4_;
-         mPowerLabel.text = weaponGameObject.power.toString();
-         mLevelLabel.text = Locale.getString("ITEM_CARD_LEVEL_REQUIREMENT") + weaponGameObject.requiredLevel;
+         TextUtil.setText(mPowerLabel,weaponGameObject.power.toString());
+         TextUtil.setText(mLevelLabel,Locale.getString("ITEM_CARD_LEVEL_REQUIREMENT") + weaponGameObject.requiredLevel);
          loadIcon(weaponGameObject.weaponData.TapIcon,mTapIcon);
          loadIcon(weaponGameObject.weaponData.HoldIcon,mHoldIcon);
          var _loc2_:String = "";
@@ -88,7 +96,7 @@ package UI.Inventory
             mModifiersList.push(new UIModifier(mDBFacade,mRoot.getChildByName("modifier_icon_3") as MovieClip,"",0,true,weaponGameObject.legendaryModifier.Id));
             mNameLabel.text = GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",weaponGameObject.weaponData.getWeaponAesthetic(0,true).Constant);
          }
-         mNameLabel.text = mNameLabel.text.toUpperCase();
+         TextUtil.setText(mNameLabel,mNameLabel.text.toUpperCase());
       }
       
       public function setWeaponItemFromItemInfo(itemInfo:ItemInfo) : void
@@ -97,8 +105,8 @@ package UI.Inventory
          clearAllIcons();
          mNameLabel.text = GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",itemInfo.gmWeaponAesthetic.Constant).toUpperCase();
          mNameLabel.textColor = itemInfo.getTextColor();
-         mPowerLabel.text = itemInfo.power.toString();
-         mLevelLabel.text = Locale.getString("ITEM_CARD_LEVEL_REQUIREMENT") + itemInfo.requiredLevel;
+         TextUtil.setText(mPowerLabel,itemInfo.power.toString());
+         TextUtil.setText(mLevelLabel,Locale.getString("ITEM_CARD_LEVEL_REQUIREMENT") + itemInfo.requiredLevel);
          loadIcon(itemInfo.gmWeaponItem.TapIcon,mTapIcon);
          loadIcon(itemInfo.gmWeaponItem.HoldIcon,mHoldIcon);
          var _loc2_:String = "";
@@ -116,7 +124,7 @@ package UI.Inventory
             mModifiersList.push(new UIModifier(mDBFacade,mRoot.getChildByName("modifier_icon_3") as MovieClip,"",0,true,itemInfo.legendaryModifier));
             mNameLabel.text = GameMasterLocale.getGameMasterSubString("WEAPON_AESTHETIC_NAME",itemInfo.gmWeaponItem.getWeaponAesthetic(0,true).Constant);
          }
-         mNameLabel.text = mNameLabel.text.toUpperCase();
+         TextUtil.setText(mNameLabel,mNameLabel.text.toUpperCase());
       }
       
       public function setWeaponItemFromData(name:String, power:uint, tapIcon:String, holdIcon:String, mod1:uint, mod2:uint, legendaryMod:uint, rarityVal:uint, level:uint, gmWeaponAesthetic:GMWeaponAesthetic = null) : void
@@ -131,8 +139,8 @@ package UI.Inventory
          var _loc15_:GMRarity = mDBFacade.gameMaster.rarityById.itemFor(rarityVal);
          var _loc12_:uint = uint(_loc15_ != null && _loc15_.TextColor ? _loc15_.TextColor : 15463921);
          mNameLabel.textColor = _loc12_;
-         mPowerLabel.text = power.toString();
-         mLevelLabel.text = Locale.getString("ITEM_CARD_LEVEL_REQUIREMENT") + level;
+         TextUtil.setText(mPowerLabel,power.toString());
+         TextUtil.setText(mLevelLabel,Locale.getString("ITEM_CARD_LEVEL_REQUIREMENT") + level);
          loadIcon(tapIcon,mTapIcon);
          loadIcon(holdIcon,mHoldIcon);
          var _loc14_:String = "";
@@ -160,7 +168,7 @@ package UI.Inventory
          {
             mNameLabel.text = _loc14_ + mNameLabel.text;
          }
-         mNameLabel.text = mNameLabel.text.toUpperCase();
+         TextUtil.setText(mNameLabel,mNameLabel.text.toUpperCase());
       }
       
       private function clearAllIcons() : void

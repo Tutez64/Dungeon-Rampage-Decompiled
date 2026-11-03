@@ -6,12 +6,14 @@ package UI.InfiniteIsland
    import Brain.AssetRepository.SwfAsset;
    import Brain.Logger.Logger;
    import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import GameMasterDictionary.GMRarity;
-   import GameMasterDictionary.GMSkin;
    import GameMasterDictionary.GMWeaponAesthetic;
    import GameMasterDictionary.GMWeaponItem;
    import UI.Inventory.UIWeaponTooltip;
+   import UI.Portrait.PlayerPortraitView;
+   import UI.Portrait.PlayerPortraits;
    import flash.display.MovieClip;
    import flash.geom.Point;
    
@@ -22,6 +24,8 @@ package UI.InfiniteIsland
       
       public static const LINKAGE_NAME:String = "leaderboard_slot";
       
+      private var mPortraits:PlayerPortraits = new PlayerPortraits();
+      
       private var mDBFacade:DBFacade;
       
       private var mNum:int;
@@ -29,8 +33,6 @@ package UI.InfiniteIsland
       private var mRoot:MovieClip;
       
       private var mAssetLoadingComponent:AssetLoadingComponent;
-      
-      private var mIconMC:MovieClip;
       
       private var mWeaponSlotA:UIObject;
       
@@ -68,8 +70,8 @@ package UI.InfiniteIsland
       
       public function setDungeonDetails(nodeId:int, friendInfo:FriendInfo, isLocalPlayer:Boolean) : void
       {
-         mRoot.friend_name.text = friendInfo.name;
-         mRoot.player01_number.text = friendInfo.getIILeaderboardScoreForNode(nodeId);
+         TextUtil.setText(mRoot.friend_name,friendInfo.name);
+         TextUtil.setText(mRoot.player01_number,String(friendInfo.getIILeaderboardScoreForNode(nodeId)));
          mRoot.friend_pic.you_online.visible = isLocalPlayer;
          loadAvatarSkinPic(friendInfo.getIILeaderboardAvatarSkinForNode(nodeId));
          loadWeaponsUsed(friendInfo.getWeaponsUsedForNode(nodeId));
@@ -144,24 +146,16 @@ package UI.InfiniteIsland
       
       public function setDungeonDetailsForTopTwenty(playerName:String, playerScore:int, playerAvatarSkin:int, weaponsJson:Vector.<Object>) : void
       {
-         mRoot.friend_name.text = playerName;
-         mRoot.player01_number.text = playerScore;
+         TextUtil.setText(mRoot.friend_name,playerName);
+         TextUtil.setText(mRoot.player01_number,String(playerScore));
          loadAvatarSkinPic(playerAvatarSkin);
          loadWeaponsUsed(weaponsJson);
       }
       
       private function loadAvatarSkinPic(skinId:int) : void
       {
-         var gmSkin:GMSkin = mDBFacade.gameMaster.getSkinByType(skinId);
-         var swfPath:String = gmSkin.UISwfFilepath;
-         var iconName:String = gmSkin.IconName;
-         mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(swfPath),function(param1:SwfAsset):void
-         {
-            var _loc2_:Class = param1.getClass(iconName);
-            mIconMC = new _loc2_() as MovieClip;
-            mRoot.friend_pic.default_pic.addChild(mIconMC);
-            mIconMC.scaleX = mIconMC.scaleY = 0.5;
-         });
+         var _loc2_:PlayerPortraitView = mPortraits.show(mRoot.friend_pic.default_pic,mDBFacade,skinId);
+         _loc2_.scaleX = _loc2_.scaleY = 0.5;
       }
       
       public function get root() : MovieClip
@@ -171,11 +165,7 @@ package UI.InfiniteIsland
       
       public function destroy() : void
       {
-         if(mIconMC)
-         {
-            mRoot.friend_pic.default_pic.removeChild(mIconMC);
-            mIconMC = null;
-         }
+         mPortraits.destroy();
          mAssetLoadingComponent.destroy();
          mAssetLoadingComponent = null;
          mRoot = null;

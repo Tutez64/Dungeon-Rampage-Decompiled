@@ -10,7 +10,7 @@ package Config
       
       private var mFilePathsToOpen:Array = ["./DbConfiguration/Config.json"];
       
-      private var mConfigsToLoad:Array;
+      private var mConfigsToLoad:Array = [];
       
       protected var mEventComponent:EventComponent;
       
@@ -20,7 +20,10 @@ package Config
       {
          mDBFacade = dbFacade;
          mEventComponent = new EventComponent(mDBFacade);
-         mConfigsToLoad = mDBFacade.mAdditionalConfigFilesToLoad.concat(mFilePathsToOpen);
+         for each(var _loc2_:String in mFilePathsToOpen.concat(mDBFacade.mAdditionalConfigFilesToLoad))
+         {
+            mConfigsToLoad.push(DBFacade.buildFullDownloadPath(_loc2_));
+         }
          super(dbFacade,mConfigsToLoad,null,handleFailure);
       }
       

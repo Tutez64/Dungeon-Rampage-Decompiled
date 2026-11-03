@@ -2,7 +2,6 @@ package SteamInput
 {
    import com.amanitadesign.steam.FRESteamWorks;
    import com.amanitadesign.steam.InputAnalogActionData;
-   import com.amanitadesign.steam.InputDigitalActionData;
    import flash.geom.Vector3D;
    import flash.utils.Dictionary;
    
@@ -103,7 +102,7 @@ package SteamInput
       
       private function readDigitalActions(mSteamworks:FRESteamWorks) : void
       {
-         var _loc5_:InputDigitalActionData = null;
+         var _loc5_:Boolean = false;
          var _loc3_:Vector.<SteamInputAction> = new Vector.<SteamInputAction>();
          for each(var _loc6_:SteamInputAction in mInGameControlsActionSet.digitalActionHandles)
          {
@@ -115,8 +114,8 @@ package SteamInput
          }
          for each(var _loc4_:SteamInputAction in _loc3_)
          {
-            _loc5_ = mSteamworks.getDigitalActionData(controllerHandle,_loc4_.actionHandle);
-            writeDigitalActionState(_loc4_.actionName,_loc5_.bState);
+            _loc5_ = Boolean(mSteamworks.getDigitalActionButtonState(controllerHandle,_loc4_.actionHandle));
+            writeDigitalActionState(_loc4_.actionName,_loc5_);
          }
       }
       

@@ -20,8 +20,8 @@ package Collision
       
       override public function BeginContact(contact:b2Contact) : void
       {
-         var _loc4_:* = 0;
-         var _loc3_:* = 0;
+         var _loc4_:uint = 0;
+         var _loc3_:uint = 0;
          var _loc2_:IContactResolver = null;
          var _loc7_:IContactResolver = null;
          var _loc6_:b2Fixture = contact.GetFixtureA();
@@ -62,8 +62,8 @@ package Collision
       
       override public function EndContact(contact:b2Contact) : void
       {
-         var _loc4_:* = 0;
-         var _loc3_:* = 0;
+         var _loc4_:uint = 0;
+         var _loc3_:uint = 0;
          var _loc2_:IContactResolver = null;
          var _loc7_:IContactResolver = null;
          var _loc6_:b2Fixture = contact.GetFixtureA();

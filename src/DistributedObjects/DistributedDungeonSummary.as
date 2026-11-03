@@ -5,7 +5,6 @@ package DistributedObjects
    import Account.ChestInfo;
    import Account.CurrencyUpdatedAccountEvent;
    import Account.DBInventoryInfo;
-   import Account.KeyInfo;
    import Account.PlayerSpecialStatus;
    import Account.StoreServices;
    import Account.StoreServicesController;
@@ -14,6 +13,7 @@ package DistributedObjects
    import Brain.AssetRepository.SwfAsset;
    import Brain.Clock.GameClock;
    import Brain.Event.EventComponent;
+   import Brain.Event.EventListeners;
    import Brain.GameObject.GameObject;
    import Brain.Logger.Logger;
    import Brain.Render.MovieClipRenderController;
@@ -24,20 +24,21 @@ package DistributedObjects
    import Brain.UI.UIObject;
    import Brain.UI.UIProgressBar;
    import Brain.Utils.MemoryTracker;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
    import Brain.jsonRPC.JSONRPCService;
+   import Collections.Map;
    import DBGlobals.DBGlobal;
    import Events.ChatEvent;
-   import Events.FacebookLevelUpPostEvent;
    import Events.FriendSummaryNewsFeedEvent;
    import Events.GameObjectEvent;
+   import Events.LevelUpPostEvent;
    import Events.PlayerExitEvent;
    import Events.PlayerIsTypingEvent;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
-   import FacebookAPI.DBFacebookBragFeedPost;
    import GameMasterDictionary.GMChest;
    import GameMasterDictionary.GMDoober;
    import GameMasterDictionary.GMHero;
@@ -50,13 +51,10 @@ package DistributedObjects
    import GeneratedCode.DistributedDungeonSummaryNetworkComponent;
    import GeneratedCode.DungeonReport;
    import GeneratedCode.IDistributedDungeonSummary;
-   import Metrics.LifestreetTracker;
-   import Metrics.PixelTracker;
    import Sound.DBSoundComponent;
    import Town.TownHeader;
    import UI.CountdownTextTimer;
    import UI.FriendManager.UIFriendManager;
-   import UI.Hud.UIHud;
    import UI.Inventory.Chests.ChestBuyKeysPopUp;
    import UI.Inventory.Chests.ChestKeySlot;
    import UI.Inventory.Chests.ChestRevealPopUp;
@@ -64,11 +62,11 @@ package DistributedObjects
    import UI.Inventory.UIWeaponTooltip;
    import UI.Popup.DBUIPopup;
    import UI.Popup.DBUITwoButtonPopup;
+   import UI.Popup.UIDistributedDungeonNextFloorSection;
    import UI.Popup.UIReportPopup;
+   import UI.Popup.UITreasureFoundPopup;
    import UI.Popup.UIVictoryBoosterPopup;
    import UI.UIChatLog;
-   import com.greensock.TweenMax;
-   import com.maccherone.json.JSONParseError;
    import flash.display.DisplayObject;
    import flash.display.Loader;
    import flash.display.MovieClip;
@@ -77,7 +75,6 @@ package DistributedObjects
    import flash.filters.ColorMatrixFilter;
    import flash.filters.GlowFilter;
    import flash.geom.Point;
-   import flash.geom.Rectangle;
    import flash.geom.Vector3D;
    import flash.net.URLRequest;
    import flash.net.navigateToURL;
@@ -85,7 +82,6 @@ package DistributedObjects
    import flash.text.TextField;
    import flash.text.TextFormat;
    import flash.utils.getQualifiedClassName;
-   import org.as3commons.collections.Map;
    
    public class DistributedDungeonSummary extends GameObject implements IDistributedDungeonSummary
    {
@@ -100,6 +96,10 @@ package DistributedObjects
       
       private static const TAKE_ALL_ID:uint = 1000;
       
+      private static const CHAT_LOG_HEIGHT_SCALE:Number = 1.5;
+      
+      private static const CHAT_BUTTON_HEIGHT_SCALE:Number = 1.25;
+      
       private static const DUNGEONS_COMPLETED:String = "DUNGEONS_COMPLETED";
       
       private static const REVEAL_STATE_BEGIN:uint = 1;
@@ -107,8 +107,6 @@ package DistributedObjects
       private static const REVEAL_TROPHY_AWARD_STATE:uint = 20;
       
       private static const HIDE_TROPHY_AWARD_STATE:uint = 25;
-      
-      private static const MAP_NODE_DEFEATED_FEED_POST:uint = 30;
       
       private static const REVEAL_STATE_BONUS_XP:uint = 2;
       
@@ -156,6 +154,8 @@ package DistributedObjects
       
       private var mTownRoot:MovieClip;
       
+      private var mNextFloorSection:UIDistributedDungeonNextFloorSection;
+      
       private var mUIInventory:UIInventory;
       
       private var mTownHeader:TownHeader;
@@ -192,6 +192,10 @@ package DistributedObjects
       
       private var mItemButtons:Array;
       
+      private var mAvatarButtons:Array;
+      
+      private var mPlayerBoosterUIs:Array;
+      
       private var mAddFriendButtons:Array;
       
       private var mBlockFriendButtons:Array;
@@ -201,6 +205,8 @@ package DistributedObjects
       private var mSelectedItemSlot:uint;
       
       private var mSelectedGMChest:GMChest;
+      
+      private var mLeaving:Boolean = false;
       
       private var mTookLastItem:Boolean;
       
@@ -240,9 +246,9 @@ package DistributedObjects
       
       private var mTransactionSuccessCallback:Function;
       
-      private var mFacebookPicHolder:MovieClip;
+      private var mSteamAvatarHolder:MovieClip;
       
-      private var mFacebookPicMap:Map;
+      private var mSteamAvatarMap:Map;
       
       private var mDungeonSuccess:Boolean;
       
@@ -254,23 +260,13 @@ package DistributedObjects
       
       private var mBgRenderer:MovieClipRenderController;
       
-      private var mOpenKeyChestMC:MovieClip;
-      
-      private var mAbandonButton:UIButton;
-      
-      private var mKeepButton:UIButton;
-      
-      private var mOpenButton:UIButton;
+      private var mTreasureFoundPopup:UITreasureFoundPopup;
       
       private var mChestRevealPopUp:ChestRevealPopUp;
       
       private var mChestRenderers:Vector.<MovieClipRenderer>;
       
       private var mChestKeySlots:Vector.<ChestKeySlot>;
-      
-      private var mOpenKeyChestRenderer:MovieClipRenderer;
-      
-      private var mKeyThatCanOpenChest:KeyInfo;
       
       private var mChestBuyKeysPopUp:ChestBuyKeysPopUp;
       
@@ -340,12 +336,11 @@ package DistributedObjects
       
       public function DistributedDungeonSummary(dbFacade:DBFacade, doid:uint)
       {
-         var dungeonsCompletedCount:uint;
          var k:int;
          var i:int;
          var j:int;
          mXpBar = [];
-         Logger.warn("Start construction of DDS");
+         Logger.info("Start construction of DDS");
          super(dbFacade,doid);
          try
          {
@@ -364,16 +359,9 @@ package DistributedObjects
             mBlockFriendButtons = [];
             mReportPlayerButtons = [];
             mBoosterInfos = [];
+            mAvatarButtons = new Array(4);
+            mPlayerBoosterUIs = [[],[],[],[]];
             mDBFacade.dbAccountInfo.incrementCompletedDungeons();
-            dungeonsCompletedCount = mDBFacade.dbAccountInfo.getDungeonsCompleted();
-            if(dungeonsCompletedCount == 1)
-            {
-               PixelTracker.tutorialComplete(mDBFacade);
-            }
-            if(mDBFacade.facebookController && dungeonsCompletedCount >= 1 && !mDBFacade.dbConfigManager.getConfigBoolean("FUFB",false))
-            {
-               mDBFacade.facebookController.updateGuestAchievement(1);
-            }
             mAssetLoadingComponent = new AssetLoadingComponent(mDBFacade);
             mSceneGraphComponent = new SceneGraphComponent(mDBFacade,"DistributedDungeonSummary");
             mSoundComponent = new DBSoundComponent(mDBFacade);
@@ -382,7 +370,7 @@ package DistributedObjects
             mChatBalloon = new Vector.<ChatBalloon>(4);
             mChatCloseTask = new Vector.<Task>(4);
             mChatEventComponent = new EventComponent(dbFacade);
-            mFacebookPicMap = new Map();
+            mSteamAvatarMap = new Map();
             isSingleChestList = new Vector.<Boolean>();
             isSingleChestList = new Vector.<Boolean>();
             k = 0;
@@ -406,11 +394,11 @@ package DistributedObjects
                i = i + 1;
             }
             mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_nametag.swf"),nametagSwfLoaded);
-            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),"HealthBomb1",function(param1:SoundAsset):void
+            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),"HealthBomb1",function(param1:SoundAsset):void
             {
                mSmashSfx = param1;
             });
-            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),"LevelUp2",function(param1:SoundAsset):void
+            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),"LevelUp2",function(param1:SoundAsset):void
             {
                mLevelSfx = param1;
             });
@@ -420,15 +408,15 @@ package DistributedObjects
          {
             Logger.error("An error occurred while attempting to construct distributed dungeon summary.  Error: " + e.message);
          }
-         Logger.warn("Finished construction of DDS");
+         Logger.info("Finished construction of DDS");
       }
       
       private function nametagSwfLoaded(swfAsset:SwfAsset) : void
       {
          var _loc2_:Class = swfAsset.getClass("fb_avatar_holder");
-         mFacebookPicHolder = new _loc2_();
-         mSceneGraphComponent.addChild(mFacebookPicHolder,105);
-         mFacebookPicHolder.visible = false;
+         mSteamAvatarHolder = new _loc2_();
+         mSceneGraphComponent.addChild(mSteamAvatarHolder,105);
+         mSteamAvatarHolder.visible = false;
       }
       
       public function setNetworkComponentDistributedDungeonSummary(iface:DistributedDungeonSummaryNetworkComponent) : void
@@ -438,17 +426,13 @@ package DistributedObjects
       
       public function postGenerate() : void
       {
+         mDBFacade.uiHideToggle.reveal();
          mCurrentMapNode = mDBFacade.gameMaster.mapNodeById.itemFor(mMapNodeId);
          if(mCurrentMapNode == null)
          {
             Logger.error("Couldn\'t find GMMapNode for node id : " + mMapNodeId);
             return;
          }
-         if(LifestreetTracker.IS_FUNCTIONAL && mCurrentMapNode.Id == LifestreetTracker.LIFESTREET_NODE_ID && !mDBFacade.dbAccountInfo.dbAccountParams.hasLifestreetParam())
-         {
-            PixelTracker.nodeCompleted(mDBFacade);
-         }
-         PixelTracker.nodeIndexCompleted(mDBFacade,mCurrentMapNode.BitIndex);
          mDungeonName = GameMasterLocale.getGameMasterSubString("DUNGEON_NAME",mCurrentMapNode.Constant).toUpperCase();
          if(this.dungeonSuccess)
          {
@@ -457,6 +441,10 @@ package DistributedObjects
          else
          {
             mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_score_report.swf"),failureScoreReportSwfLoaded);
+         }
+         if(this.dungeonSuccess && mMapNodeId == DBGlobal.TUTORIAL_MAP_NODE_ID)
+         {
+            mDBFacade.dbAccountInfo.dbAccountParams.setMovementTutorialParam();
          }
          mDBFacade.dbAccountInfo.dbAccountParams.flushParams();
       }
@@ -495,14 +483,30 @@ package DistributedObjects
          }
       }
       
+      private function noCoinsCollectedByParty() : Boolean
+      {
+         if(!mDungeonSuccess || mCurrentMapNode.InfiniteDungeon != null)
+         {
+            return false;
+         }
+         for each(var _loc1_:DungeonReport in mDungeonReport)
+         {
+            if(_loc1_.valid && _loc1_.gold_earned != 0)
+            {
+               return false;
+            }
+         }
+         return true;
+      }
+      
       private function updateRevealState(clock:GameClock) : void
       {
          var i:uint;
          var allFinished:Boolean;
          var loot:Array;
+         var popupType:String;
          var trophies:int;
          var trophyGetClipLength:uint;
-         var bossFeedPosts:Boolean;
          var maxBonus:uint;
          var xp_bars:Array;
          var speed:Number;
@@ -535,7 +539,7 @@ package DistributedObjects
          var weapon_clip:MovieClip;
          var global_position:Point;
          var position:Vector3D;
-         var totalXP:int;
+         var totalXP:uint;
          var local_i:uint;
          var tickingFilter:Array;
          var headerTitle:String;
@@ -557,6 +561,15 @@ package DistributedObjects
                      stats[i].stats.kills.enemies_killed.visible = false;
                      stats[i].stats.kills.enemies_killed_reveal.visible = false;
                      stats[i].stats.treasure.visible = false;
+                     if(mDungeonReport[i].id == mDBFacade.accountId)
+                     {
+                        if(noCoinsCollectedByParty())
+                        {
+                           mDBFacade.steamAchievementsHelper.unlockAchievement("CHALLENGE_COLLECT_NO_COINS_IN_DUNGEON");
+                        }
+                        mDBFacade.steamAchievementsHelper.addValueToStatInt(mDungeonReport[i].kills,"ENEMIES_KILLED");
+                        mDBFacade.steamAchievementsHelper.addValueToStatInt(mDungeonReport[i].receivedTrophy,"TROPHIES_EARNED");
+                     }
                   }
                   i = i + 1;
                }
@@ -565,8 +578,21 @@ package DistributedObjects
                   mXPBonusStarEffect.visible = true;
                   mXPBonusBarEffect.visible = true;
                   mXPBonusTextFlash.visible = true;
-                  mXPBonusText.text = mDBFacade.accountBonus.xpBonusText;
+                  TextUtil.setText(mXPBonusText,mDBFacade.accountBonus.xpBonusText);
                }
+               if(mCurrentMapNode.InfiniteDungeon != null)
+               {
+                  popupType = "ULTIMATE_RAMPAGE";
+               }
+               else if(this.dungeonSuccess)
+               {
+                  popupType = "VICTORY";
+               }
+               else
+               {
+                  popupType = "DEFEAT";
+               }
+               mNextFloorSection = new UIDistributedDungeonNextFloorSection(mDBFacade,mScoreReportRoot.dungeon_popup,mCurrentMapNode,popupType,returnToSplashScreen);
                setRevealState(20,0.45);
                break;
             case 20:
@@ -580,7 +606,7 @@ package DistributedObjects
                   mScoreReportRoot.stats_a.stats.trophies.filters = [new GlowFilter(16633879,1,8,8,10)];
                   trophies = int(mScoreReportRoot.stats_a.stats.trophies.trophies.text);
                   trophies = trophies + 1;
-                  mScoreReportRoot.stats_a.stats.trophies.trophies.text = trophies.toString();
+                  TextUtil.setText(mScoreReportRoot.stats_a.stats.trophies.trophies,trophies.toString());
                   trophyGetClipLength = 4;
                   mDungeonAchievementPanelMovieClipRenderer.play();
                   if(mSmashSfx)
@@ -600,14 +626,6 @@ package DistributedObjects
             case 25:
                mDungeonAchievementPanelMovieClipRenderer.stop();
                mDungeonAchievementPanelMovieClipRenderer.clip.visible = false;
-               setRevealState(30,0.45);
-               break;
-            case 30:
-               bossFeedPosts = mDBFacade.dbConfigManager.getConfigBoolean("boss_feed_posts",true);
-               if(bossFeedPosts && mDungeonReport[0].receivedTrophy && mCurrentMapNode.Constant != "TUTORIAL")
-               {
-                  DBFacebookBragFeedPost.defeatMapNodeBrag(mDBFacade,mCurrentMapNode,mAssetLoadingComponent);
-               }
                setRevealState(2,0.45);
                break;
             case 2:
@@ -647,19 +665,19 @@ package DistributedObjects
                      if(mBonusXPTick[i] < mDungeonReport[i].xp_bonus)
                      {
                         gmHero = mDBFacade.gameMaster.heroById.itemFor(mDungeonReport[i].type);
-                        oldLevel = gmHero.getLevelFromExp(mDungeonReport[i].xp + mBonusXPTick[i]);
+                        oldLevel = gmHero.getLevelFromExp(mDungeonReport[i].xp + mBonusXPTick[i],mDungeonReport[i].ascension_level);
                         allFinished = false;
                         mBonusXPTick[i] += speed;
                         currentExp = mDungeonReport[i].xp + mBonusXPTick[i];
-                        level = gmHero.getLevelFromExp(currentExp);
-                        levelIndex = uint(gmHero.getLevelIndex(currentExp));
+                        level = gmHero.getLevelFromExp(currentExp,mDungeonReport[i].ascension_level);
+                        levelIndex = uint(gmHero.getLevelIndex(currentExp,mDungeonReport[i].ascension_level));
                         lastLevelExp = uint(levelIndex > 0 ? gmHero.getExpFromIndex(levelIndex - 1) : 0);
                         max = gmHero.getExpFromIndex(levelIndex);
                         mXpBar[i].value = (currentExp - lastLevelExp) / (max - lastLevelExp);
-                        xp_bars[i].xp_level.text = level.toString();
-                        stats[i].stats.xp_bar.bonus_xp.xp.text = mBonusXPTick[i].toString();
-                        stats[i].stats.xp_bar.UI_XP.xp_points.text = currentExp.toString();
-                        stats[i].stats.xp_bar.UI_XP.xp_level.text = level.toString();
+                        TextUtil.setText(xp_bars[i].xp_level,level.toString());
+                        TextUtil.setText(stats[i].stats.xp_bar.bonus_xp.xp,mBonusXPTick[i].toString());
+                        TextUtil.setText(stats[i].stats.xp_bar.UI_XP.xp_points,currentExp.toString());
+                        TextUtil.setText(stats[i].stats.xp_bar.UI_XP.xp_level,level.toString());
                         if(oldLevel != level)
                         {
                            stats[i].stats.fx_level_up_text.visible = true;
@@ -680,7 +698,7 @@ package DistributedObjects
                            }
                            if(i == 0)
                            {
-                              mEventComponent.dispatchEvent(new FacebookLevelUpPostEvent("FacebookLevelUpPostEvent",level));
+                              mEventComponent.dispatchEvent(new LevelUpPostEvent("LevelUpPostEvent",level));
                            }
                         }
                      }
@@ -729,20 +747,20 @@ package DistributedObjects
                      if(mTeamBonusXPTick[i] < mDungeonReport[i].team_xp_bonus)
                      {
                         gmHeroTeam = mDBFacade.gameMaster.heroById.itemFor(mDungeonReport[i].type);
-                        oldLevelTeam = gmHeroTeam.getLevelFromExp(mDungeonReport[i].xp + mBonusXPTick[i]);
+                        oldLevelTeam = gmHeroTeam.getLevelFromExp(mDungeonReport[i].xp + mBonusXPTick[i],mDungeonReport[i].ascension_level);
                         allFinished = false;
                         mTeamBonusXPTick[i] += speedTeam;
                         currentExpTeam = mDungeonReport[i].xp + mBonusXPTick[i] + mTeamBonusXPTick[i];
-                        levelTeam = gmHeroTeam.getLevelFromExp(currentExpTeam);
-                        levelIndexTeam = uint(gmHeroTeam.getLevelIndex(currentExpTeam));
+                        levelTeam = gmHeroTeam.getLevelFromExp(currentExpTeam,mDungeonReport[i].ascension_level);
+                        levelIndexTeam = uint(gmHeroTeam.getLevelIndex(currentExpTeam,mDungeonReport[i].ascension_level));
                         lastLevelExpTeam = uint(levelIndexTeam > 0 ? gmHeroTeam.getExpFromIndex(levelIndexTeam - 1) : 0);
                         maxTeam = gmHeroTeam.getExpFromIndex(levelIndexTeam);
                         mXpBar[i].value = (currentExpTeam - lastLevelExpTeam) / (maxTeam - lastLevelExpTeam);
-                        xp_barsTeam[i].xp_level.text = levelTeam.toString();
+                        TextUtil.setText(xp_barsTeam[i].xp_level,levelTeam.toString());
                         teamBonusUITeam = mTeamBonusUI.itemFor(i);
-                        teamBonusUITeam.root.xp.text = mTeamBonusXPTick[i].toString();
-                        stats[i].stats.xp_bar.UI_XP.xp_points.text = currentExpTeam.toString();
-                        stats[i].stats.xp_bar.UI_XP.xp_level.text = levelTeam.toString();
+                        TextUtil.setText(teamBonusUITeam.root.xp,mTeamBonusXPTick[i].toString());
+                        TextUtil.setText(stats[i].stats.xp_bar.UI_XP.xp_points,currentExpTeam.toString());
+                        TextUtil.setText(stats[i].stats.xp_bar.UI_XP.xp_level,levelTeam.toString());
                         if(oldLevelTeam != levelTeam)
                         {
                            stats[i].stats.fx_level_up_text.visible = true;
@@ -763,7 +781,7 @@ package DistributedObjects
                            }
                            if(i == 0)
                            {
-                              mEventComponent.dispatchEvent(new FacebookLevelUpPostEvent("FacebookLevelUpPostEvent",levelTeam));
+                              mEventComponent.dispatchEvent(new LevelUpPostEvent("LevelUpPostEvent",levelTeam));
                            }
                         }
                      }
@@ -807,7 +825,7 @@ package DistributedObjects
                      {
                         allFinished = false;
                         ++mKillsTick[i];
-                        stats[i].stats.kills.enemies_killed.kills.text = mKillsTick[i];
+                        TextUtil.setText(stats[i].stats.kills.enemies_killed.kills,String(mKillsTick[i]));
                      }
                   }
                   i = i + 1;
@@ -860,7 +878,7 @@ package DistributedObjects
                         if(weapon_clip)
                         {
                            weapon_clip.visible = true;
-                           global_position = weapon_clip.localToGlobal(new Point(0,0));
+                           global_position = mFacade.designLocalToGlobal(weapon_clip,new Point(0,0));
                            position = new Vector3D(global_position.x,global_position.y + 16);
                         }
                      }
@@ -924,19 +942,19 @@ package DistributedObjects
                if(mBonusXPTick[local_i] < mDungeonReport[local_i].xp_bonus + mDungeonReport[local_i].team_xp_bonus)
                {
                   gmHero = mDBFacade.gameMaster.heroById.itemFor(mDungeonReport[local_i].type);
-                  oldLevel = gmHero.getLevelFromExp(mDungeonReport[local_i].xp + mBonusXPTick[local_i]);
+                  oldLevel = gmHero.getLevelFromExp(mDungeonReport[local_i].xp + mBonusXPTick[local_i],mDungeonReport[local_i].ascension_level);
                   allFinished = false;
                   ++mBonusXPTick[local_i];
                   currentExp = mDungeonReport[local_i].xp + mBonusXPTick[local_i];
-                  level = gmHero.getLevelFromExp(currentExp);
-                  levelIndex = uint(gmHero.getLevelIndex(currentExp));
+                  level = gmHero.getLevelFromExp(currentExp,mDungeonReport[local_i].ascension_level);
+                  levelIndex = uint(gmHero.getLevelIndex(currentExp,mDungeonReport[local_i].ascension_level));
                   lastLevelExp = uint(levelIndex > 0 ? gmHero.getExpFromIndex(levelIndex - 1) : 0);
                   max = gmHero.getExpFromIndex(levelIndex);
                   mXpBar[local_i].value = (currentExp - lastLevelExp) / (max - lastLevelExp);
-                  xp_bars[local_i].xp_level.text = level.toString();
-                  stats[local_i].stats.xp_bar.bonus_xp.xp.text = mBonusXPTick[local_i].toString();
-                  stats[local_i].stats.xp_bar.UI_XP.xp_points.text = currentExp.toString();
-                  stats[local_i].stats.xp_bar.UI_XP.xp_level.text = level.toString();
+                  TextUtil.setText(xp_bars[local_i].xp_level,level.toString());
+                  TextUtil.setText(stats[local_i].stats.xp_bar.bonus_xp.xp,mBonusXPTick[local_i].toString());
+                  TextUtil.setText(stats[local_i].stats.xp_bar.UI_XP.xp_points,currentExp.toString());
+                  TextUtil.setText(stats[local_i].stats.xp_bar.UI_XP.xp_level,level.toString());
                   if(oldLevel != level)
                   {
                      stats[local_i].stats.fx_level_up_text.visible = true;
@@ -953,7 +971,7 @@ package DistributedObjects
                      });
                      if(i == 0)
                      {
-                        mEventComponent.dispatchEvent(new FacebookLevelUpPostEvent("FacebookLevelUpPostEvent",level));
+                        mEventComponent.dispatchEvent(new LevelUpPostEvent("LevelUpPostEvent",level));
                      }
                   }
                }
@@ -974,6 +992,10 @@ package DistributedObjects
                break;
             case 12:
                fadeAwayTitle();
+               if(mTownHeader)
+               {
+                  mTownHeader.destroy();
+               }
                mTownHeader = new TownHeader(mDBFacade,closeHeader);
                mTownHeader.animateHeader();
                if(mCurrentMapNode.InfiniteDungeon != null)
@@ -987,8 +1009,10 @@ package DistributedObjects
                mTownHeader.title = headerTitle;
                mTownHeader.showCloseButton(true);
                mUIChatLog.enabledChatEnterEvent = false;
-               mDBFacade.menuNavigationController.pushNewLayer("DISTRIBUTED_DUNGEON_SUMMARY",closeHeader,mTownHeader.closeButton);
+               mNextFloorSection.setButtonEnabled();
+               mDBFacade.menuNavigationController.pushNewLayer("DISTRIBUTED_DUNGEON_SUMMARY",closeHeader,mTownHeader.closeButton,mNextFloorSection.battleButton,focusPreviousPlayerAvatar,focusNextPlayerAvatar);
                mTownHeader.setupButtonLinks();
+               setupMenuNavigation();
                mEventComponent.dispatchEvent(new Event("TIME_TO_SHARE_LEVEL_UP_EVENT"));
                go = mFacade.gameObjectManager.getReferenceFromId(mDungeonReport[0].id);
                player = go as PlayerGameObject;
@@ -1054,12 +1078,12 @@ package DistributedObjects
       private function setupPortraits() : void
       {
          var _loc2_:GMSkin = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc1_:TextField = null;
-         mScoreReportRoot.stats_a.stats.player_name.text = mDungeonReport[0].name;
-         mScoreReportRoot.stats_b.stats.player_name.text = mDungeonReport[1].name;
-         mScoreReportRoot.stats_c.stats.player_name.text = mDungeonReport[2].name;
-         mScoreReportRoot.stats_d.stats.player_name.text = mDungeonReport[3].name;
+         TextUtil.setText(mScoreReportRoot.stats_a.stats.player_name,mDungeonReport[0].name,Locale.summaryNameSizeModifier);
+         TextUtil.setText(mScoreReportRoot.stats_b.stats.player_name,mDungeonReport[1].name,Locale.summaryNameSizeModifier);
+         TextUtil.setText(mScoreReportRoot.stats_c.stats.player_name,mDungeonReport[2].name,Locale.summaryNameSizeModifier);
+         TextUtil.setText(mScoreReportRoot.stats_d.stats.player_name,mDungeonReport[3].name,Locale.summaryNameSizeModifier);
          mScoreReportRoot.stats_a.stats.player_name.textColor = PlayerSpecialStatus.getSpecialTextColor(mDungeonReport[0].name,mScoreReportRoot.stats_a.stats.player_name.textColor);
          mScoreReportRoot.stats_b.stats.player_name.textColor = PlayerSpecialStatus.getSpecialTextColor(mDungeonReport[1].name,mScoreReportRoot.stats_b.stats.player_name.textColor);
          mScoreReportRoot.stats_c.stats.player_name.textColor = PlayerSpecialStatus.getSpecialTextColor(mDungeonReport[2].name,mScoreReportRoot.stats_c.stats.player_name.textColor);
@@ -1072,7 +1096,7 @@ package DistributedObjects
             if(mDungeonReport[_loc3_].valid == true)
             {
                _loc1_ = _loc4_[_loc3_].stats.trophies.trophies;
-               _loc1_.text = mDungeonReport[_loc3_].trophyCount.toString();
+               TextUtil.setText(_loc1_,mDungeonReport[_loc3_].trophyCount.toString());
                _loc2_ = mDBFacade.gameMaster.getSkinByType(mDungeonReport[_loc3_].skin_type);
                if(_loc2_ == null)
                {
@@ -1080,7 +1104,7 @@ package DistributedObjects
                }
                else
                {
-                  loadPortraitForReport(mDungeonReport[_loc3_],_loc2_,_loc5_[_loc3_]);
+                  loadPortraitForReport(mDungeonReport[_loc3_],_loc2_,_loc5_[_loc3_],_loc3_);
                }
             }
             else
@@ -1091,7 +1115,7 @@ package DistributedObjects
          }
       }
       
-      private function loadPortraitForReport(dungeonReport:DungeonReport, skin:GMSkin, iconContainer:MovieClip) : void
+      private function loadPortraitForReport(dungeonReport:DungeonReport, skin:GMSkin, iconContainer:MovieClip, playerIndex:uint) : void
       {
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(skin.UISwfFilepath),function(param1:SwfAsset):void
          {
@@ -1099,96 +1123,98 @@ package DistributedObjects
             var _loc2_:MovieClip = new _loc3_();
             UIObject.scaleToFit(_loc2_,65);
             iconContainer.addChild(_loc2_);
-            saveFacebookPicAndAchievement(dungeonReport.id,iconContainer);
+            var _loc4_:UIButton = new UIButton(mDBFacade,iconContainer);
+            _loc4_.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
+            mAvatarButtons[playerIndex] = _loc4_;
+            loadSteamAvatar(dungeonReport.id,iconContainer);
+            if(mTownHeader)
+            {
+               setupMenuNavigation();
+            }
          });
       }
       
-      private function showFacebookPic(playerId:uint) : void
+      private function showSteamAvatar(playerId:uint) : void
       {
-         if(!mFacebookPicHolder)
+         if(!mSteamAvatarHolder)
          {
             return;
          }
-         var _loc2_:FacebookPicHelper = mFacebookPicMap.itemFor(playerId);
+         var _loc2_:SteamAvatarHelper = mSteamAvatarMap.itemFor(playerId);
          if(!_loc2_)
          {
             return;
          }
-         mFacebookPicHolder.addChild(_loc2_.pic);
-         mFacebookPicHolder.visible = true;
-         var _loc3_:Point = _loc2_.root.localToGlobal(new Point(0,0));
-         mFacebookPicHolder.x = _loc3_.x;
-         mFacebookPicHolder.y = _loc3_.y - _loc2_.root.height / 2 - mFacebookPicHolder.height / 2;
+         mSteamAvatarHolder.addChild(_loc2_.pic);
+         mSteamAvatarHolder.visible = true;
+         var _loc3_:Point = mDBFacade.designLocalToGlobal(_loc2_.root,new Point(0,0));
+         mSteamAvatarHolder.x = _loc3_.x;
+         mSteamAvatarHolder.y = _loc3_.y - _loc2_.root.height / 2 - mSteamAvatarHolder.height / 2;
       }
       
-      private function hideFacebookPic(playerId:uint) : void
+      private function hideSteamAvatar(playerId:uint) : void
       {
-         if(!mFacebookPicHolder)
+         if(!mSteamAvatarHolder)
          {
             return;
          }
-         mFacebookPicHolder.visible = false;
-         var _loc2_:FacebookPicHelper = mFacebookPicMap.itemFor(playerId);
+         mSteamAvatarHolder.visible = false;
+         var _loc2_:SteamAvatarHelper = mSteamAvatarMap.itemFor(playerId);
          if(!_loc2_)
          {
             return;
          }
-         if(mFacebookPicHolder.contains(_loc2_.pic))
+         if(mSteamAvatarHolder.contains(_loc2_.pic))
          {
-            mFacebookPicHolder.removeChild(_loc2_.pic);
+            mSteamAvatarHolder.removeChild(_loc2_.pic);
          }
       }
       
-      private function saveFacebookPicAndAchievement(playerId:uint, root:MovieClip) : void
+      private function loadSteamAvatar(playerId:uint, root:MovieClip) : void
       {
-         var facebookId:String;
          var loader:Loader;
          var picUrl:String;
          var url:URLRequest;
          var lc:LoaderContext;
          var go:GameObject = mFacade.gameObjectManager.getReferenceFromId(playerId);
          var player:PlayerGameObject = go as PlayerGameObject;
-         if(!player || !player.facebookId || player.facebookId == "" || mDBFacade.isDRPlayer)
+         if(!player || !player.steamAvatarUrl || player.steamAvatarUrl == "")
          {
             return;
          }
-         if(mDBFacade.facebookController && player.isFriend && playerId != mDBFacade.accountId)
-         {
-            mDBFacade.facebookController.updateGuestAchievement(4);
-         }
-         facebookId = player.facebookId;
          loader = new Loader();
-         picUrl = "https://graph.facebook.com/" + facebookId + "/picture";
+         picUrl = player.steamAvatarUrl;
          url = new URLRequest(picUrl);
-         loader.contentLoaderInfo.addEventListener("ioError",function():void
+         EventListeners.add(loader.contentLoaderInfo,"ioError",function():void
          {
          });
-         loader.contentLoaderInfo.addEventListener("securityError",function():void
+         EventListeners.add(loader.contentLoaderInfo,"securityError",function():void
          {
          });
-         loader.contentLoaderInfo.addEventListener("complete",function(param1:Event):void
+         EventListeners.add(loader.contentLoaderInfo,"complete",function(param1:Event):void
          {
-            var facebookPic:DisplayObject;
-            var helper:FacebookPicHelper;
+            var steamAvatarPic:DisplayObject;
+            var helper:SteamAvatarHelper;
             var e:Event = param1;
-            if(!root)
+            if(!root || !mDBFacade || !mSteamAvatarMap)
             {
                return;
             }
-            facebookPic = loader;
-            facebookPic.x -= 25;
-            facebookPic.y -= 25;
-            helper = new FacebookPicHelper();
-            helper.pic = facebookPic;
+            steamAvatarPic = loader;
+            steamAvatarPic.x -= 25;
+            steamAvatarPic.y -= 25;
+            steamAvatarPic.width = steamAvatarPic.height = 50;
+            helper = new SteamAvatarHelper();
+            helper.pic = steamAvatarPic;
             helper.root = root;
-            mFacebookPicMap.add(playerId,helper);
-            root.addEventListener("rollOver",function(param1:MouseEvent):void
+            mSteamAvatarMap.add(playerId,helper);
+            EventListeners.add(root,"rollOver",function(param1:MouseEvent):void
             {
-               showFacebookPic(playerId);
+               showSteamAvatar(playerId);
             });
-            root.addEventListener("rollOut",function(param1:MouseEvent):void
+            EventListeners.add(root,"rollOut",function(param1:MouseEvent):void
             {
-               hideFacebookPic(playerId);
+               hideSteamAvatar(playerId);
             });
          });
          lc = new LoaderContext(true);
@@ -1198,13 +1224,13 @@ package DistributedObjects
       
       private function setupXPBars() : void
       {
-         var _loc7_:* = 0;
+         var _loc7_:uint = 0;
          var _loc4_:GMHero = null;
-         var _loc5_:* = 0;
-         var _loc2_:* = 0;
-         var _loc1_:* = 0;
-         var _loc8_:* = 0;
-         var _loc6_:* = 0;
+         var _loc5_:uint = 0;
+         var _loc2_:uint = 0;
+         var _loc1_:uint = 0;
+         var _loc8_:uint = 0;
+         var _loc6_:uint = 0;
          mScoreReportRoot.stats_a.stats.fx_level_up_text.visible = false;
          mScoreReportRoot.stats_b.stats.fx_level_up_text.visible = false;
          mScoreReportRoot.stats_c.stats.fx_level_up_text.visible = false;
@@ -1220,16 +1246,20 @@ package DistributedObjects
             if(mDungeonReport[_loc7_].valid)
             {
                _loc4_ = mDBFacade.gameMaster.heroById.itemFor(mDungeonReport[_loc7_].type);
-               _loc5_ = _loc4_.getLevelFromExp(mDungeonReport[_loc7_].xp);
+               _loc5_ = _loc4_.getLevelFromExp(mDungeonReport[_loc7_].xp,mDungeonReport[_loc7_].ascension_level);
                _loc2_ = mDungeonReport[_loc7_].xp;
-               _loc1_ = uint(_loc4_.getLevelIndex(_loc2_));
+               _loc1_ = uint(_loc4_.getLevelIndex(_loc2_,mDungeonReport[_loc7_].ascension_level));
                _loc8_ = uint(_loc1_ > 0 ? _loc4_.getExpFromIndex(_loc1_ - 1) : 0);
                _loc6_ = _loc4_.getExpFromIndex(_loc1_);
                mXpBar[_loc7_] = new UIProgressBar(mFacade,_loc3_[_loc7_].xp_bar);
+               if(_loc3_[_loc7_].xp_bar_delta)
+               {
+                  _loc3_[_loc7_].xp_bar_delta.visible = false;
+               }
                mXpBar[_loc7_].value = (_loc2_ - _loc8_) / (_loc6_ - _loc8_);
-               _loc3_[_loc7_].xp_level.text = _loc5_.toString();
+               TextUtil.setText(_loc3_[_loc7_].xp_level,_loc5_.toString());
                _loc3_[_loc7_].xp_points.visible = true;
-               _loc3_[_loc7_].xp_points.text = mDungeonReport[_loc7_].xp.toString();
+               TextUtil.setText(_loc3_[_loc7_].xp_points,mDungeonReport[_loc7_].xp.toString());
             }
             else
             {
@@ -1286,7 +1316,7 @@ package DistributedObjects
                removeItemFromSlot(mSelectedItemSlot);
                if(!mFromInventory)
                {
-                  if(mOpenKeyChestMC != null)
+                  if(mTreasureFoundPopup != null)
                   {
                      closeKeyChestPopup();
                   }
@@ -1296,12 +1326,8 @@ package DistributedObjects
          }
          else
          {
-            if(mInfoPopup)
-            {
-               mInfoPopup.destroy();
-               mInfoPopup = null;
-            }
-            mChestTransactionFailedPopup = new DBUIPopup(mDBFacade,Locale.getString("TRANSACTION_FAILED"));
+            closeInfoPopup();
+            mChestTransactionFailedPopup = new DBUIPopup(mDBFacade,"",Locale.getString("TRANSACTION_FAILED"));
             MemoryTracker.track(mChestTransactionFailedPopup,"DBUIPopup - created in DistributedDungeonSummary.TransactionResponse()");
             mLogicalWorkComponent.doLater(1.5,function():void
             {
@@ -1313,7 +1339,7 @@ package DistributedObjects
             });
             if(!mTookLastItem)
             {
-               if(mOpenKeyChestMC != null)
+               if(mTreasureFoundPopup != null)
                {
                   closeKeyChestPopup();
                }
@@ -1325,11 +1351,7 @@ package DistributedObjects
          mEventComponent.addListener("DB_ACCOUNT_INFO_LOADED",function(param1:Event):void
          {
             mEventComponent.removeListener("DB_ACCOUNT_INFO_LOADED");
-            if(mInfoPopup)
-            {
-               mInfoPopup.destroy();
-               mInfoPopup = null;
-            }
+            closeInfoPopup();
             updateRevealPopupCallback();
             if(mTransactionSuccessCallback != null)
             {
@@ -1375,7 +1397,7 @@ package DistributedObjects
       
       private function getPlayerSlotItemCount(playerSlot:int) : int
       {
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc5_:int = 0;
          var _loc4_:DungeonReport = mDungeonReport[playerSlot];
          var _loc2_:Array = [_loc4_.chest_type_1,_loc4_.chest_type_2,_loc4_.chest_type_3,_loc4_.chest_type_4];
@@ -1396,10 +1418,10 @@ package DistributedObjects
       
       private function setupItemButtons() : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc7_:DungeonReport = null;
          var _loc1_:Array = null;
-         var _loc6_:* = 0;
+         var _loc6_:uint = 0;
          var _loc4_:GMChest = null;
          var _loc5_:Array = [mScoreReportRoot.stats_a,mScoreReportRoot.stats_b,mScoreReportRoot.stats_c,mScoreReportRoot.stats_d];
          var _loc3_:Array = mUILootSlots;
@@ -1489,11 +1511,11 @@ package DistributedObjects
          }
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/Doobers/db_items_doobers.swf"),function(param1:SwfAsset):void
          {
-            var _loc9_:* = 0;
+            var _loc9_:uint = 0;
             var _loc2_:Array = null;
             var _loc12_:int = 0;
-            var _loc5_:* = 0;
-            var _loc10_:* = 0;
+            var _loc5_:uint = 0;
+            var _loc10_:uint = 0;
             var _loc7_:GMDoober = null;
             var _loc8_:GMChest = null;
             var _loc6_:String = null;
@@ -1601,18 +1623,17 @@ package DistributedObjects
       
       private function setupWeapons() : void
       {
-         mWeapons = [];
-         mWeaponTooltips = [];
+         mWeapons = [[],[],[],[]];
+         mWeaponTooltips = [[],[],[],[]];
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_town.swf"),function(param1:SwfAsset):void
          {
-            var _loc2_:* = 0;
-            var _loc3_:* = 0;
+            var _loc2_:uint = 0;
+            var _loc3_:uint = 0;
             _loc2_ = 0;
             while(_loc2_ < 4)
             {
                if(mDungeonReport[_loc2_].valid == true)
                {
-                  mWeaponTooltips.push([]);
                   _loc3_ = 0;
                   while(_loc3_ < 3)
                   {
@@ -1631,6 +1652,10 @@ package DistributedObjects
                }
                _loc2_++;
             }
+            if(mTownHeader)
+            {
+               setupMenuNavigation();
+            }
          });
       }
       
@@ -1642,7 +1667,7 @@ package DistributedObjects
          var gmWeaponAesthetic:GMWeaponAesthetic;
          var weaponButtons:Array = [[mScoreReportRoot.stats_a.stats.loot_slot_A1,mScoreReportRoot.stats_a.stats.loot_slot_A2,mScoreReportRoot.stats_a.stats.loot_slot_A3],[mScoreReportRoot.stats_b.stats.loot_slot_A1,mScoreReportRoot.stats_b.stats.loot_slot_A2,mScoreReportRoot.stats_b.stats.loot_slot_A3],[mScoreReportRoot.stats_c.stats.loot_slot_A1,mScoreReportRoot.stats_c.stats.loot_slot_A2,mScoreReportRoot.stats_c.stats.loot_slot_A3],[mScoreReportRoot.stats_d.stats.loot_slot_A1,mScoreReportRoot.stats_d.stats.loot_slot_A2,mScoreReportRoot.stats_d.stats.loot_slot_A3]];
          var weapon:UIObject = new UIObject(mDBFacade,weaponButtons[statNum][weaponSlotNum]);
-         mWeapons.push(weapon);
+         mWeapons[statNum][weaponSlotNum] = weapon;
          tooltipClass = swfAsset.getClass("DR_weapon_tooltip");
          weaponTooltip = new UIWeaponTooltip(mDBFacade,tooltipClass);
          mWeaponTooltips[statNum].push(weaponTooltip);
@@ -1755,7 +1780,7 @@ package DistributedObjects
       {
          mSelectedItemSlot = slot;
          mSelectedGMChest = gmChest;
-         mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_score_report.swf"),setupOpenKeyChest);
+         mTreasureFoundPopup = new UITreasureFoundPopup(mDBFacade,mSelectedGMChest,abandonChestCallback,keepChestCallback,openChestCallback,refreshHeroInfoUI);
       }
       
       public function set dungeonSuccess(val:uint) : void
@@ -1787,86 +1812,11 @@ package DistributedObjects
          };
       }
       
-      private function setupOpenKeyChest(swfAsset:SwfAsset) : void
-      {
-         var openKeyChestClass:Class;
-         var bounds:Rectangle;
-         var swfPath:String;
-         var iconName:String;
-         var rarity:GMRarity;
-         var bgColoredExists:Boolean;
-         var bgSwfPath:String;
-         var bgIconName:String;
-         var keys:Vector.<KeyInfo>;
-         var i:int;
-         mSceneGraphComponent.showPopupCurtain();
-         openKeyChestClass = UIHud.isThisAConsumbleChestId(mSelectedGMChest.Id) ? swfAsset.getClass("popup_itemBox") : swfAsset.getClass("popup_chest");
-         mOpenKeyChestMC = new openKeyChestClass();
-         mOpenKeyChestMC.scaleX = mOpenKeyChestMC.scaleY = 1.8;
-         bounds = mOpenKeyChestMC.getBounds(mDBFacade.stageRef);
-         mOpenKeyChestMC.x = mDBFacade.stageRef.stageWidth / 2 - bounds.width / 2 - bounds.x;
-         mOpenKeyChestMC.y = mDBFacade.stageRef.stageHeight / 2 - bounds.height / 2 - bounds.y;
-         mOpenKeyChestMC.title_label.text = Locale.getString("TREASURE_FOUND");
-         swfPath = mSelectedGMChest.IconSwf;
-         iconName = mSelectedGMChest.IconName;
-         ChestInfo.loadItemIcon(swfPath,iconName,mOpenKeyChestMC.content,mDBFacade,150,150,mAssetLoadingComponent);
-         rarity = mDBFacade.gameMaster.rarityByConstant.itemFor(mSelectedGMChest.Rarity);
-         bgColoredExists = rarity.HasColoredBackground;
-         bgSwfPath = rarity.BackgroundSwf;
-         bgIconName = rarity.BackgroundIcon;
-         if(bgColoredExists)
-         {
-            mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(bgSwfPath),function(param1:SwfAsset):void
-            {
-               var _loc3_:MovieClip = null;
-               var _loc2_:Class = param1.getClass(bgIconName);
-               if(_loc2_)
-               {
-                  _loc3_ = new _loc2_() as MovieClip;
-                  mOpenKeyChestMC.content.addChildAt(_loc3_,0);
-                  _loc3_.scaleX = _loc3_.scaleY = 1.5;
-               }
-            });
-         }
-         mOpenKeyChestRenderer = new MovieClipRenderer(mDBFacade,mOpenKeyChestMC.content);
-         mOpenKeyChestRenderer.play(0,true);
-         mAbandonButton = new UIButton(mDBFacade,mOpenKeyChestMC.abandon_button);
-         mAbandonButton.releaseCallback = abandonChestCallback;
-         mAbandonButton.label.text = Locale.getString("ABANDON");
-         mKeepButton = new UIButton(mDBFacade,mOpenKeyChestMC.keep_button);
-         mKeepButton.releaseCallback = keepChestCallback;
-         mKeepButton.label.text = Locale.getString("KEEP");
-         mOpenButton = new UIButton(mDBFacade,mOpenKeyChestMC.open_button);
-         mOpenButton.releaseCallback = openChestCallback;
-         mOpenButton.label.text = Locale.getString("UNLOCK");
-         mOpenKeyChestMC.close.visible = false;
-         keys = mDBFacade.dbAccountInfo.inventoryInfo.keys;
-         i = 0;
-         while(i < keys.length)
-         {
-            if(mSelectedGMChest.Id == keys[i].gmKey.ChestId)
-            {
-               mKeyThatCanOpenChest = keys[i];
-            }
-            i = i + 1;
-         }
-         if(!UIHud.isThisAConsumbleChestId(mSelectedGMChest.Id))
-         {
-            mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(mKeyThatCanOpenChest.gmKeyOffer.BundleSwfFilepath),loadKeyIconOnButton);
-            refreshHeroInfoUI(mOpenKeyChestMC);
-         }
-         mSceneGraphComponent.addChild(mOpenKeyChestMC,105);
-         mDBFacade.menuNavigationController.pushNewLayer("POPUP_CHEST_LAYER",closeKeyChestPopup,mOpenButton);
-         mOpenButton.isAbove(mKeepButton);
-         mAbandonButton.isToTheLeftOf(mKeepButton);
-         mAbandonButton.upNavigation = mOpenButton;
-      }
-      
       public function refreshHeroInfoUI(chestMC:MovieClip) : void
       {
          var mHeroInfo:AvatarInfo;
          var gmSkin:GMSkin;
-         chestMC.hero_label.text = Locale.getString("OPENING_WITH");
+         Locale.setText(chestMC.hero_label,"OPENING_WITH");
          mHeroInfo = mDBFacade.dbAccountInfo.activeAvatarInfo;
          gmSkin = mDBFacade.gameMaster.getSkinByType(mHeroInfo.skinId);
          if(gmSkin == null)
@@ -1895,21 +1845,9 @@ package DistributedObjects
          }
       }
       
-      private function loadKeyIconOnButton(swfAsset:SwfAsset) : void
+      private function setupOpenKeylessChest() : void
       {
-         var _loc3_:Class = swfAsset.getClass(mKeyThatCanOpenChest.gmKeyOffer.BundleIcon);
-         var _loc2_:MovieClip = new _loc3_() as MovieClip;
-         _loc2_.scaleX = _loc2_.scaleY = 0.5;
-         if(mOpenButton.root.pick.numChildren > 1)
-         {
-            mOpenButton.root.pick.removeChildAt(1);
-         }
-         mOpenButton.root.pick.addChild(_loc2_);
-      }
-      
-      private function setupOpenKeylessChest(swfAsset:SwfAsset) : void
-      {
-         mChestBuyKeysPopUp = new ChestBuyKeysPopUp(mDBFacade,mAssetLoadingComponent,mSceneGraphComponent,swfAsset,mSelectedGMChest,chestBuyCoinCallback,chestBuyGemCallback,closeKeylessChestPopup,refreshHeroInfoUI,true);
+         mChestBuyKeysPopUp = new ChestBuyKeysPopUp(mDBFacade,mSelectedGMChest,chestBuyCoinCallback,chestBuyGemCallback,closeKeylessChestPopup,refreshHeroInfoUI,true);
       }
       
       private function createKeySlots(mc:MovieClip) : void
@@ -1939,7 +1877,7 @@ package DistributedObjects
          return function():void
          {
             var _loc1_:int = 0;
-            var _loc2_:* = 0;
+            var _loc2_:uint = 0;
             mDBFacade.metrics.log("ChestUnlockCoinTry",{
                "chestId":mSelectedGMChest.Id,
                "rarity":mSelectedGMChest.Rarity,
@@ -1954,7 +1892,8 @@ package DistributedObjects
                });
                closeKeylessChestPopup();
                closeKeyChestPopup();
-               mInfoPopup = new DBUIPopup(mDBFacade,Locale.getString("PURCHASING..."));
+               closeInfoPopup();
+               mInfoPopup = new DBUIPopup(mDBFacade,"",Locale.getString("PURCHASING..."));
                MemoryTracker.track(mInfoPopup,"DBUIPopup - created in DistributedDungeonSummary.chestBuyCoinCallback()");
                mSceneGraphComponent.addChild(mInfoPopup.root,105);
                _loc1_ = 0;
@@ -1981,7 +1920,7 @@ package DistributedObjects
          return function():void
          {
             var _loc1_:int = 0;
-            var _loc2_:* = 0;
+            var _loc2_:uint = 0;
             mDBFacade.metrics.log("ChestUnlockGemTry",{
                "chestId":mSelectedGMChest.Id,
                "rarity":mSelectedGMChest.Rarity,
@@ -1996,7 +1935,8 @@ package DistributedObjects
                });
                closeKeylessChestPopup();
                closeKeyChestPopup();
-               mInfoPopup = new DBUIPopup(mDBFacade,Locale.getString("PURCHASING..."));
+               closeInfoPopup();
+               mInfoPopup = new DBUIPopup(mDBFacade,"",Locale.getString("PURCHASING..."));
                MemoryTracker.track(mInfoPopup,"DBUIPopup - created in DistributedDungeonSummary.chestBuyGemCallback()");
                mSceneGraphComponent.addChild(mInfoPopup.root,105);
                _loc1_ = 0;
@@ -2020,7 +1960,7 @@ package DistributedObjects
       
       private function abandonChestCallback(category:String = "dungeonSummaryChestPopUp") : void
       {
-         mAbandonChestPopUp = new DBUITwoButtonPopup(mDBFacade,Locale.getString("ABANDON_CHEST_POPUP_TITLE"),Locale.getString("ABANDON_CHEST_POPUP_DESC"),Locale.getString("ABANDON_CHEST_POPUP_CANCEL"),closeAbandonChestPopUp,Locale.getString("ABANDON_CHEST_POPUP_CONFIRM"),function():void
+         mAbandonChestPopUp = new DBUITwoButtonPopup(mDBFacade,"ABANDON_CHEST_CONFIRMATION",Locale.getString("ABANDON_CHEST_POPUP_TITLE"),Locale.getString("ABANDON_CHEST_POPUP_DESC"),Locale.getString("ABANDON_CHEST_POPUP_CANCEL"),closeAbandonChestPopUp,Locale.getString("ABANDON_CHEST_POPUP_CONFIRM"),function():void
          {
             mNetworkComponent.send_DropChest(mDBFacade.dbAccountInfo.id,mSelectedItemSlot);
             mDBFacade.metrics.log("ChestAbandoned",{
@@ -2032,7 +1972,7 @@ package DistributedObjects
             closeAbandonChestPopUp();
             closeKeyChestPopup();
             loadNextChestPopUp();
-         },false,null,true,true,"ABANDON_CHESTS");
+         },false);
          MemoryTracker.track(mAbandonChestPopUp,"DBUITwoButtonPopup - created in DistributedDungeonSummary.abandonChestCallback()");
          mAbandonChestPopUp.root.y += 180;
       }
@@ -2048,7 +1988,7 @@ package DistributedObjects
       
       public function abandonChestFromInventory(slot:uint) : void
       {
-         mNetworkComponent.send_DropChest(mDBFacade.dbAccountInfo.id,mSelectedItemSlot);
+         mNetworkComponent.send_DropChest(mDBFacade.dbAccountInfo.id,slot);
          removeItemFromSlot(slot);
          mUIInventory.refresh(true);
       }
@@ -2062,14 +2002,16 @@ package DistributedObjects
          }
          else
          {
-            mStorageFullPopUp = new DBUITwoButtonPopup(mDBFacade,Locale.getString("GO_TO_INVENTORY_TITLE"),Locale.getString("GO_TO_INVENTORY_BODY"),Locale.getString("INVENTORY"),function():void
+            mStorageFullPopUp = new DBUITwoButtonPopup(mDBFacade,"DUNGEON_SUMMARY_STORAGE_FULL_ON_KEEP",Locale.getString("GO_TO_INVENTORY_TITLE"),Locale.getString("GO_TO_INVENTORY_BODY"),Locale.getString("INVENTORY"),function():void
             {
+               closeStorageFullPopUp();
                closeKeyChestPopup();
                openInventory();
             },Locale.getString("ABANDON"),function():void
             {
+               closeStorageFullPopUp();
                abandonChestCallback("dungeonSummaryInventoryFullOnKeep");
-            },true,null);
+            },true,closeStorageFullPopUp);
             MemoryTracker.track(mStorageFullPopUp,"DBUITwoButtonPopup - created in DistributedDungeonSummary.keepChestCallback()");
             mStorageFullPopUp.root.y += 180;
          }
@@ -2097,7 +2039,8 @@ package DistributedObjects
          mFromInventory = fromInventory;
          mTookLastItem = true;
          mNetworkComponent.send_TakeChest(mDBFacade.dbAccountInfo.id,mSelectedItemSlot);
-         mInfoPopup = new DBUIPopup(mDBFacade,Locale.getString("TAKING_ITEM"));
+         closeInfoPopup();
+         mInfoPopup = new DBUIPopup(mDBFacade,"",Locale.getString("TAKING_ITEM"));
          MemoryTracker.track(mInfoPopup,"DBUIPopup - created in DistributedDungeonSummary.keepChestFromInventory()");
       }
       
@@ -2123,44 +2066,54 @@ package DistributedObjects
             }
             else
             {
-               mOpenKeyChestMC.visible = false;
-               mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_score_report.swf"),setupOpenKeylessChest);
+               mTreasureFoundPopup.visible = false;
+               setupOpenKeylessChest();
             }
          }
          else
          {
-            mStorageFullPopUp = new DBUITwoButtonPopup(mDBFacade,Locale.getString("GO_TO_INVENTORY_TITLE"),Locale.getString("GO_TO_INVENTORY_BODY_OPEN"),Locale.getString("INVENTORY"),function():void
+            mStorageFullPopUp = new DBUITwoButtonPopup(mDBFacade,"DUNGEON_SUMMARY_STORAGE_FULL_ON_UNLOCK",Locale.getString("GO_TO_INVENTORY_TITLE"),Locale.getString("GO_TO_INVENTORY_BODY_OPEN"),Locale.getString("INVENTORY"),function():void
             {
+               closeStorageFullPopUp();
                closeKeyChestPopup();
                openInventory();
             },Locale.getString("ABANDON"),function():void
             {
+               closeStorageFullPopUp();
                abandonChestCallback("abandonFromUnlockOnChestWithFullInventory");
-            },true,null);
+            },true,closeStorageFullPopUp);
             MemoryTracker.track(mStorageFullPopUp,"DBUITwoButtonPopup - created in DistributedDungeonSummary.openChestCallback()");
             mStorageFullPopUp.root.y += 180;
          }
       }
       
+      private function closeStorageFullPopUp() : void
+      {
+         if(mStorageFullPopUp)
+         {
+            mStorageFullPopUp.destroy();
+            mStorageFullPopUp = null;
+         }
+      }
+      
       private function boughtKey(details:*) : void
       {
+         if(mLeaving || mWorkComponent == null || mSelectedGMChest == null)
+         {
+            return;
+         }
          mDBFacade.metrics.log("ChestUnlockKey",{
             "chestId":mSelectedGMChest.Id,
             "rarity":mSelectedGMChest.Rarity,
             "category":"dungeonSummary"
          });
-         if(mInfoPopup)
-         {
-            mSceneGraphComponent.removeChild(mInfoPopup.root);
-            mInfoPopup.destroy();
-            mInfoPopup = null;
-         }
+         closeInfoPopup();
          openChestFromInventory(mSelectedGMChest,false);
       }
       
       public function findSlotForChest(gmChest:GMChest) : uint
       {
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc3_:GMDoober = null;
          var _loc2_:Array = [mDungeonReport[0].chest_type_1,mDungeonReport[0].chest_type_2,mDungeonReport[0].chest_type_3,mDungeonReport[0].chest_type_4];
          if(mDungeonReport[0].valid == true)
@@ -2198,7 +2151,7 @@ package DistributedObjects
             mChestRevealPopUp = new ChestRevealPopUp(mDBFacade,gmChest,closeChestRevealPopUp,goToStorageChestRevealPopUp);
          }
          removeItemFromSlot(_loc3_);
-         if(mOpenKeyChestMC != null)
+         if(mTreasureFoundPopup != null)
          {
             closeKeyChestPopup();
          }
@@ -2211,10 +2164,6 @@ package DistributedObjects
          {
             mChestRevealPopUp.destroy();
             mChestRevealPopUp = null;
-         }
-         if(mTownHeader != null)
-         {
-            mTownHeader.refreshKeyPanel();
          }
          mUIInventory.setRevealedState(itemType,itemOfferId,callEquip);
          mUIInventory.refresh();
@@ -2231,14 +2180,10 @@ package DistributedObjects
             mChestRevealPopUp.destroy();
             mChestRevealPopUp = null;
          }
-         if(mTownHeader != null)
-         {
-            mTownHeader.refreshKeyPanel();
-         }
          openInventory();
       }
       
-      private function boughtKeyError(err:JSONParseError) : void
+      private function boughtKeyError(err:*) : void
       {
          Logger.warn("Error buying keys from Reward Screen");
       }
@@ -2262,28 +2207,28 @@ package DistributedObjects
             mUIInventory.setRevealedState(mRevealedItemType,mRevealedItemOfferId);
             mUIInventory.refresh();
          }
-         if(mTownHeader != null)
+      }
+      
+      private function closeInfoPopup() : void
+      {
+         if(!mInfoPopup)
          {
-            mTownHeader.refreshKeyPanel();
+            return;
          }
+         if(mSceneGraphComponent)
+         {
+            mSceneGraphComponent.removeChild(mInfoPopup.root);
+         }
+         mInfoPopup.destroy();
+         mInfoPopup = null;
       }
       
       private function closeKeyChestPopup() : void
       {
-         if(mOpenKeyChestMC)
+         if(mTreasureFoundPopup)
          {
-            mAbandonButton.destroy();
-            mAbandonButton = null;
-            mKeepButton.destroy();
-            mKeepButton = null;
-            mOpenButton.destroy();
-            mOpenButton = null;
-            mOpenKeyChestRenderer.destroy();
-            mOpenKeyChestRenderer = null;
-            mSceneGraphComponent.removeChild(mOpenKeyChestMC);
-            mOpenKeyChestMC = null;
-            mSceneGraphComponent.removePopupCurtain();
-            mDBFacade.menuNavigationController.popLayer("POPUP_CHEST_LAYER");
+            mTreasureFoundPopup.destroy();
+            mTreasureFoundPopup = null;
          }
       }
       
@@ -2294,7 +2239,10 @@ package DistributedObjects
             mChestBuyKeysPopUp.destroy();
             mChestBuyKeysPopUp = null;
          }
-         mOpenKeyChestMC.visible = true;
+         if(mTreasureFoundPopup)
+         {
+            mTreasureFoundPopup.visible = true;
+         }
       }
       
       private function chatCallback(playerIndex:uint) : Function
@@ -2332,6 +2280,8 @@ package DistributedObjects
       
       private function setupChat() : void
       {
+         var button:MovieClip;
+         var c:int;
          var i:uint = 0;
          while(i < 4)
          {
@@ -2344,8 +2294,30 @@ package DistributedObjects
             }
             i = i + 1;
          }
+         UIChatLog.growLogUp(mScoreReportRoot.chatLogContainer,1.5);
+         for each(button in [mScoreReportRoot.UI_chat.chat_btn,mScoreReportRoot.UI_chat.log_btn])
+         {
+            c = 0;
+            while(c < button.numChildren)
+            {
+               if(!(button.getChildAt(c) is TextField))
+               {
+                  button.getChildAt(c).scaleY = button.getChildAt(c).scaleY * 1.25;
+               }
+               c = c + 1;
+            }
+         }
          mUIChatLog = new UIChatLog(mDBFacade,mScoreReportRoot.chatLogContainer,mScoreReportRoot.UI_chat,mScoreReportRoot.UI_chat.log_btn,mScoreReportRoot.UI_chat.chat_btn);
+         mUIChatLog.textSizeModifier = 1.55;
          mUIChatLog.hideChatLog();
+         mUIChatLog.setChatPromptVisible(!mDBFacade.steamInputManager.wantsControllerPrompts);
+         mChatEventComponent.addListener("ControllerConnectionChangedEvent",function(param1:Event):void
+         {
+            if(mUIChatLog)
+            {
+               mUIChatLog.setChatPromptVisible(!mDBFacade.steamInputManager.wantsControllerPrompts);
+            }
+         });
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_nametag.swf"),function(param1:SwfAsset):void
          {
             var _loc3_:Class = null;
@@ -2364,10 +2336,11 @@ package DistributedObjects
                   _loc6_ = param1.getClass("UI_speechbubble_typing");
                   mPlayerIsTypingNotification = new _loc6_();
                   mPlayerIsTypingNotification.visible = false;
-                  mChatBalloon[i].initializeChatBalloon(param1,mPlayerIsTypingNotification);
+                  mChatBalloon[i].initializeChatBalloon(param1,mPlayerIsTypingNotification,1.47);
+                  mChatBalloon[i].growsDown = true;
                   mSceneGraphComponent.addChild(mChatBalloon[i],50);
                   mChatBalloon[i].text = "";
-                  _loc5_ = _loc4_[i].stats.player_name.localToGlobal(new Point(0,0));
+                  _loc5_ = mDBFacade.designLocalToGlobal(_loc4_[i].stats.player_name,new Point(0,0));
                   mChatBalloon[i].scaleY = mChatBalloon[i].scaleX = 1.8;
                   mChatBalloon[i].x = _loc5_.x + 69 + 55;
                   mChatBalloon[i].y = _loc5_.y + 32 - 32;
@@ -2399,7 +2372,7 @@ package DistributedObjects
       
       private function removeItemFromSlot(slot:uint) : void
       {
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc5_:uint = slot;
          _loc3_ = 0;
          while(_loc3_ < mSortedLootData.length)
@@ -2546,7 +2519,7 @@ package DistributedObjects
       
       private function onPlayerExit(event:PlayerExitEvent) : void
       {
-         var _loc6_:* = 0;
+         var _loc6_:uint = 0;
          var _loc3_:Number = NaN;
          var _loc5_:Number = NaN;
          var _loc4_:Number = NaN;
@@ -2603,12 +2576,7 @@ package DistributedObjects
       {
          return function():void
          {
-            if(mDBFacade.dbConfigManager.getConfigBoolean("FUFB",false))
-            {
-               mDBFacade.errorPopup("INVITE CURRENTLY DISABLED","Sorry for the inconvenience, we are looking into resolving the issue.");
-               return;
-            }
-            findCorrectIcon(mDungeonReport[idx],addFriend,button);
+            findCorrectIcon(mDungeonReport[idx],addFriend,button,idx);
          };
       }
       
@@ -2616,7 +2584,7 @@ package DistributedObjects
       {
          return function():void
          {
-            findCorrectIcon(mDungeonReport[idx],blockFriend,button);
+            findCorrectIcon(mDungeonReport[idx],blockFriend,button,idx);
          };
       }
       
@@ -2624,11 +2592,11 @@ package DistributedObjects
       {
          return function():void
          {
-            findCorrectIcon(mDungeonReport[idx],createReportPlayerPopup,button);
+            findCorrectIcon(mDungeonReport[idx],createReportPlayerPopup,button,idx);
          };
       }
       
-      private function findCorrectIcon(DR:DungeonReport, callBackFunc:Function, button:UIButton) : void
+      private function findCorrectIcon(DR:DungeonReport, callBackFunc:Function, button:UIButton, playerIndex:uint) : void
       {
          var iconContainer:MovieClip = new MovieClip();
          var skin:GMSkin = mDBFacade.gameMaster.getSkinByType(DR.skin_type);
@@ -2638,14 +2606,14 @@ package DistributedObjects
             var _loc2_:MovieClip = new _loc3_();
             UIObject.scaleToFit(_loc2_,65);
             iconContainer.addChild(_loc2_);
-            saveFacebookPicAndAchievement(DR.id,iconContainer);
-            callBackFunc(DR.name,iconContainer,DR.id,button);
+            loadSteamAvatar(DR.id,iconContainer);
+            callBackFunc(DR.name,iconContainer,DR.id,button,playerIndex);
          });
       }
       
       private function fadeAwayTitle() : void
       {
-         TweenMax.to(mBgRenderer.clip,1,{
+         mDBFacade.mTween.tweenMaxTo(mBgRenderer.clip,1,{
             "alpha":0,
             "onComplete":killFadeAwayTitle
          });
@@ -2653,6 +2621,10 @@ package DistributedObjects
       
       private function killFadeAwayTitle() : void
       {
+         if(!mScoreReportRoot || !mBgRenderer)
+         {
+            return;
+         }
          mScoreReportRoot.bg.visible = false;
          mBgRenderer.destroy();
          mBgRenderer = null;
@@ -2666,6 +2638,8 @@ package DistributedObjects
          var invInfo:DBInventoryInfo;
          var i:uint;
          var teamBonusUI:UIObject;
+         var xpBoosterUI:UIObject;
+         var goldBoosterUI:UIObject;
          var titleText:String;
          if(mDBFacade.hud)
          {
@@ -2707,18 +2681,19 @@ package DistributedObjects
                stats_panels[i].stats.treasure.loot_slot_A2.visible = true;
                stats_panels[i].stats.treasure.loot_slot_A3.visible = false;
             }
-            stats_panels[i].stats.xp_bar.bonus_xp_reveal.Bonus_XP.text = Locale.getString("SUMMARY_BONUS_XP");
-            stats_panels[i].stats.kills.enemies_killed_reveal.Enemies_Killed.text = Locale.getString("SUMMARY_ENEMIES_KILLED");
-            stats_panels[i].stats.treasure.treasure_text.text = Locale.getString("SUMMARY_TREASURE");
+            Locale.setText(stats_panels[i].stats.xp_bar.bonus_xp_reveal.Bonus_XP,"SUMMARY_BONUS_XP");
+            Locale.setText(stats_panels[i].stats.kills.enemies_killed_reveal.Enemies_Killed,"SUMMARY_ENEMIES_KILLED");
+            Locale.setText(stats_panels[i].stats.treasure.treasure_text,"SUMMARY_TREASURE");
             if(i == 0)
             {
-               stats_panels[i].stats.text_booster.text = Locale.getString("ACTIVE_BOOSTERS");
+               Locale.setText(stats_panels[i].stats.text_booster,"ACTIVE_BOOSTERS");
                stats_panels[i].stats.text_booster.visible = false;
                if(mBoosterXP)
                {
                   mXPBoosterUI = new UIObject(mDBFacade,stats_panels[i].stats.boosterXP);
-                  stats_panels[i].stats.boosterXP.label.text = mBoosterXP.BuffInfo.Exp + "X";
-                  stats_panels[i].stats.boosterXP.tooltip.title_label.text = mBoosterXP.StackInfo.Name;
+                  mPlayerBoosterUIs[i].push(mXPBoosterUI);
+                  TextUtil.setText(stats_panels[i].stats.boosterXP.label,mBoosterXP.BuffInfo.Exp + "X");
+                  TextUtil.setText(stats_panels[i].stats.boosterXP.tooltip.title_label,mBoosterXP.StackInfo.Name);
                   stats_panels[i].stats.boosterXP.visible = true;
                   mCountDownTextXP = new CountdownTextTimer(mXPBoosterUI.tooltip.time_label,mBoosterXP.getEndDate(),GameClock.getWebServerDate,null,Locale.getString("BOOSTER_REMAINING"),"",Locale.getString("EXPIRED"));
                   mCountDownTextXP.start();
@@ -2731,8 +2706,9 @@ package DistributedObjects
                if(mBoosterGold)
                {
                   mCoinBoosterUI = new UIObject(mDBFacade,stats_panels[i].stats.boosterCoin);
-                  stats_panels[i].stats.boosterCoin.label.text = mBoosterGold.BuffInfo.Gold + "X";
-                  stats_panels[i].stats.boosterCoin.tooltip.title_label.text = mBoosterGold.StackInfo.Name;
+                  mPlayerBoosterUIs[i].push(mCoinBoosterUI);
+                  TextUtil.setText(stats_panels[i].stats.boosterCoin.label,mBoosterGold.BuffInfo.Gold + "X");
+                  TextUtil.setText(stats_panels[i].stats.boosterCoin.tooltip.title_label,mBoosterGold.StackInfo.Name);
                   stats_panels[i].stats.boosterCoin.visible = true;
                   mCountDownTextGold = new CountdownTextTimer(mCoinBoosterUI.tooltip.time_label,mBoosterGold.getEndDate(),GameClock.getWebServerDate,null,Locale.getString("BOOSTER_REMAINING"),"",Locale.getString("EXPIRED"));
                   mCountDownTextGold.start();
@@ -2745,12 +2721,12 @@ package DistributedObjects
             }
             mTeamBonusUI.add(i,new UIObject(mDBFacade,stats_panels[i].stats.crewbonus));
             teamBonusUI = mTeamBonusUI.itemFor(i);
-            teamBonusUI.root.header_crew_bonus_txt1.text = Locale.getString("TEAM_BONUS_TITLE_CREW");
-            teamBonusUI.root.header_crew_bonus_txt2.text = Locale.getString("TEAM_BONUS_TITLE_BONUS");
-            teamBonusUI.tooltip.title_label.text = Locale.getString("TEAM_BONUS_TOOLTIP_TITLE");
-            teamBonusUI.tooltip.description_label.text = Locale.getString("TEAM_BONUS_TOOLTIP_DESCRIPTION");
-            teamBonusUI.root.header_crew_bonus_number.text = mDungeonReport[i].totalAvatarsOwned - 1;
-            teamBonusUI.root.xp.text = "0";
+            Locale.setText(teamBonusUI.root.header_crew_bonus_txt1,"TEAM_BONUS_TITLE_CREW",null,0.82);
+            Locale.setText(teamBonusUI.root.header_crew_bonus_txt2,"TEAM_BONUS_TITLE_BONUS",null,0.82);
+            Locale.setText(teamBonusUI.tooltip.title_label,"TEAM_BONUS_TOOLTIP_TITLE");
+            Locale.setText(teamBonusUI.tooltip.description_label,"TEAM_BONUS_TOOLTIP_DESCRIPTION");
+            TextUtil.setText(teamBonusUI.root.header_crew_bonus_number,String(mDungeonReport[i].totalAvatarsOwned - 1),0.73);
+            TextUtil.setText(teamBonusUI.root.xp,"0");
             teamBonusUI.visible = false;
             stats_panels[i].stats.doublexp_effect.visible = false;
             stats_panels[i].stats.doublexp_effect_star.visible = false;
@@ -2765,19 +2741,23 @@ package DistributedObjects
                stats_panels[i].stats.boosterCoin.visible = false;
                if(mDungeonReport[i].boost_xp > 1)
                {
-                  mBoosterInfos.push(new UIObject(mDBFacade,stats_panels[i].stats.boosterXP));
+                  xpBoosterUI = new UIObject(mDBFacade,stats_panels[i].stats.boosterXP);
+                  mBoosterInfos.push(xpBoosterUI);
+                  mPlayerBoosterUIs[i].push(xpBoosterUI);
                   stats_panels[i].stats.boosterXP.visible = true;
-                  stats_panels[i].stats.boosterXP.label.text = mDungeonReport[i].boost_xp + "X";
-                  stats_panels[i].stats.boosterXP.tooltip.title_label.text = Locale.getString("BOOST_XP_SUMMARY_TITLE");
-                  stats_panels[i].stats.boosterXP.tooltip.time_label.text = Locale.getString("BOOST_XP_SUMMARY_DESCRIPTION") + mDungeonReport[i].boost_xp + "X";
+                  TextUtil.setText(stats_panels[i].stats.boosterXP.label,mDungeonReport[i].boost_xp + "X");
+                  Locale.setText(stats_panels[i].stats.boosterXP.tooltip.title_label,"BOOST_XP_SUMMARY_TITLE");
+                  TextUtil.setText(stats_panels[i].stats.boosterXP.tooltip.time_label,Locale.getString("BOOST_XP_SUMMARY_DESCRIPTION") + mDungeonReport[i].boost_xp + "X");
                }
                if(mDungeonReport[i].boost_gold > 1)
                {
-                  mBoosterInfos.push(new UIObject(mDBFacade,stats_panels[i].stats.boosterCoin));
+                  goldBoosterUI = new UIObject(mDBFacade,stats_panels[i].stats.boosterCoin);
+                  mBoosterInfos.push(goldBoosterUI);
+                  mPlayerBoosterUIs[i].push(goldBoosterUI);
                   stats_panels[i].stats.boosterCoin.visible = true;
-                  stats_panels[i].stats.boosterCoin.label.text = mDungeonReport[i].boost_gold + "X";
-                  stats_panels[i].stats.boosterCoin.tooltip.title_label.text = Locale.getString("BOOST_GOLD_SUMMARY_TITLE");
-                  stats_panels[i].stats.boosterCoin.tooltip.time_label.text = Locale.getString("BOOST_GOLD_SUMMARY_DESCRIPTION") + mDungeonReport[i].boost_gold + "X";
+                  TextUtil.setText(stats_panels[i].stats.boosterCoin.label,mDungeonReport[i].boost_gold + "X");
+                  Locale.setText(stats_panels[i].stats.boosterCoin.tooltip.title_label,"BOOST_GOLD_SUMMARY_TITLE");
+                  TextUtil.setText(stats_panels[i].stats.boosterCoin.tooltip.time_label,Locale.getString("BOOST_GOLD_SUMMARY_DESCRIPTION") + mDungeonReport[i].boost_gold + "X");
                }
             }
             stats_panels[i].stats.friend_name.visible = false;
@@ -2787,7 +2767,7 @@ package DistributedObjects
                {
                   stats_panels[i].stats.friend_indicator_icon.visible = true;
                   stats_panels[i].stats.friend_name.visible = true;
-                  stats_panels[i].stats.friend_name.text = mDungeonReport[i].name;
+                  TextUtil.setText(stats_panels[i].stats.friend_name,mDungeonReport[i].name,Locale.summaryNameSizeModifier);
                   stats_panels[i].stats.player_name.visible = false;
                }
                else
@@ -2799,17 +2779,17 @@ package DistributedObjects
                if(!stats_panels[i].stats.friend_indicator_icon.visible)
                {
                   stats_panels[i].stats.add_button.visible = true;
-                  stats_panels[i].stats.add_button.label.text = Locale.getString("ADD_FRIEND");
-                  mAddFriendButtons.push(new UIButton(mDBFacade,stats_panels[i].stats.add_button));
-                  mAddFriendButtons[mAddFriendButtons.length - 1].releaseCallback = addFriendCallback(mAddFriendButtons[mAddFriendButtons.length - 1],i);
+                  Locale.setText(stats_panels[i].stats.add_button.label,"ADD_FRIEND");
+                  mAddFriendButtons[i] = new UIButton(mDBFacade,stats_panels[i].stats.add_button);
+                  mAddFriendButtons[i].releaseCallback = addFriendCallback(mAddFriendButtons[i],i);
                   stats_panels[i].stats.block_button.visible = true;
-                  stats_panels[i].stats.block_button.label.text = Locale.getString("BLOCK");
-                  mBlockFriendButtons.push(new UIButton(mDBFacade,stats_panels[i].stats.block_button));
-                  mBlockFriendButtons[mBlockFriendButtons.length - 1].releaseCallback = blockFriendCallback(mBlockFriendButtons[mBlockFriendButtons.length - 1],i);
+                  Locale.setText(stats_panels[i].stats.block_button.label,"BLOCK");
+                  mBlockFriendButtons[i] = new UIButton(mDBFacade,stats_panels[i].stats.block_button);
+                  mBlockFriendButtons[i].releaseCallback = blockFriendCallback(mBlockFriendButtons[i],i);
                   stats_panels[i].stats.report_button.visible = true;
-                  stats_panels[i].stats.report_button.label.text = Locale.getString("REPORT");
-                  mReportPlayerButtons.push(new UIButton(mDBFacade,stats_panels[i].stats.report_button));
-                  mReportPlayerButtons[mReportPlayerButtons.length - 1].releaseCallback = reportPlayerCallback(mReportPlayerButtons[mReportPlayerButtons.length - 1],i);
+                  Locale.setText(stats_panels[i].stats.report_button.label,"REPORT");
+                  mReportPlayerButtons[i] = new UIButton(mDBFacade,stats_panels[i].stats.report_button);
+                  mReportPlayerButtons[i].releaseCallback = reportPlayerCallback(mReportPlayerButtons[i],i);
                }
             }
             if(i == 0)
@@ -2820,19 +2800,19 @@ package DistributedObjects
                mXPBonusText = mXPBonusTextFlash.doublexp_text;
             }
             stats_panels[i].visible = mDungeonReport[i].valid;
-            stats_panels[i].stats.kills.enemies_killed.kills.text = mDungeonReport[i].kills.toString();
-            stats_panels[i].stats.xp_bar.bonus_xp.xp.text = "0";
+            TextUtil.setText(stats_panels[i].stats.kills.enemies_killed.kills,mDungeonReport[i].kills.toString());
+            TextUtil.setText(stats_panels[i].stats.xp_bar.bonus_xp.xp,"0");
             stats_panels[i].stats.xp_bar.tooltip.visible = false;
             mItemButtons[i] = [];
             i = i + 1;
          }
-         mScoreReportRoot.bg.banner_text.dungeon_title.text = mDungeonName != null ? mDungeonName.toUpperCase() : "DUNGEON NAME";
+         TextUtil.setText(mScoreReportRoot.bg.banner_text.dungeon_title,mDungeonName != null ? mDungeonName.toUpperCase() : "DUNGEON NAME");
          titleText = this.dungeonSuccess ? Locale.getString("VICTORY") : Locale.getString("DUNGEON_FAILED");
          if(mCurrentMapNode.InfiniteDungeon != null)
          {
             titleText = Locale.getString("CASHED_OUT");
          }
-         mScoreReportRoot.bg.banner_text.title.text = titleText;
+         TextUtil.setText(mScoreReportRoot.bg.banner_text.title,titleText);
          setupXPBars();
          setupLoot();
          setupChat();
@@ -2845,14 +2825,14 @@ package DistributedObjects
          updateRevealState(null);
          mDungeonAchievementPanelMovieClipRenderer = new MovieClipRenderer(mDBFacade,mScoreReportRoot.achievement,destroyAchievementBossPanel);
          mDungeonAchievementPanelMovieClipRenderer.clip.visible = false;
-         mScoreReportRoot.achievement.label.label.text = Locale.getString("DUNGEON_SUMMARY_REWARD_PANEL_LABEL");
+         Locale.setText(mScoreReportRoot.achievement.label.label,"DUNGEON_SUMMARY_REWARD_PANEL_LABEL");
          if(mCurrentMapNode.InfiniteDungeon != null)
          {
-            mScoreReportRoot.achievement.label_boss.label.text = Locale.getString("DUNGEON_SUMMARY_REWARD_PANEL_LABEL_INFINITE");
+            Locale.setText(mScoreReportRoot.achievement.label_boss.label,"DUNGEON_SUMMARY_REWARD_PANEL_LABEL_INFINITE");
          }
          else
          {
-            mScoreReportRoot.achievement.label_boss.label.text = Locale.getString("DUNGEON_SUMMARY_REWARD_PANEL_LABEL_BOSS");
+            Locale.setText(mScoreReportRoot.achievement.label_boss.label,"DUNGEON_SUMMARY_REWARD_PANEL_LABEL_BOSS");
          }
          if(mDungeonReport[0].receivedTrophy)
          {
@@ -2887,7 +2867,7 @@ package DistributedObjects
       {
          var _loc2_:Array = null;
          var _loc4_:Object = null;
-         var _loc3_:* = undefined;
+         var _loc3_:Vector.<uint> = undefined;
          if(getQualifiedClassName(details) == "Array")
          {
             _loc2_ = details[0];
@@ -2905,7 +2885,7 @@ package DistributedObjects
          return _loc4_;
       }
       
-      private function addFriend(personName:String, iconMC:MovieClip, personId:uint, button:UIButton) : void
+      private function addFriend(personName:String, iconMC:MovieClip, personId:uint, button:UIButton, playerIndex:uint) : void
       {
          var rpcFunc:Function = JSONRPCService.getFunction("DRFriendRequest",mDBFacade.rpcRoot + "friendrequests");
          var rpcSuccessCallback:Function = function(param1:*):void
@@ -2921,13 +2901,19 @@ package DistributedObjects
                Logger.debug("Successful add friend.");
                mEventComponent.dispatchEvent(new FriendSummaryNewsFeedEvent("FRIEND_SUMMARY_NEWS_FEED_MESSAGE_EVENT",Locale.getString("Friend_Request_Sent_to_"),iconMC,personName));
                mDBFacade.metrics.log("DRFriendRequest",{"friendId":_loc2_.to_account_id});
+               mDBFacade.steamAchievementsHelper.unlockAchievement("ADD_FRIEND");
             }
             button.enabled = false;
+            if(mDBFacade.menuNavigationController.getTopUILayer() == "DISTRIBUTED_DUNGEON_SUMMARY")
+            {
+               restoreFocusAfterSocialAction(playerIndex,button);
+            }
          };
-         rpcFunc(mDBFacade.dbAccountInfo.name,mDBFacade.dbAccountInfo.trophies,mDBFacade.dbAccountInfo.activeAvatarSkinId,mDBFacade.dbAccountInfo.facebookId,mDBFacade.dbAccountInfo.id,personId,mDBFacade.demographics,mDBFacade.validationToken,rpcSuccessCallback,UIFriendManager.createFriendRPCErrorCallback(mDBFacade,"addFriend"));
+         var deadFacebookIdParameter:String = "";
+         rpcFunc(mDBFacade.dbAccountInfo.name,mDBFacade.dbAccountInfo.trophies,mDBFacade.dbAccountInfo.activeAvatarSkinId,deadFacebookIdParameter,mDBFacade.dbAccountInfo.id,personId,mDBFacade.demographics,mDBFacade.validationToken,rpcSuccessCallback,UIFriendManager.createFriendRPCErrorCallback(mDBFacade,"addFriend"));
       }
       
-      private function blockFriend(personName:String, iconMC:MovieClip, personId:uint, button:UIButton) : void
+      private function blockFriend(personName:String, iconMC:MovieClip, personId:uint, button:UIButton, playerIndex:uint) : void
       {
          var tf:TextFormat;
          var rpcSuccessCallback:Function = function(param1:*):void
@@ -2945,16 +2931,27 @@ package DistributedObjects
                mDBFacade.metrics.log("DRFriendIgnore",{"friendId":_loc2_.substr(1,_loc2_.length - 2)});
             }
          };
-         mDRFriendBlockPopup = new DBUITwoButtonPopup(mDBFacade,Locale.getString("BLOCK") + " " + personName + "?",personName + Locale.getString("VICTORY_SCREEN_BLOCK_POPUP_MESSAGE"),Locale.getString("BLOCK"),function():void
+         mDRFriendBlockPopup = new DBUITwoButtonPopup(mDBFacade,"DUNGEON_SUMMARY_BLOCK_PLAYER",Locale.getString("BLOCK") + " " + personName + "?",personName + Locale.getString("VICTORY_SCREEN_BLOCK_POPUP_MESSAGE"),Locale.getString("BLOCK"),function():void
          {
             var _loc1_:Function = JSONRPCService.getFunction("IgnoreFriend",mDBFacade.rpcRoot + "friendrequests");
             _loc1_(mDBFacade.dbAccountInfo.id,personId,mDBFacade.validationToken,rpcSuccessCallback);
             button.enabled = false;
-         },Locale.getString("CANCEL"),null);
+            closeDRFriendBlockPopup();
+            restoreFocusAfterSocialAction(playerIndex,button);
+         },Locale.getString("CANCEL"),null,true,closeDRFriendBlockPopup);
          MemoryTracker.track(mDRFriendBlockPopup,"DBUITwoButtonPopup - created in DistributedDungeonSummary.blockFriend()");
          tf = new TextFormat();
          tf.color = FriendSummaryNewsFeedEvent.FRIEND_NAME_HIGHLIGHT_COLOR;
          mDRFriendBlockPopup.colorizeMessage(tf,0,personName.length);
+      }
+      
+      private function closeDRFriendBlockPopup() : void
+      {
+         if(mDRFriendBlockPopup)
+         {
+            mDRFriendBlockPopup.destroy();
+            mDRFriendBlockPopup = null;
+         }
       }
       
       private function buildMatchPlayers() : Array
@@ -2977,7 +2974,7 @@ package DistributedObjects
          return _loc2_;
       }
       
-      private function createReportPlayerPopup(personName:String, iconMC:MovieClip, personId:uint, button:UIButton) : void
+      private function createReportPlayerPopup(personName:String, iconMC:MovieClip, personId:uint, button:UIButton, playerIndex:uint) : void
       {
          var matchPlayers:Array = buildMatchPlayers();
          mDRReportPlayerPopup = new UIReportPopup(mDBFacade,personName,personId,matchPlayers,function():void
@@ -2992,17 +2989,53 @@ package DistributedObjects
             {
                mEventComponent.dispatchEvent(new FriendSummaryNewsFeedEvent("FRIEND_SUMMARY_NEWS_FEED_MESSAGE_EVENT",Locale.getString("_has_been_reported"),iconMC,personName,true));
             }
+         },function():void
+         {
+            mDRReportPlayerPopup = null;
+            restoreFocusAfterSocialAction(playerIndex,button);
          });
          MemoryTracker.track(mDRReportPlayerPopup,"UIReportPopup - created in DistributedDungeonSummary.createReportPlayerPopup()");
       }
       
+      private function closeDRReportPlayerPopup() : void
+      {
+         if(mDRReportPlayerPopup)
+         {
+            mDRReportPlayerPopup.destroy();
+            mDRReportPlayerPopup = null;
+         }
+      }
+      
+      private function restoreFocusAfterSocialAction(playerIndex:uint, usedButton:UIButton) : void
+      {
+         if(!mAvatarButtons || !mAddFriendButtons || !mBlockFriendButtons || !mReportPlayerButtons)
+         {
+            return;
+         }
+         if(usedButton == null || usedButton.canBeFocused())
+         {
+            return;
+         }
+         setupMenuNavigation();
+         var _loc3_:Array = getPlayerSocialButtons(playerIndex);
+         var _loc4_:UIObject = firstUIObject(_loc3_);
+         if(!_loc4_)
+         {
+            _loc4_ = mAvatarButtons[playerIndex];
+         }
+         if(_loc4_)
+         {
+            mDBFacade.menuNavigationController.setFocusedUiObject(_loc4_);
+         }
+      }
+      
       override public function destroy() : void
       {
-         var _loc5_:int = 0;
          var _loc6_:int = 0;
-         var _loc2_:FacebookPicHelper = null;
-         var _loc4_:* = 0;
-         var _loc7_:* = 0;
+         var _loc7_:int = 0;
+         var _loc3_:SteamAvatarHelper = null;
+         var _loc5_:uint = 0;
+         var _loc8_:uint = 0;
          if(mCountDownTextXP != null)
          {
             mCountDownTextXP.destroy();
@@ -3011,9 +3044,9 @@ package DistributedObjects
          {
             mCountDownTextGold.destroy();
          }
-         for each(var _loc3_:UIObject in mTeamBonusUI)
+         for each(var _loc4_:UIObject in mTeamBonusUI)
          {
-            _loc3_.destroy();
+            _loc4_.destroy();
          }
          mTeamBonusUI = null;
          mSmashSfx = null;
@@ -3025,11 +3058,11 @@ package DistributedObjects
          }
          if(mChestKeySlots)
          {
-            _loc5_ = 0;
-            while(_loc5_ < mChestKeySlots.length)
+            _loc6_ = 0;
+            while(_loc6_ < mChestKeySlots.length)
             {
-               mChestKeySlots[_loc5_].destroy();
-               _loc5_++;
+               mChestKeySlots[_loc6_].destroy();
+               _loc6_++;
             }
          }
          mChestKeySlots = null;
@@ -3047,36 +3080,48 @@ package DistributedObjects
             mUIInventory.destroy();
             mUIInventory = null;
          }
-         _loc4_ = 0;
-         while(_loc4_ < 4)
+         _loc5_ = 0;
+         while(_loc5_ < 4)
          {
-            _loc6_ = 0;
-            while(_loc6_ < 2)
+            _loc7_ = 0;
+            while(_loc7_ < 2)
             {
-               mSceneGraphComponent.removeChild(mChestMovieClips[_loc4_][_loc6_]);
-               _loc6_++;
+               mSceneGraphComponent.removeChild(mChestMovieClips[_loc5_][_loc7_]);
+               _loc7_++;
             }
-            _loc4_++;
+            _loc5_++;
          }
          mChestMovieClips = null;
          mDBFacade.regainFocus();
-         if(mSceneGraphComponent.contains(mFacebookPicHolder,105))
+         if(mSceneGraphComponent.contains(mSteamAvatarHolder,105))
          {
-            mSceneGraphComponent.removeChild(mFacebookPicHolder);
+            mSceneGraphComponent.removeChild(mSteamAvatarHolder);
          }
-         mFacebookPicHolder = null;
-         var _loc1_:Array = mFacebookPicMap.keysToArray();
-         for each(var _loc8_:uint in _loc1_)
+         mSteamAvatarHolder = null;
+         var _loc1_:Array = mSteamAvatarMap.keysToArray();
+         for each(var _loc10_:uint in _loc1_)
          {
-            _loc2_ = mFacebookPicMap.itemFor(_loc8_);
-            if(_loc2_)
+            _loc3_ = mSteamAvatarMap.itemFor(_loc10_);
+            if(_loc3_)
             {
-               _loc2_.destroy();
+               _loc3_.destroy();
             }
-            _loc2_ = null;
+            _loc3_ = null;
          }
-         mFacebookPicMap.clear();
+         mSteamAvatarMap.clear();
          closeBoosterPopup();
+         closeDRFriendBlockPopup();
+         closeDRReportPlayerPopup();
+         closeAbandonChestPopUp();
+         closeKeylessChestPopup();
+         closeKeyChestPopup();
+         closeInfoPopup();
+         if(mChestTransactionFailedPopup != null)
+         {
+            mChestTransactionFailedPopup.destroy();
+            mChestTransactionFailedPopup = null;
+         }
+         mDBFacade.menuNavigationController.removeLayer("DISTRIBUTED_DUNGEON_SUMMARY");
          mEventComponent.destroy();
          mWorkComponent.destroy();
          mChatEventComponent.destroy();
@@ -3089,48 +3134,78 @@ package DistributedObjects
          mXPBonusBarEffect = null;
          mXPBonusTextFlash = null;
          mXPBonusText = null;
-         _loc4_ = 0;
-         while(_loc4_ < mAddFriendButtons.length)
+         _loc5_ = 0;
+         while(_loc5_ < mAddFriendButtons.length)
          {
-            mAddFriendButtons[_loc4_].destroy();
-            _loc4_++;
+            if(mAddFriendButtons[_loc5_])
+            {
+               mAddFriendButtons[_loc5_].destroy();
+            }
+            _loc5_++;
          }
          mAddFriendButtons = null;
-         _loc4_ = 0;
-         while(_loc4_ < mBlockFriendButtons.length)
+         _loc5_ = 0;
+         while(_loc5_ < mBlockFriendButtons.length)
          {
-            mBlockFriendButtons[_loc4_].destroy();
-            _loc4_++;
+            if(mBlockFriendButtons[_loc5_])
+            {
+               mBlockFriendButtons[_loc5_].destroy();
+            }
+            _loc5_++;
          }
          mBlockFriendButtons = null;
-         _loc4_ = 0;
-         while(_loc4_ < mReportPlayerButtons.length)
+         _loc5_ = 0;
+         while(_loc5_ < mReportPlayerButtons.length)
          {
-            mReportPlayerButtons[_loc4_].destroy();
-            _loc4_++;
+            if(mReportPlayerButtons[_loc5_])
+            {
+               mReportPlayerButtons[_loc5_].destroy();
+            }
+            _loc5_++;
          }
          mReportPlayerButtons = null;
-         _loc4_ = 0;
-         while(_loc4_ < mBoosterInfos.length)
+         _loc5_ = 0;
+         while(_loc5_ < mBoosterInfos.length)
          {
-            mBoosterInfos[_loc4_].destroy();
-            _loc4_++;
+            mBoosterInfos[_loc5_].destroy();
+            _loc5_++;
          }
          mBoosterInfos = null;
-         _loc4_ = 0;
-         while(_loc4_ < 4)
+         _loc5_ = 0;
+         while(_loc5_ < mAvatarButtons.length)
          {
-            _loc7_ = 0;
-            while(_loc7_ < 2)
+            if(mAvatarButtons[_loc5_])
             {
-               if(mItemButtons[_loc4_][_loc7_])
-               {
-                  mItemButtons[_loc4_][_loc7_].destroy();
-                  mItemButtons[_loc4_][_loc7_] = null;
-               }
-               _loc7_++;
+               mAvatarButtons[_loc5_].destroy();
             }
-            _loc4_++;
+            _loc5_++;
+         }
+         mAvatarButtons = null;
+         if(mXPBoosterUI)
+         {
+            mXPBoosterUI.destroy();
+         }
+         mXPBoosterUI = null;
+         if(mCoinBoosterUI)
+         {
+            mCoinBoosterUI.destroy();
+         }
+         mCoinBoosterUI = null;
+         mPlayerBoosterUIs = null;
+         _loc5_ = 0;
+         while(_loc5_ < 4)
+         {
+            _loc8_ = 0;
+            while(_loc8_ < 2)
+            {
+               if(mItemButtons[_loc5_][_loc8_])
+               {
+                  mItemButtons[_loc5_][_loc8_].destroy();
+                  mItemButtons[_loc5_][_loc8_] = null;
+               }
+               _loc8_++;
+            }
+            _loc5_++;
          }
          mItemButtons = null;
          if(mTownHeader)
@@ -3142,6 +3217,17 @@ package DistributedObjects
          {
             mAssetLoadingComponent.destroy();
             mAssetLoadingComponent = null;
+         }
+         if(mBgRenderer)
+         {
+            mDBFacade.mTween.killTweensOf(mBgRenderer.clip);
+            mBgRenderer.destroy();
+            mBgRenderer = null;
+         }
+         if(mNextFloorSection)
+         {
+            mNextFloorSection.destroy();
+            mNextFloorSection = null;
          }
          if(mScoreReportRoot)
          {
@@ -3155,11 +3241,11 @@ package DistributedObjects
          }
          mUIChatLog.enabledChatEnterEvent = true;
          mUIChatLog.destroy();
-         _loc4_ = 0;
-         while(_loc4_ < mChestRenderers.length)
+         _loc5_ = 0;
+         while(_loc5_ < mChestRenderers.length)
          {
-            mChestRenderers[_loc4_].destroy();
-            _loc4_++;
+            mChestRenderers[_loc5_].destroy();
+            _loc5_++;
          }
          mChestRenderers = null;
          isSingleChestList.length = 0;
@@ -3173,8 +3259,8 @@ package DistributedObjects
          mDungeonReport.length = 0;
          mDungeonReport = null;
          mEventComponent = null;
-         mFacebookPicMap.clear();
-         mFacebookPicMap = null;
+         mSteamAvatarMap.clear();
+         mSteamAvatarMap = null;
          mNetworkComponent = null;
          mPlayerIsTypingNotification = null;
          mRarityMap.clear();
@@ -3188,6 +3274,16 @@ package DistributedObjects
          mUILootSlotsFourTreasures = null;
          mUILootSlotsTwoTreasures.length = 0;
          mUILootSlotsTwoTreasures = null;
+         for each(var _loc9_:Array in mWeapons)
+         {
+            for each(var _loc2_:UIObject in _loc9_)
+            {
+               if(_loc2_)
+               {
+                  _loc2_.destroy();
+               }
+            }
+         }
          mWeapons.length = 0;
          mWeapons = null;
          mWeaponTooltips.length = 0;
@@ -3195,6 +3291,7 @@ package DistributedObjects
          mXpBar.length = 0;
          mXpBar = null;
          mDBFacade = null;
+         super.destroy();
       }
       
       public function set dungeon_name(dungeonName:String) : void
@@ -3204,7 +3301,7 @@ package DistributedObjects
       
       public function set report(val:Vector.<DungeonReport>) : void
       {
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc2_:DungeonReport = null;
          var _loc3_:int = 0;
          var _loc6_:Array = null;
@@ -3272,7 +3369,7 @@ package DistributedObjects
          if(surveyURL && !alreadyCompleted)
          {
             surveyURL += "?c=" + mDBFacade.accountId;
-            popup = new DBUITwoButtonPopup(mDBFacade,Locale.getString("SURVEY_POPUP_TITLE"),Locale.getString("SURVEY_POPUP_MESSAGE"),Locale.getString("SURVEY_CANCEL"),function():void
+            popup = new DBUITwoButtonPopup(mDBFacade,"SUMMARY_SURVEY_POPUP",Locale.getString("SURVEY_POPUP_TITLE"),Locale.getString("SURVEY_POPUP_MESSAGE"),Locale.getString("SURVEY_CANCEL"),function():void
             {
                Logger.info("trySurveyLink cancel: " + surveyURL);
                returnToSplashScreen();
@@ -3296,7 +3393,7 @@ package DistributedObjects
          var _loc1_:DBUITwoButtonPopup = null;
          if(mItemCount > 0)
          {
-            _loc1_ = new DBUITwoButtonPopup(mDBFacade,Locale.getString("ABANDON_ITEMS_TITLE"),Locale.getString("ABANDON_ITEMS_MESSAGE"),Locale.getString("ABANDON_YES"),trySurveyLink,Locale.getString("CANCEL"),null,true,null,true,true,"ARE_YOU_SURE_YOU_WANT_TO_ABANDON_CHESTS");
+            _loc1_ = new DBUITwoButtonPopup(mDBFacade,"ARE_YOU_SURE_YOU_WANT_TO_ABANDON_CHESTS",Locale.getString("ABANDON_ITEMS_TITLE"),Locale.getString("ABANDON_ITEMS_MESSAGE"),Locale.getString("ABANDON_YES"),trySurveyLink,Locale.getString("CANCEL"),null);
             MemoryTracker.track(_loc1_,"DBUITwoButtonPopup - created in DistributedDungeonSummary.tryReturnToSplashScreen()");
          }
          else
@@ -3307,13 +3404,15 @@ package DistributedObjects
       
       private function openInventory() : void
       {
-         var _loc1_:* = 0;
+         var _loc1_:uint = 0;
          var _loc2_:int = 0;
          mUIInventory = new UIInventory(mDBFacade,mTownHeader,this);
          mUIInventory.setRevealedState(mRevealedItemType,mRevealedItemOfferId,mRevealedItemCallEquip);
          mUIInventory.show(mSelectedGMChest);
          mTownHeader.showCloseButton(true);
          mScoreReportRoot.addChild(mUIInventory.root);
+         mUIInventory.setupCategoryNavigation("DISTRIBUTED_DUNGEON_SUMMARY");
+         mTownHeader.closeButton.clearRightNavigation();
          _loc1_ = 0;
          while(_loc1_ < 4)
          {
@@ -3345,9 +3444,11 @@ package DistributedObjects
       private function closeInventory() : void
       {
          var _loc2_:int = 0;
+         mDBFacade.menuNavigationController.setLayerCategoryCallbacks(null,null,"DISTRIBUTED_DUNGEON_SUMMARY");
          mScoreReportRoot.removeChild(mUIInventory.root);
          mUIInventory.destroy();
          mUIInventory = null;
+         setupMenuNavigation();
          mTownHeader.showCloseButton(true);
          mTownHeader.title = this.dungeonSuccess ? Locale.getString("VICTORY") : Locale.getString("DUNGEON_FAILED");
          var _loc1_:Array = [mDungeonReport[0].chest_type_1,mDungeonReport[0].chest_type_2,mDungeonReport[0].chest_type_3,mDungeonReport[0].chest_type_4];
@@ -3371,12 +3472,319 @@ package DistributedObjects
       
       private function returnToSplashScreen() : void
       {
-         mDBFacade.menuNavigationController.popLayer("DISTRIBUTED_DUNGEON_SUMMARY");
+         mLeaving = true;
+         closeDRFriendBlockPopup();
+         closeDRReportPlayerPopup();
+         mDBFacade.menuNavigationController.removeLayer("DISTRIBUTED_DUNGEON_SUMMARY");
          mDBFacade.mDistributedObjectManager.mMatchMaker.RequestExit();
       }
       
       private function setupMenuNavigation() : void
       {
+         var _loc12_:int = 0;
+         var _loc13_:UIObject = null;
+         var _loc16_:int = 0;
+         var _loc9_:UIObject = null;
+         var _loc19_:Array = null;
+         var _loc14_:Array = null;
+         var _loc22_:Array = null;
+         var _loc17_:UIObject = null;
+         var _loc11_:UIObject = null;
+         var _loc7_:UIObject = null;
+         var _loc6_:UIObject = null;
+         var _loc18_:UIObject = null;
+         var _loc2_:UIObject = null;
+         var _loc4_:int = 0;
+         var _loc21_:UIObject = null;
+         var _loc15_:UIObject = null;
+         var _loc24_:UIObject = null;
+         var _loc3_:UIObject = null;
+         var _loc5_:Array = null;
+         var _loc20_:Array = null;
+         if(!mTownHeader || !mNextFloorSection || !mUIChatLog || !mWeapons)
+         {
+            return;
+         }
+         var _loc23_:Array = [mNextFloorSection.battleButton,mUIChatLog.chatSendButton,mUIChatLog.chatLogButton];
+         _loc12_ = 0;
+         while(_loc12_ < 4)
+         {
+            if(mAvatarButtons[_loc12_])
+            {
+               _loc23_.push(mAvatarButtons[_loc12_]);
+            }
+            for each(_loc13_ in mPlayerBoosterUIs[_loc12_])
+            {
+               _loc23_.push(_loc13_);
+            }
+            if(mAddFriendButtons[_loc12_])
+            {
+               _loc23_.push(mAddFriendButtons[_loc12_]);
+            }
+            if(mBlockFriendButtons[_loc12_])
+            {
+               _loc23_.push(mBlockFriendButtons[_loc12_]);
+            }
+            if(mReportPlayerButtons[_loc12_])
+            {
+               _loc23_.push(mReportPlayerButtons[_loc12_]);
+            }
+            for each(_loc13_ in mWeapons[_loc12_])
+            {
+               _loc23_.push(_loc13_);
+            }
+            _loc12_++;
+         }
+         for each(_loc13_ in _loc23_)
+         {
+            _loc13_.clearNavigationAndInteractions();
+         }
+         var _loc10_:Array = getValidSummaryPlayerIndices();
+         linkHeaderToSummary(_loc10_.length > 0 ? mAvatarButtons[_loc10_[0]] : null);
+         if(_loc10_.length == 0)
+         {
+            return;
+         }
+         _loc16_ = 0;
+         while(_loc16_ < _loc10_.length)
+         {
+            _loc12_ = int(_loc10_[_loc16_]);
+            _loc9_ = mAvatarButtons[_loc12_];
+            _loc9_.upNavigation = mTownHeader.addCoinButton;
+            if(_loc16_ > 0)
+            {
+               mAvatarButtons[_loc10_[_loc16_ - 1]].isToTheLeftOf(_loc9_);
+            }
+            _loc19_ = getAvailableUIObjects(mPlayerBoosterUIs[_loc12_]);
+            _loc14_ = getPlayerSocialButtons(_loc12_);
+            _loc22_ = getAvailableUIObjects(mWeapons[_loc12_]);
+            _loc17_ = firstUIObject(_loc19_);
+            if(!_loc17_)
+            {
+               _loc17_ = firstUIObject(_loc14_);
+            }
+            if(!_loc17_)
+            {
+               _loc17_ = firstUIObject(_loc22_);
+            }
+            if(!_loc17_)
+            {
+               _loc17_ = mUIChatLog.chatSendButton;
+            }
+            _loc9_.downNavigation = _loc17_;
+            linkHorizontalRow(_loc19_);
+            _loc11_ = firstUIObject(_loc14_);
+            if(!_loc11_)
+            {
+               _loc11_ = firstUIObject(_loc22_);
+            }
+            if(!_loc11_)
+            {
+               _loc11_ = mUIChatLog.chatSendButton;
+            }
+            for each(_loc13_ in _loc19_)
+            {
+               _loc13_.upNavigation = _loc9_;
+               _loc13_.downNavigation = _loc11_;
+            }
+            linkHorizontalRow(_loc14_);
+            _loc7_ = firstUIObject(_loc22_);
+            _loc6_ = _loc7_ ? _loc7_ : mUIChatLog.chatSendButton;
+            _loc18_ = _loc19_.length > 0 ? _loc19_[_loc19_.length - 1] : _loc9_;
+            for each(_loc13_ in _loc14_)
+            {
+               _loc13_.upNavigation = _loc18_;
+               _loc13_.downNavigation = _loc6_;
+            }
+            linkHorizontalRow(_loc22_);
+            _loc2_ = _loc14_.length > 0 ? _loc14_[0] : (_loc19_.length > 0 ? _loc19_[_loc19_.length - 1] : _loc9_);
+            for each(_loc13_ in _loc22_)
+            {
+               _loc13_.upNavigation = _loc2_;
+               _loc13_.downNavigation = mUIChatLog.chatSendButton;
+            }
+            _loc4_ = int(_loc16_ + 1 < _loc10_.length ? _loc10_[_loc16_ + 1] : -1);
+            _loc21_ = _loc4_ >= 0 ? firstUIObject(getPlayerSocialButtons(_loc4_)) : null;
+            _loc15_ = _loc4_ >= 0 ? firstUIObject(getAvailableUIObjects(mWeapons[_loc4_])) : null;
+            _loc24_ = mNextFloorSection.battleButton;
+            if(_loc14_.length > 0)
+            {
+               UIObject(_loc14_[_loc14_.length - 1]).rightNavigation = _loc21_ ? _loc21_ : (_loc15_ ? _loc15_ : _loc24_);
+               if(_loc21_)
+               {
+                  _loc21_.leftNavigation = _loc14_[_loc14_.length - 1];
+               }
+            }
+            if(_loc22_.length > 0)
+            {
+               UIObject(_loc22_[_loc22_.length - 1]).rightNavigation = _loc15_ ? _loc15_ : (_loc21_ ? _loc21_ : _loc24_);
+               if(_loc15_)
+               {
+                  _loc15_.leftNavigation = _loc22_[_loc22_.length - 1];
+               }
+            }
+            _loc16_++;
+         }
+         var _loc1_:int = int(_loc10_[_loc10_.length - 1]);
+         mAvatarButtons[_loc1_].rightNavigation = mNextFloorSection.battleButton;
+         var _loc8_:Array = getAvailableUIObjects(mWeapons[_loc1_]);
+         if(_loc8_.length > 0)
+         {
+            _loc3_ = _loc8_[_loc8_.length - 1];
+         }
+         else
+         {
+            _loc5_ = getPlayerSocialButtons(_loc1_);
+            _loc20_ = getAvailableUIObjects(mPlayerBoosterUIs[_loc1_]);
+            _loc3_ = _loc5_.length > 0 ? _loc5_[0] : (_loc20_.length > 0 ? _loc20_[_loc20_.length - 1] : mAvatarButtons[_loc1_]);
+         }
+         mUIChatLog.chatSendButton.upNavigation = _loc3_;
+         mUIChatLog.chatSendButton.isToTheLeftOf(mUIChatLog.chatLogButton);
+         mUIChatLog.chatLogButton.rightNavigation = mNextFloorSection.battleButton;
+         mUIChatLog.chatSendButton.isToTheLeftOf(mUIChatLog.chatLogButton);
+         mUIChatLog.chatLogButton.rightNavigation = mNextFloorSection.battleButton;
+         if(_loc8_.length > 0)
+         {
+            mNextFloorSection.battleButton.leftNavigation = _loc8_[_loc8_.length - 1];
+         }
+      }
+      
+      private function linkHeaderToSummary(firstAvatar:UIObject) : void
+      {
+         var _loc3_:UIObject = mNextFloorSection.battleButton;
+         var _loc2_:UIObject = mTownHeader.closeButton;
+         _loc3_.upNavigation = _loc2_;
+         if(mUIInventory)
+         {
+            return;
+         }
+         _loc2_.clearRightNavigation();
+         _loc2_.clearDownNavigation();
+         _loc2_.rightNavigation = _loc3_;
+         _loc2_.downNavigation = _loc3_;
+         mTownHeader.addCoinButton.clearDownNavigation();
+         mTownHeader.addGemButton.clearDownNavigation();
+         if(firstAvatar)
+         {
+            mTownHeader.addCoinButton.downNavigation = firstAvatar;
+            mTownHeader.addGemButton.downNavigation = firstAvatar;
+         }
+      }
+      
+      private function getValidSummaryPlayerIndices() : Array
+      {
+         var _loc2_:int = 0;
+         var _loc1_:Array = [];
+         _loc2_ = 0;
+         while(_loc2_ < 4)
+         {
+            if(mDungeonReport[_loc2_].valid && mAvatarButtons[_loc2_] && mAvatarButtons[_loc2_].canBeFocused() && isEffectivelyVisible(mAvatarButtons[_loc2_].root))
+            {
+               _loc1_.push(_loc2_);
+            }
+            _loc2_++;
+         }
+         return _loc1_;
+      }
+      
+      private function getAvailableUIObjects(objects:Array) : Array
+      {
+         var _loc2_:Array = [];
+         if(!objects)
+         {
+            return _loc2_;
+         }
+         for each(var _loc3_:UIObject in objects)
+         {
+            if(_loc3_ && _loc3_.canBeFocused() && isEffectivelyVisible(_loc3_.root))
+            {
+               _loc2_.push(_loc3_);
+            }
+         }
+         return _loc2_;
+      }
+      
+      private function isEffectivelyVisible(displayObject:DisplayObject) : Boolean
+      {
+         var _loc2_:DisplayObject = null;
+         _loc2_ = displayObject;
+         while(_loc2_ != null)
+         {
+            if(!_loc2_.visible)
+            {
+               return false;
+            }
+            _loc2_ = _loc2_.parent;
+         }
+         return true;
+      }
+      
+      private function getPlayerSocialButtons(playerIndex:int) : Array
+      {
+         return getAvailableUIObjects([mAddFriendButtons[playerIndex],mBlockFriendButtons[playerIndex],mReportPlayerButtons[playerIndex]]);
+      }
+      
+      private function firstUIObject(objects:Array) : UIObject
+      {
+         return objects && objects.length > 0 ? objects[0] as UIObject : null;
+      }
+      
+      private function linkHorizontalRow(objects:Array) : void
+      {
+         var _loc2_:int = 0;
+         _loc2_ = 1;
+         while(_loc2_ < objects.length)
+         {
+            UIObject(objects[_loc2_ - 1]).isToTheLeftOf(UIObject(objects[_loc2_]));
+            _loc2_++;
+         }
+      }
+      
+      private function focusPreviousPlayerAvatar() : void
+      {
+         focusAdjacentPlayerAvatar(-1);
+      }
+      
+      private function focusNextPlayerAvatar() : void
+      {
+         focusAdjacentPlayerAvatar(1);
+      }
+      
+      private function focusAdjacentPlayerAvatar(direction:int) : void
+      {
+         var _loc4_:int = 0;
+         var _loc5_:Array = getValidSummaryPlayerIndices();
+         if(_loc5_.length == 0)
+         {
+            return;
+         }
+         var _loc2_:* = -1;
+         _loc4_ = 0;
+         while(_loc4_ < _loc5_.length)
+         {
+            if(isSummaryPlayerObjectFocused(_loc5_[_loc4_]))
+            {
+               _loc2_ = _loc4_;
+               break;
+            }
+            _loc4_++;
+         }
+         var _loc3_:int = _loc2_ < 0 ? (direction < 0 ? _loc5_.length - 1 : 0) : (_loc2_ + direction + _loc5_.length) % _loc5_.length;
+         mDBFacade.menuNavigationController.setFocusedUiObject(mAvatarButtons[_loc5_[_loc3_]]);
+      }
+      
+      private function isSummaryPlayerObjectFocused(playerIndex:int) : Boolean
+      {
+         var _loc2_:Array = [mAvatarButtons[playerIndex],mAddFriendButtons[playerIndex],mBlockFriendButtons[playerIndex],mReportPlayerButtons[playerIndex]];
+         _loc2_ = _loc2_.concat(mPlayerBoosterUIs[playerIndex],mWeapons[playerIndex]);
+         for each(var _loc3_:UIObject in _loc2_)
+         {
+            if(_loc3_ && _loc3_.isFocused())
+            {
+               return true;
+            }
+         }
+         return false;
       }
    }
 }
@@ -3384,14 +3792,14 @@ package DistributedObjects
 import flash.display.DisplayObject;
 import flash.display.MovieClip;
 
-class FacebookPicHelper
+class SteamAvatarHelper
 {
    
    public var pic:DisplayObject;
    
    public var root:MovieClip;
    
-   public function FacebookPicHelper()
+   public function SteamAvatarHelper()
    {
       super();
    }

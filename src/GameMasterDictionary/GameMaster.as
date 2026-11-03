@@ -2,989 +2,269 @@ package GameMasterDictionary
 {
    import Brain.Clock.GameClock;
    import Brain.Logger.Logger;
+   import DBGlobals.As3Compat;
    import DBGlobals.DBGlobal;
-   import org.as3commons.collections.Map;
+   import flash.Boot;
+   import haxe.Log;
    
    public class GameMaster
    {
       
-      public var Heroes:Vector.<GMHero> = new Vector.<GMHero>();
-      
-      public var Npcs:Vector.<GMNpc> = new Vector.<GMNpc>();
-      
-      public var Attacks:Vector.<GMAttack> = new Vector.<GMAttack>();
-      
-      public var Projectiles:Vector.<GMProjectile> = new Vector.<GMProjectile>();
-      
-      public var Buffs:Vector.<GMBuff> = new Vector.<GMBuff>();
-      
-      public var Auras:Vector.<GMAura> = new Vector.<GMAura>();
-      
-      public var WeaponItems:Vector.<GMWeaponItem> = new Vector.<GMWeaponItem>();
-      
-      public var WeaponAesthetics:Vector.<GMWeaponAesthetic> = new Vector.<GMWeaponAesthetic>();
-      
-      public var WeaponMastertypes:Vector.<GMWeaponMastertype> = new Vector.<GMWeaponMastertype>();
-      
-      public var ItemDrops:Vector.<GMItemDrop> = new Vector.<GMItemDrop>();
-      
-      public var Doobers:Vector.<GMDoober> = new Vector.<GMDoober>();
-      
-      public var DooberDrops:Vector.<GMDooberDrop> = new Vector.<GMDooberDrop>();
-      
-      public var MapNodes:Vector.<GMMapNode> = new Vector.<GMMapNode>();
-      
-      public var DungeonModifiers:Vector.<GMDungeonModifier> = new Vector.<GMDungeonModifier>();
-      
-      public var Stats:Vector.<GMStat> = new Vector.<GMStat>();
-      
-      public var SuperStats:Vector.<GMSuperStat> = new Vector.<GMSuperStat>();
-      
-      public var Props:Vector.<GMProp> = new Vector.<GMProp>();
-      
-      public var Offers:Vector.<GMOffer> = new Vector.<GMOffer>();
-      
-      public var Stackables:Vector.<GMStackable> = new Vector.<GMStackable>();
-      
-      public var CashDeals:Vector.<GMCashDeal> = new Vector.<GMCashDeal>();
-      
-      public var FeedPosts:Vector.<GMFeedPosts> = new Vector.<GMFeedPosts>();
-      
-      public var Achievements:Vector.<GMAchievement> = new Vector.<GMAchievement>();
-      
-      public var Hints:Vector.<GMHints> = new Vector.<GMHints>();
-      
-      public var ColiseumTiers:Vector.<GMColiseumTier> = new Vector.<GMColiseumTier>();
-      
-      public var Skins:Vector.<GMSkin> = new Vector.<GMSkin>();
-      
-      public var Chests:Vector.<GMChest> = new Vector.<GMChest>();
-      
-      public var Keys:Vector.<GMKey> = new Vector.<GMKey>();
-      
-      public var Rarity:Vector.<GMRarity> = new Vector.<GMRarity>();
-      
-      public var Modifiers:Vector.<GMModifier> = new Vector.<GMModifier>();
-      
-      public var LegendaryModifiers:Vector.<GMLegendaryModifier> = new Vector.<GMLegendaryModifier>();
-      
-      public var heroById:Map;
-      
-      public var npcById:Map;
-      
-      public var attackById:Map;
-      
-      public var projectileById:Map;
-      
-      public var buffById:Map;
-      
-      public var buffColorTypeById:Map;
-      
-      public var auraById:Map;
-      
-      public var weaponItemById:Map;
-      
-      public var weaponSubtypeById:Map;
-      
-      public var itemDropById:Map;
-      
-      public var dooberById:Map;
-      
-      public var dooberDropById:Map;
-      
-      public var dooberByChestId:Map;
-      
-      public var mapNodeById:Map;
-      
-      public var mapNodeByBitIndex:Map;
-      
-      public var infiniteDungeonsById:Map;
-      
-      public var dungeonModifierById:Map;
-      
-      public var statById:Map;
-      
-      public var superStatById:Map;
-      
-      public var propById:Map;
-      
-      public var offerById:Map;
-      
-      public var offerByStackableId:Map;
-      
-      public var stackableById:Map;
-      
-      public var cashDealById:Map;
-      
-      public var feedPostsById:Map;
-      
-      public var coliseumTierById:Map;
-      
-      public var achievementsById:Map;
-      
-      public var skinsById:Map;
-      
-      public var chestsById:Map;
-      
-      public var keysByOfferId:Map;
-      
-      public var rarityById:Map;
-      
-      public var modifiersById:Map;
-      
-      public var legendaryModifiersById:Map;
-      
-      public var heroByConstant:Map;
-      
-      public var npcByConstant:Map;
-      
-      public var attackByConstant:Map;
-      
-      public var projectileByConstant:Map;
-      
-      public var weaponAestheticByWeaponItemConstant:Map;
-      
-      public var buffByConstant:Map;
-      
-      public var auraByConstant:Map;
-      
-      public var weaponItemByConstant:Map;
-      
-      public var weaponSubtypeByConstant:Map;
-      
-      public var itemDropByConstant:Map;
-      
-      public var dooberByConstant:Map;
-      
-      public var dooberDropByConstant:Map;
-      
-      public var mapNodeByConstant:Map;
-      
-      public var infiniteDungeonsByConstant:Map;
-      
-      public var dungeonModifierByConstant:Map;
-      
-      public var statByConstant:Map;
-      
-      public var superStatByConstant:Map;
-      
-      public var propByConstant:Map;
-      
-      public var stackableByConstant:Map;
-      
-      public var feedPostsByConstant:Map;
-      
-      public var hintsByConstant:Map;
-      
-      public var coliseumTierByConstant:Map;
-      
-      private var mSkinsByConstant:Map;
-      
-      private var mDefaultSkins:Map;
-      
-      public var rarityByConstant:Map;
-      
-      public var modifiersByConstant:Map;
-      
-      public var legendaryModifiersByConstant:Map;
-      
-      private var mSecurityValue:int;
-      
       public var weaponSubtypesSortedByID:Array;
       
-      public var stat_BonusMultiplier:StatVector;
+      public var weaponSubtypeById:GMMap;
+      
+      public var weaponSubtypeByConstant:GMMap;
+      
+      public var weaponItemById:GMMap;
+      
+      public var weaponItemByConstant:GMMap;
+      
+      public var weaponAestheticByWeaponItemConstant:GMMap;
+      
+      public var superStatById:GMMap;
+      
+      public var superStatByConstant:GMMap;
       
       public var stat_bias:StatVector;
       
       public var stat_MaxCap:StatVector;
       
-      protected var mGameMasterJson:Object;
+      public var stat_BonusMultiplier:StatVector;
       
-      public var triggerToTriggerable:Map;
+      public var statById:GMMap;
       
-      public var TriggerableIdToTriggerableEvent:Map;
+      public var statByConstant:GMMap;
       
-      public function GameMaster(gameMasterJson:Object, splitTests:Object)
+      public var stackableById:GMMap;
+      
+      public var stackableByConstant:GMMap;
+      
+      public var skinsById:GMMap;
+      
+      public var rarityById:GMMap;
+      
+      public var rarityByConstant:GMMap;
+      
+      public var propById:GMMap;
+      
+      public var propByConstant:GMMap;
+      
+      public var projectileById:GMMap;
+      
+      public var projectileByConstant:GMMap;
+      
+      public var offerByStackableId:GMMap;
+      
+      public var offerById:GMMap;
+      
+      public var npcById:GMMap;
+      
+      public var npcByConstant:GMMap;
+      
+      public var modifiersById:GMMap;
+      
+      public var modifiersByConstant:GMMap;
+      
+      public var maxAscensionCount:uint;
+      
+      public var mapNodeById:GMMap;
+      
+      public var mapNodeByConstant:GMMap;
+      
+      public var mapNodeByBitIndex:GMMap;
+      
+      public var mSkinsByConstant:GMMap;
+      
+      public var mSecurityValue:int;
+      
+      public var mGameMasterJson:Object;
+      
+      public var mDefaultSkins:GMMap;
+      
+      public var legendaryModifiersById:GMMap;
+      
+      public var legendaryModifiersByConstant:GMMap;
+      
+      public var keysByOfferId:GMMap;
+      
+      public var itemDropById:GMMap;
+      
+      public var itemDropByConstant:GMMap;
+      
+      public var infiniteDungeonsById:GMMap;
+      
+      public var infiniteDungeonsByConstant:GMMap;
+      
+      public var hintsByConstant:GMMap;
+      
+      public var heroById:GMMap;
+      
+      public var heroByConstant:GMMap;
+      
+      public var dungeonModifierById:GMMap;
+      
+      public var dungeonModifierByConstant:GMMap;
+      
+      public var dooberDropById:GMMap;
+      
+      public var dooberDropByConstant:GMMap;
+      
+      public var dooberById:GMMap;
+      
+      public var dooberByConstant:GMMap;
+      
+      public var dooberByChestId:GMMap;
+      
+      public var coliseumTierById:GMMap;
+      
+      public var coliseumTierByConstant:GMMap;
+      
+      public var chestsById:GMMap;
+      
+      public var buffColorTypeById:GMMap;
+      
+      public var buffById:GMMap;
+      
+      public var buffByConstant:GMMap;
+      
+      public var auraById:GMMap;
+      
+      public var auraByConstant:GMMap;
+      
+      public var attackById:GMMap;
+      
+      public var attackByConstant:GMMap;
+      
+      public var WeaponMastertypes:Vector.<GMWeaponMastertype>;
+      
+      public var WeaponItems:Vector.<GMWeaponItem>;
+      
+      public var WeaponAesthetics:Vector.<GMWeaponAesthetic>;
+      
+      public var SuperStats:Vector.<GMSuperStat>;
+      
+      public var Stats:Vector.<GMStat>;
+      
+      public var Stackables:Vector.<GMStackable>;
+      
+      public var Skins:Vector.<GMSkin>;
+      
+      public var Rarity:Vector.<GMRarity>;
+      
+      public var Props:Vector.<GMProp>;
+      
+      public var Projectiles:Vector.<GMProjectile>;
+      
+      public var Offers:Vector.<GMOffer>;
+      
+      public var Npcs:Vector.<GMNpc>;
+      
+      public var Modifiers:Vector.<GMModifier>;
+      
+      public var MapNodes:Vector.<GMMapNode>;
+      
+      public var LegendaryModifiers:Vector.<GMLegendaryModifier>;
+      
+      public var Keys:Vector.<GMKey>;
+      
+      public var ItemDrops:Vector.<GMItemDrop>;
+      
+      public var Hints:Vector.<GMHints>;
+      
+      public var Heroes:Vector.<GMHero>;
+      
+      public var DungeonModifiers:Vector.<GMDungeonModifier>;
+      
+      public var Doobers:Vector.<GMDoober>;
+      
+      public var DooberDrops:Vector.<GMDooberDrop>;
+      
+      public var ColiseumTiers:Vector.<GMColiseumTier>;
+      
+      public var Chests:Vector.<GMChest>;
+      
+      public var Buffs:Vector.<GMBuff>;
+      
+      public var Auras:Vector.<GMAura>;
+      
+      public var Attacks:Vector.<GMAttack>;
+      
+      public function GameMaster(gameMasterJson:Object = undefined, splitTests:* = undefined)
       {
-         super();
+         var _loc4_:* = null as Error;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         LegendaryModifiers = new Vector.<GMLegendaryModifier>();
+         Modifiers = new Vector.<GMModifier>();
+         Rarity = new Vector.<GMRarity>();
+         Keys = new Vector.<GMKey>();
+         Chests = new Vector.<GMChest>();
+         Skins = new Vector.<GMSkin>();
+         ColiseumTiers = new Vector.<GMColiseumTier>();
+         Hints = new Vector.<GMHints>();
+         Stackables = new Vector.<GMStackable>();
+         Offers = new Vector.<GMOffer>();
+         Props = new Vector.<GMProp>();
+         SuperStats = new Vector.<GMSuperStat>();
+         Stats = new Vector.<GMStat>();
+         DungeonModifiers = new Vector.<GMDungeonModifier>();
+         MapNodes = new Vector.<GMMapNode>();
+         DooberDrops = new Vector.<GMDooberDrop>();
+         Doobers = new Vector.<GMDoober>();
+         ItemDrops = new Vector.<GMItemDrop>();
+         WeaponMastertypes = new Vector.<GMWeaponMastertype>();
+         WeaponAesthetics = new Vector.<GMWeaponAesthetic>();
+         WeaponItems = new Vector.<GMWeaponItem>();
+         Auras = new Vector.<GMAura>();
+         Buffs = new Vector.<GMBuff>();
+         Projectiles = new Vector.<GMProjectile>();
+         Attacks = new Vector.<GMAttack>();
+         Npcs = new Vector.<GMNpc>();
+         Heroes = new Vector.<GMHero>();
          mGameMasterJson = gameMasterJson;
          try
          {
             buildDictionary(splitTests);
          }
-         catch(e:Error)
+         catch(_loc_e_:Error)
          {
-            Logger.fatal("Failed to process DB_GameMaster.json\n" + e.message,e);
+            _loc4_ = _loc_e_;
+            Logger.fatal("Failed to process DB_GameMaster_C.json\n" + Std.string(_loc4_.message),_loc4_);
          }
          PostProcess(splitTests);
       }
       
-      public static function getSplitTestString(key:String, defaultValue:String, tests:Object) : String
+      public static function getSplitTestString(key:String, defaultValue:String, tests:*) : String
       {
-         for each(var _loc4_:Object in tests)
+         var _loc6_:* = null;
+         var _loc4_:int = 0;
+         var _loc5_:Array = As3Compat.values(tests);
+         while(_loc4_ < int(_loc5_.length))
          {
-            if(_loc4_.name == key)
+            _loc6_ = _loc5_[_loc4_];
+            _loc4_++;
+            if(_loc6_.name == key)
             {
-               return _loc4_.value;
+               return _loc6_.value;
             }
          }
          return defaultValue;
       }
       
-      public function init() : void
-      {
-      }
-      
-      public function destroy() : void
-      {
-      }
-      
-      public function get securityChecksum() : int
-      {
-         return mSecurityValue;
-      }
-      
-      public function getActorMap(type:uint) : Map
-      {
-         if(heroById.hasKey(type))
-         {
-            return heroById;
-         }
-         if(npcById.hasKey(type))
-         {
-            return npcById;
-         }
-         Logger.warn("ID: " + type.toString() + " not found in hero or npc map. Returning null");
-         return null;
-      }
-      
-      public function PostProcessWeaponItem() : void
-      {
-         var _loc2_:int = 0;
-         var _loc1_:GMWeaponItem = null;
-         _loc2_ = 0;
-         while(_loc2_ < WeaponItems.length)
-         {
-            _loc1_ = WeaponItems[_loc2_];
-            _loc1_.WeaponAestheticList = weaponAestheticByWeaponItemConstant.itemFor(_loc1_.Constant);
-            if(_loc1_.WeaponAestheticList == null)
-            {
-               Logger.error(_loc1_.Constant + " doesn\'t have an aesthetic");
-            }
-            _loc2_++;
-         }
-      }
-      
-      public function PostProcess(slpittests:Object) : void
-      {
-         var _loc3_:* = 0;
-         var _loc2_:GMStat = null;
-         PostProcessWeaponItem();
-         stat_bias = new StatVector();
-         stat_BonusMultiplier = new StatVector();
-         stat_MaxCap = new StatVector();
-         _loc3_ = 0;
-         while(_loc3_ < DBGlobal.StatNames.length)
-         {
-            _loc2_ = statByConstant.itemFor(DBGlobal.StatNames[_loc3_]);
-            if(_loc2_ != null)
-            {
-               stat_BonusMultiplier.values[_loc3_] = _loc2_.Bonus;
-               stat_MaxCap.values[_loc3_] = _loc2_.MaxCap;
-            }
-            _loc3_++;
-         }
-         stat_bias.values[8] = 1;
-         stat_bias.values[9] = 1;
-         stat_bias.values[10] = 1;
-         stat_bias.values[13] = 1;
-      }
-      
-      public function buildDictionary(splitTests:Object) : void
-      {
-         var superStatArray:Array;
-         var heroArray:Array;
-         var levelingArray:Array;
-         var TotalExperience:Number;
-         var TotalStats:Number;
-         var lidx:Number;
-         var levelId:Number;
-         var levelValue:Number;
-         var statValue:Number;
-         var npcArray:Array;
-         var attackArray:Array;
-         var projectileArray:Array;
-         var buffArray:Array;
-         var buffColorTypeArray:Array;
-         var gmBuffColorType:GMBuffColorType;
-         var auraArray:Array;
-         var ModifiersArray:Array;
-         var modifier:GMModifier;
-         var LegendaryModifiersArray:Array;
-         var legendaryModifier:GMLegendaryModifier;
-         var weaponItemArray:Array;
-         var gmWeapon:GMWeaponItem;
-         var gmMod:GMModifier;
-         var gmLegendaryMod:GMLegendaryModifier;
-         var weaponMastertypeArray:Array;
-         var dooberArray:Array;
-         var dooberDropArray:Array;
-         var mapNodeArray:Array;
-         var infiniteDungeonArray:Array;
-         var gmInfiniteDungeon:GMInfiniteDungeon;
-         var dungeonModifierArray:Array;
-         var PropArray:Array;
-         var OfferArray:Array;
-         var offer:GMOffer;
-         var OfferDetailArray:Array;
-         var detail:GMOfferDetail;
-         var ChestsArray:Array;
-         var chest:GMChest;
-         var KeysArray:Array;
-         var key:GMKey;
-         var RarityArray:Array;
-         var rarity:GMRarity;
-         var WeaponAestheticArray:Array;
-         var weaponAesthetic:GMWeaponAesthetic;
-         var weaponAestheticVector:Vector.<GMWeaponAesthetic>;
-         var tempAestheticVector:Vector.<GMWeaponAesthetic>;
-         var splitTest:Object;
-         var wantCoinAltOffers:Boolean;
-         var wantCashRanger:Boolean;
-         var gmOffer:GMOffer;
-         var fullPriceOffer:GMOffer;
-         var coinOffer:GMOffer;
-         var stackableArray:Array;
-         var stackable:GMStackable;
-         var cashDealArray:Array;
-         var cashDeal:GMCashDeal;
-         var sortOrder:String;
-         var feedPostsArray:Array;
-         var feedPost:GMFeedPosts;
-         var achievementsArray:Array;
-         var achievement:GMAchievement;
-         var hintsArray:Array;
-         var hint:GMHints;
-         var coliseumTiersArray:Array;
-         var tier:GMColiseumTier;
-         var skinsArray:Array;
-         var skin:GMSkin;
-         var defaultGmSkin:GMSkin;
-         var playerScales:Array;
-         mSecurityValue = 0;
-         var securityCatergoryCounter:int = 0;
-         statById = new Map();
-         statByConstant = new Map();
-         var statArray:Array = mGameMasterJson.Stats;
-         var idx:Number = 0;
-         while(idx < statArray.length)
-         {
-            Stats[idx] = new GMStat(statArray[idx]);
-            statById.add(Stats[idx].Id,Stats[idx]);
-            statByConstant.add(Stats[idx].Constant,Stats[idx]);
-            idx = idx + 1;
-         }
-         superStatById = new Map();
-         superStatByConstant = new Map();
-         superStatArray = mGameMasterJson.SuperStats;
-         idx = 0;
-         while(idx < superStatArray.length)
-         {
-            SuperStats[idx] = new GMSuperStat(superStatArray[idx]);
-            superStatById.add(SuperStats[idx].Id,SuperStats[idx]);
-            superStatByConstant.add(SuperStats[idx].Constant,SuperStats[idx]);
-            idx = idx + 1;
-         }
-         heroById = new Map();
-         heroByConstant = new Map();
-         heroArray = mGameMasterJson.Hero;
-         levelingArray = mGameMasterJson.Leveling;
-         idx = 0;
-         while(idx < heroArray.length)
-         {
-            Heroes[idx] = new GMHero(heroArray[idx],splitTests);
-            TotalExperience = 0;
-            TotalStats = 0;
-            lidx = 0;
-            while(lidx < levelingArray.length)
-            {
-               levelId = Number(levelingArray[lidx].Level);
-               levelValue = Number(levelingArray[lidx][Heroes[idx].Constant]);
-               statValue = Number(levelingArray[lidx].StatPoints);
-               if(levelValue != 0)
-               {
-                  TotalExperience += levelValue;
-                  TotalStats += statValue;
-                  Heroes[idx].LoadingOnly_addExpRecord(levelId,TotalExperience - 1,TotalStats);
-               }
-               lidx = lidx + 1;
-            }
-            heroById.add(Heroes[idx].Id,Heroes[idx]);
-            heroByConstant.add(Heroes[idx].Constant,Heroes[idx]);
-            Heroes[idx].HeroSlotHelper(Heroes[idx].StatUpgrade1,0,Heroes[idx].AmtStat1,this);
-            Heroes[idx].HeroSlotHelper(Heroes[idx].StatUpgrade2,1,Heroes[idx].AmtStat2,this);
-            Heroes[idx].HeroSlotHelper(Heroes[idx].StatUpgrade3,2,Heroes[idx].AmtStat3,this);
-            Heroes[idx].HeroSlotHelper(Heroes[idx].StatUpgrade4,3,Heroes[idx].AmtStat4,this);
-            securityCatergoryCounter += Heroes[idx].SecurityValue;
-            idx = idx + 1;
-         }
-         securityCatergoryCounter %= 1097;
-         mSecurityValue += securityCatergoryCounter;
-         securityCatergoryCounter = 0;
-         npcById = new Map();
-         npcByConstant = new Map();
-         npcArray = mGameMasterJson.Npc;
-         idx = 0;
-         while(idx < npcArray.length)
-         {
-            Npcs[idx] = new GMNpc(npcArray[idx]);
-            npcById.add(Npcs[idx].Id,Npcs[idx]);
-            npcByConstant.add(Npcs[idx].Constant,Npcs[idx]);
-            securityCatergoryCounter += Npcs[idx].SecurityValue;
-            idx = idx + 1;
-         }
-         securityCatergoryCounter %= 1097;
-         mSecurityValue += securityCatergoryCounter;
-         securityCatergoryCounter = 0;
-         attackById = new Map();
-         attackByConstant = new Map();
-         attackArray = mGameMasterJson.Attack;
-         idx = 0;
-         while(idx < attackArray.length)
-         {
-            Attacks[idx] = new GMAttack(attackArray[idx]);
-            attackById.add(Attacks[idx].Id,Attacks[idx]);
-            attackByConstant.add(Attacks[idx].Constant,Attacks[idx]);
-            securityCatergoryCounter += Attacks[idx].SecurityValue;
-            idx = idx + 1;
-         }
-         securityCatergoryCounter %= 1097;
-         mSecurityValue += securityCatergoryCounter;
-         securityCatergoryCounter = 0;
-         projectileById = new Map();
-         projectileByConstant = new Map();
-         projectileArray = mGameMasterJson.Projectile;
-         idx = 0;
-         while(idx < projectileArray.length)
-         {
-            Projectiles[idx] = new GMProjectile(projectileArray[idx]);
-            projectileById.add(Projectiles[idx].Id,Projectiles[idx]);
-            projectileByConstant.add(Projectiles[idx].Constant,Projectiles[idx]);
-            securityCatergoryCounter += Projectiles[idx].SecurityValue;
-            idx = idx + 1;
-         }
-         securityCatergoryCounter %= 1097;
-         mSecurityValue += securityCatergoryCounter;
-         securityCatergoryCounter = 0;
-         buffById = new Map();
-         buffByConstant = new Map();
-         buffArray = mGameMasterJson.Buff;
-         idx = 0;
-         while(idx < buffArray.length)
-         {
-            Buffs[idx] = new GMBuff(buffArray[idx]);
-            buffById.add(Buffs[idx].Id,Buffs[idx]);
-            buffByConstant.add(Buffs[idx].Constant,Buffs[idx]);
-            securityCatergoryCounter += Buffs[idx].SecurityValue;
-            idx = idx + 1;
-         }
-         securityCatergoryCounter %= 1097;
-         mSecurityValue += securityCatergoryCounter;
-         securityCatergoryCounter = 0;
-         buffColorTypeById = new Map();
-         buffColorTypeArray = mGameMasterJson.BuffColorType;
-         idx = 0;
-         while(idx < buffColorTypeArray.length)
-         {
-            gmBuffColorType = new GMBuffColorType(buffColorTypeArray[idx]);
-            buffColorTypeById.add(gmBuffColorType.Id,gmBuffColorType);
-            idx = idx + 1;
-         }
-         auraById = new Map();
-         auraByConstant = new Map();
-         auraArray = mGameMasterJson.Auras;
-         idx = 0;
-         while(idx < auraArray.length)
-         {
-            Auras[idx] = new GMAura(auraArray[idx]);
-            auraById.add(Auras[idx].Id,Auras[idx]);
-            auraByConstant.add(Auras[idx].Constant,Auras[idx]);
-            idx = idx + 1;
-         }
-         modifiersById = new Map();
-         modifiersByConstant = new Map();
-         ModifiersArray = mGameMasterJson.Modifiers;
-         idx = 0;
-         while(idx < ModifiersArray.length)
-         {
-            modifier = new GMModifier(ModifiersArray[idx]);
-            Modifiers[idx] = modifier;
-            modifiersById.add(modifier.Id,modifier);
-            modifiersByConstant.add(modifier.Constant,modifier);
-            idx = idx + 1;
-         }
-         legendaryModifiersById = new Map();
-         legendaryModifiersByConstant = new Map();
-         LegendaryModifiersArray = mGameMasterJson.LegendaryModifiers;
-         idx = 0;
-         while(idx < LegendaryModifiersArray.length)
-         {
-            legendaryModifier = new GMLegendaryModifier(LegendaryModifiersArray[idx]);
-            LegendaryModifiers[idx] = legendaryModifier;
-            legendaryModifiersById.add(legendaryModifier.Id,legendaryModifier);
-            legendaryModifiersByConstant.add(legendaryModifier.Constant,legendaryModifier);
-            idx = idx + 1;
-         }
-         weaponItemById = new Map();
-         weaponItemByConstant = new Map();
-         weaponItemArray = mGameMasterJson.WeaponItem;
-         idx = 0;
-         while(idx < weaponItemArray.length)
-         {
-            gmWeapon = new GMWeaponItem(weaponItemArray[idx]);
-            WeaponItems[idx] = gmWeapon;
-            weaponItemById.add(gmWeapon.Id,gmWeapon);
-            weaponItemByConstant.add(gmWeapon.Constant,gmWeapon);
-            for each(gmMod in Modifiers)
-            {
-               if(weaponItemArray[idx][gmMod.MODIFIER_TYPE])
-               {
-                  gmWeapon.PotentialModifiers.push(gmMod);
-               }
-            }
-            for each(gmLegendaryMod in LegendaryModifiers)
-            {
-               gmWeapon.PotentialLegendaryModifiers.push(gmLegendaryMod);
-            }
-            idx = idx + 1;
-         }
-         weaponSubtypeById = new Map();
-         weaponSubtypeByConstant = new Map();
-         weaponSubtypesSortedByID = [];
-         weaponMastertypeArray = mGameMasterJson.WeaponMastertype;
-         idx = 0;
-         while(idx < weaponMastertypeArray.length)
-         {
-            WeaponMastertypes[idx] = new GMWeaponMastertype(weaponMastertypeArray[idx]);
-            weaponSubtypeById.add(WeaponMastertypes[idx].Id,WeaponMastertypes[idx]);
-            weaponSubtypeByConstant.add(WeaponMastertypes[idx].Constant,WeaponMastertypes[idx]);
-            weaponSubtypesSortedByID.push(WeaponMastertypes[idx].Id);
-            idx = idx + 1;
-         }
-         weaponSubtypesSortedByID.sort();
-         dooberById = new Map();
-         dooberByConstant = new Map();
-         dooberByChestId = new Map();
-         dooberArray = mGameMasterJson.Doobers;
-         idx = 0;
-         while(idx < dooberArray.length)
-         {
-            Doobers[idx] = new GMDoober(dooberArray[idx]);
-            dooberById.add(Doobers[idx].Id,Doobers[idx]);
-            dooberByConstant.add(Doobers[idx].Constant,Doobers[idx]);
-            if(Doobers[idx].ChestId > 0)
-            {
-               dooberByChestId.add(Doobers[idx].ChestId,Doobers[idx]);
-            }
-            idx = idx + 1;
-         }
-         dooberDropById = new Map();
-         dooberDropByConstant = new Map();
-         dooberDropArray = mGameMasterJson.DooberDrop;
-         idx = 0;
-         while(idx < dooberDropArray.length)
-         {
-            DooberDrops[idx] = new GMDooberDrop(dooberDropArray[idx]);
-            dooberDropById.add(DooberDrops[idx].Id,DooberDrops[idx]);
-            dooberDropByConstant.add(DooberDrops[idx].Constant,DooberDrops[idx]);
-            idx = idx + 1;
-         }
-         mapNodeById = new Map();
-         mapNodeByConstant = new Map();
-         mapNodeByBitIndex = new Map();
-         mapNodeArray = mGameMasterJson.MapPage;
-         idx = 0;
-         while(idx < mapNodeArray.length)
-         {
-            MapNodes[idx] = new GMMapNode(mapNodeArray[idx]);
-            mapNodeById.add(MapNodes[idx].Id,MapNodes[idx]);
-            mapNodeByConstant.add(MapNodes[idx].Constant,MapNodes[idx]);
-            mapNodeByBitIndex.add(MapNodes[idx].BitIndex,MapNodes[idx]);
-            idx = idx + 1;
-         }
-         addChildrenToParentNodes();
-         fixupMapNodeParents();
-         infiniteDungeonsById = new Map();
-         infiniteDungeonsByConstant = new Map();
-         infiniteDungeonArray = mGameMasterJson.InfiniteDungeons;
-         idx = 0;
-         while(idx < infiniteDungeonArray.length)
-         {
-            gmInfiniteDungeon = new GMInfiniteDungeon(infiniteDungeonArray[idx]);
-            infiniteDungeonsById.add(gmInfiniteDungeon.Id,gmInfiniteDungeon);
-            infiniteDungeonsByConstant.add(gmInfiniteDungeon.Constant,gmInfiniteDungeon);
-            idx = idx + 1;
-         }
-         dungeonModifierById = new Map();
-         dungeonModifierByConstant = new Map();
-         dungeonModifierArray = mGameMasterJson.DungeonModifier;
-         idx = 0;
-         while(idx < dungeonModifierArray.length)
-         {
-            DungeonModifiers[idx] = new GMDungeonModifier(dungeonModifierArray[idx]);
-            dungeonModifierById.add(DungeonModifiers[idx].Id,DungeonModifiers[idx]);
-            dungeonModifierByConstant.add(DungeonModifiers[idx].Constant,DungeonModifiers[idx]);
-            idx = idx + 1;
-         }
-         propById = new Map();
-         propByConstant = new Map();
-         PropArray = mGameMasterJson.Prop;
-         idx = 0;
-         while(idx < PropArray.length)
-         {
-            Props[idx] = new GMProp(PropArray[idx]);
-            propById.add(Props[idx].Id,Props[idx]);
-            propByConstant.add(Props[idx].Constant,Props[idx]);
-            idx = idx + 1;
-         }
-         offerById = new Map();
-         OfferArray = mGameMasterJson.Offers;
-         idx = 0;
-         while(idx < OfferArray.length)
-         {
-            offer = new GMOffer(OfferArray[idx],splitTests);
-            if(this.shouldIncludeOffer(offer,splitTests))
-            {
-               Offers.push(offer);
-               offerById.add(offer.Id,offer);
-            }
-            idx = idx + 1;
-         }
-         offerByStackableId = new Map();
-         OfferDetailArray = mGameMasterJson.OfferDetails;
-         idx = 0;
-         while(idx < OfferDetailArray.length)
-         {
-            detail = new GMOfferDetail(OfferDetailArray[idx]);
-            offer = offerById.itemFor(detail.OfferId);
-            if(offer)
-            {
-               offer.Details.push(detail);
-            }
-            if(detail.StackableId > 0)
-            {
-               offerByStackableId.add(detail.StackableId,offer);
-            }
-            idx = idx + 1;
-         }
-         chestsById = new Map();
-         ChestsArray = mGameMasterJson.Chests;
-         idx = 0;
-         while(idx < ChestsArray.length)
-         {
-            chest = new GMChest(ChestsArray[idx]);
-            Chests[idx] = chest;
-            chestsById.add(chest.Id,chest);
-            idx = idx + 1;
-         }
-         keysByOfferId = new Map();
-         KeysArray = mGameMasterJson.Keys;
-         idx = 0;
-         while(idx < KeysArray.length)
-         {
-            key = new GMKey(KeysArray[idx]);
-            Keys[idx] = key;
-            keysByOfferId.add(key.OfferId,key);
-            idx = idx + 1;
-         }
-         rarityById = new Map();
-         rarityByConstant = new Map();
-         RarityArray = mGameMasterJson.Rarity;
-         idx = 0;
-         while(idx < RarityArray.length)
-         {
-            rarity = new GMRarity(RarityArray[idx]);
-            Rarity[idx] = rarity;
-            rarityById.add(rarity.Id,rarity);
-            rarityByConstant.add(rarity.Type,rarity);
-            idx = idx + 1;
-         }
-         weaponAestheticByWeaponItemConstant = new Map();
-         WeaponAestheticArray = mGameMasterJson.WeaponAesthetics;
-         idx = 0;
-         while(idx < WeaponAestheticArray.length)
-         {
-            weaponAesthetic = new GMWeaponAesthetic(WeaponAestheticArray[idx]);
-            weaponAestheticVector = weaponAestheticByWeaponItemConstant.itemFor(weaponAesthetic.WeaponItemConstant);
-            if(weaponAestheticVector == null)
-            {
-               tempAestheticVector = new Vector.<GMWeaponAesthetic>();
-               tempAestheticVector.push(weaponAesthetic);
-               weaponAestheticByWeaponItemConstant.add(weaponAesthetic.WeaponItemConstant,tempAestheticVector);
-            }
-            else
-            {
-               weaponAestheticVector.push(weaponAesthetic);
-            }
-            idx = idx + 1;
-         }
-         wantCoinAltOffers = true;
-         wantCashRanger = true;
-         for each(gmOffer in Offers)
-         {
-            if(gmOffer.SaleTargetOfferId)
-            {
-               fullPriceOffer = offerById.itemFor(gmOffer.SaleTargetOfferId);
-               if(!fullPriceOffer)
-               {
-                  Logger.error("Invalid sale from offer: " + gmOffer.Id.toString() + " sale offer: " + gmOffer.SaleTargetOfferId.toString());
-                  continue;
-               }
-               gmOffer.SaleTargetOffer = fullPriceOffer;
-               if(!fullPriceOffer.SaleOffers)
-               {
-                  fullPriceOffer.SaleOffers = new Vector.<GMOffer>();
-               }
-               fullPriceOffer.SaleOffers.push(gmOffer);
-            }
-            if(gmOffer.CurrencyType == "PREMIUM" && gmOffer.CoinOfferId)
-            {
-               coinOffer = offerById.itemFor(gmOffer.CoinOfferId);
-               if(!coinOffer)
-               {
-                  Logger.error("Invalid coin offer: " + gmOffer.Id.toString() + " CoinOfferId: " + gmOffer.CoinOfferId);
-               }
-               if(coinOffer.CurrencyType != "BASIC")
-               {
-                  Logger.error("CoinOfferId must be BASIC_CURRENCY: " + gmOffer.CoinOfferId);
-               }
-               coinOffer.IsCoinAltOffer = true;
-               if(wantCoinAltOffers || gmOffer.Tab == "KEY")
-               {
-                  gmOffer.CoinOffer = coinOffer;
-               }
-            }
-         }
-         stackableById = new Map();
-         stackableByConstant = new Map();
-         stackableArray = mGameMasterJson.Stackables;
-         idx = 0;
-         while(idx < stackableArray.length)
-         {
-            stackable = new GMStackable(stackableArray[idx]);
-            Stackables[idx] = stackable;
-            stackableById.add(stackable.Id,stackable);
-            stackableByConstant.add(stackable.Constant,stackable);
-            securityCatergoryCounter += Stackables[idx].SecurityValue;
-            idx = idx + 1;
-         }
-         securityCatergoryCounter %= 1097;
-         mSecurityValue += securityCatergoryCounter;
-         securityCatergoryCounter = 0;
-         idx = 0;
-         while(idx < Offers.length)
-         {
-            offer = Offers[idx];
-            if(offer.Details == null)
-            {
-               Logger.error("Offer: " + offer.Id + " has no offer item details.");
-            }
-            if(!offer.IsBundle && offer.Details.length > 1)
-            {
-               Logger.error("Offer: " + offer.Id + " is not a bundle but has multiple item details.");
-            }
-            idx = idx + 1;
-         }
-         cashDealById = new Map();
-         cashDealArray = mGameMasterJson.CashDeals;
-         idx = 0;
-         while(idx < cashDealArray.length)
-         {
-            cashDeal = new GMCashDeal(cashDealArray[idx],splitTests);
-            CashDeals[idx] = cashDeal;
-            cashDealById.add(cashDeal.Id,cashDeal);
-            idx = idx + 1;
-         }
-         sortOrder = getSplitTestString("CashDealSort","HighestFirst",splitTests);
-         if(sortOrder == "HighestFirst")
-         {
-            CashDeals.sort(function(param1:GMCashDeal, param2:GMCashDeal):int
-            {
-               return param2.Price - param1.Price;
-            });
-         }
-         else
-         {
-            CashDeals.sort(function(param1:GMCashDeal, param2:GMCashDeal):int
-            {
-               return param1.Price - param2.Price;
-            });
-         }
-         feedPostsById = new Map();
-         feedPostsByConstant = new Map();
-         feedPostsArray = mGameMasterJson.Feedposts;
-         idx = 0;
-         while(idx < feedPostsArray.length)
-         {
-            feedPost = new GMFeedPosts(feedPostsArray[idx]);
-            FeedPosts[idx] = feedPost;
-            feedPostsById.add(feedPost.Id,feedPost);
-            feedPostsByConstant.add(feedPost.Constant,feedPost);
-            idx = idx + 1;
-         }
-         achievementsById = new Map();
-         achievementsArray = mGameMasterJson.Achievements;
-         idx = 0;
-         while(idx < achievementsArray.length)
-         {
-            achievement = new GMAchievement(achievementsArray[idx]);
-            Achievements[idx] = achievement;
-            achievementsById.add(achievement.Id,achievement);
-            idx = idx + 1;
-         }
-         hintsByConstant = new Map();
-         hintsArray = mGameMasterJson.Hints;
-         idx = 0;
-         while(idx < hintsArray.length)
-         {
-            hint = new GMHints(hintsArray[idx]);
-            Hints[idx] = hint;
-            hintsByConstant.add(hint.Constant,hint);
-            idx = idx + 1;
-         }
-         coliseumTierById = new Map();
-         coliseumTierByConstant = new Map();
-         coliseumTiersArray = mGameMasterJson.ColiseumTiers;
-         idx = 0;
-         while(idx < coliseumTiersArray.length)
-         {
-            tier = new GMColiseumTier(coliseumTiersArray[idx]);
-            ColiseumTiers[idx] = tier;
-            coliseumTierById.add(tier.Id,tier);
-            coliseumTierByConstant.add(tier.Constant,tier);
-            idx = idx + 1;
-         }
-         skinsById = new Map();
-         mSkinsByConstant = new Map();
-         skinsArray = mGameMasterJson.Skins;
-         idx = 0;
-         while(idx < skinsArray.length)
-         {
-            skin = new GMSkin(skinsArray[idx]);
-            Skins[idx] = skin;
-            skinsById.add(skin.Id,skin);
-            mSkinsByConstant.add(skin.Constant,skin);
-            idx = idx + 1;
-         }
-         Skins.sort(function(param1:GMSkin, param2:GMSkin):int
-         {
-            var _loc5_:int = 0;
-            var _loc4_:GMOffer = null;
-            var _loc3_:GMOffer = null;
-            _loc5_ = 0;
-            while(_loc5_ < Offers.length)
-            {
-               offer = Offers[_loc5_];
-               if(offer.Tab == "SKIN" && offer.Location == "STORE" && !offer.IsBundle && !offer.SaleTargetOffer && !offer.IsCoinAltOffer)
-               {
-                  if(offer.Details[0].SkinId == param1.Id)
-                  {
-                     _loc4_ = offer;
-                  }
-                  else if(offer.Details[0].SkinId == param2.Id)
-                  {
-                     _loc3_ = offer;
-                  }
-                  if(_loc4_ != null && _loc3_ != null)
-                  {
-                     break;
-                  }
-               }
-               _loc5_++;
-            }
-            if(_loc4_ != null && _loc3_ != null)
-            {
-               return _loc3_.Price - _loc4_.Price;
-            }
-            if(_loc4_)
-            {
-               return 1;
-            }
-            if(_loc3_)
-            {
-               return -1;
-            }
-            return 0;
-         });
-         mDefaultSkins = new Map();
-         idx = 0;
-         while(idx < heroArray.length)
-         {
-            defaultGmSkin = mSkinsByConstant.itemFor(Heroes[idx].DefaultSkin);
-            mDefaultSkins.add(defaultGmSkin.Id,defaultGmSkin);
-            idx = idx + 1;
-         }
-         playerScales = mGameMasterJson.PlayerScale;
-         idx = 0;
-         while(idx < playerScales.length)
-         {
-            new GMPlayerScale(playerScales[idx]);
-            idx = idx + 1;
-         }
-         triggerToTriggerable = new Map();
-         TriggerableIdToTriggerableEvent = new Map();
-      }
-      
-      private function shouldIncludeOffer(gmOffer:GMOffer, splitTests:Object) : Boolean
-      {
-         var _loc3_:Number = 0;
-         if(gmOffer.VisibleDate)
-         {
-            _loc3_ = gmOffer.VisibleDate.getTime();
-         }
-         else if(gmOffer.StartDate)
-         {
-            _loc3_ = gmOffer.StartDate.getTime();
-         }
-         var _loc5_:Number = 0;
-         if(gmOffer.SoldOutDate)
-         {
-            _loc5_ = gmOffer.SoldOutDate.getTime();
-         }
-         else if(gmOffer.EndDate)
-         {
-            _loc5_ = gmOffer.EndDate.getTime();
-         }
-         var _loc4_:Number = GameClock.getWebServerTime();
-         if(_loc4_ == 0)
-         {
-            _loc4_ = GameClock.date.getTime();
-         }
-         if(_loc3_ > 0)
-         {
-            if(_loc3_ > _loc4_)
-            {
-               return false;
-            }
-            if(_loc5_ > 0 && _loc5_ < _loc4_)
-            {
-               return false;
-            }
-         }
-         else if(_loc5_ > 0 && _loc5_ < _loc4_)
-         {
-            return false;
-         }
-         return true;
-      }
-      
       public function storeHasSaleNow() : Boolean
       {
-         var _loc1_:GMOffer = null;
-         for each(var _loc2_:GMOffer in Offers)
+         var _loc3_:int = 0;
+         var _loc4_:* = null as GMOffer;
+         var _loc1_:int = 0;
+         var _loc2_:int = int(Offers.length);
+         while(_loc1_ < _loc2_)
          {
-            _loc1_ = _loc2_.isOnSaleNow;
-            if(_loc1_ && _loc1_.isSale)
+            _loc3_ = _loc1_++;
+            _loc4_ = Offers[_loc3_].get_isOnSaleNow();
+            if(_loc4_ != null && _loc4_.get_isSale())
             {
                return true;
             }
@@ -994,9 +274,13 @@ package GameMasterDictionary
       
       public function storeHasNewOffers() : Boolean
       {
-         for each(var _loc1_:GMOffer in Offers)
+         var _loc3_:int = 0;
+         var _loc1_:int = 0;
+         var _loc2_:int = int(Offers.length);
+         while(_loc1_ < _loc2_)
          {
-            if(_loc1_.isNew)
+            _loc3_ = _loc1_++;
+            if(Offers[_loc3_].get_isNew())
             {
                return true;
             }
@@ -1004,40 +288,76 @@ package GameMasterDictionary
          return false;
       }
       
-      private function addChildrenToParentNodes() : void
+      public function shouldIncludeOffer(gmOffer:GMOffer, splitTests:*) : Boolean
       {
-         var _loc2_:GMMapNode = null;
-         for each(var _loc1_:GMMapNode in MapNodes)
+         var _loc3_:Number = 0;
+         if(gmOffer.VisibleDate != null)
          {
-            if(_loc1_.PrefixupParentNode)
+            _loc3_ = gmOffer.VisibleDate.getTime();
+         }
+         else if(gmOffer.StartDate != null)
+         {
+            _loc3_ = gmOffer.StartDate.getTime();
+         }
+         var _loc4_:Number = 0;
+         if(gmOffer.SoldOutDate != null)
+         {
+            _loc4_ = gmOffer.SoldOutDate.getTime();
+         }
+         else if(gmOffer.EndDate != null)
+         {
+            _loc4_ = gmOffer.EndDate.getTime();
+         }
+         var _loc5_:Number = GameClock.getWebServerTime();
+         if(_loc5_ == 0)
+         {
+            _loc5_ = GameClock.date.getTime();
+         }
+         if(_loc3_ > 0)
+         {
+            if(_loc3_ > _loc5_)
             {
-               _loc2_ = mapNodeByConstant.itemFor(_loc1_.PrefixupParentNode);
-               _loc2_.ChildNodes.push(_loc1_.Constant);
+               return false;
+            }
+            if(_loc4_ > 0 && _loc4_ < _loc5_)
+            {
+               return false;
             }
          }
+         else if(_loc4_ > 0 && _loc4_ < _loc5_)
+         {
+            return false;
+         }
+         return true;
       }
       
-      private function fixupMapNodeParents() : void
+      public function isSkinTypeADefaultSkin(skinType:uint) : Boolean
       {
-         var _loc1_:* = 0;
-         var _loc2_:* = 0;
-         var _loc3_:GMMapNode = null;
-         _loc1_ = 0;
-         while(_loc1_ < MapNodes.length)
+         return mDefaultSkins.hasKey(skinType);
+      }
+      
+      public function init() : void
+      {
+      }
+      
+      public function get_securityChecksum() : int
+      {
+         return mSecurityValue;
+      }
+      
+      public function get securityChecksum() : int
+      {
+         return get_securityChecksum();
+      }
+      
+      public function getStackableByConstant(skinConstant:String) : GMSkin
+      {
+         var _loc2_:GMSkin = mSkinsByConstant.itemFor(skinConstant);
+         if(_loc2_ == null)
          {
-            _loc2_ = 0;
-            while(_loc2_ < MapNodes[_loc1_].ChildNodes.length)
-            {
-               _loc3_ = mapNodeByConstant.itemFor(MapNodes[_loc1_].ChildNodes[_loc2_]);
-               if(_loc3_)
-               {
-                  _loc3_.ParentNodes.push(MapNodes[_loc1_]);
-                  MapNodes[_loc1_].ChildNodes[_loc2_] = _loc3_;
-               }
-               _loc2_++;
-            }
-            _loc1_++;
+            Logger.error("Unable to find GMSkin for skinConstant: " + skinConstant);
          }
+         return _loc2_;
       }
       
       public function getSkinByType(skinType:uint) : GMSkin
@@ -1045,7 +365,7 @@ package GameMasterDictionary
          var _loc2_:GMSkin = skinsById.itemFor(skinType);
          if(_loc2_ == null)
          {
-            Logger.error("Unable to find GMSkin for skinType: " + skinType);
+            Logger.error("Unable to find GMSkin for skinType: " + ("" + skinType));
          }
          return _loc2_;
       }
@@ -1060,9 +380,9 @@ package GameMasterDictionary
          return _loc2_;
       }
       
-      public function isSkinTypeADefaultSkin(skinType:uint) : Boolean
+      public function getMapNode(idx:uint) : GMMapNode
       {
-         return mDefaultSkins.hasKey(skinType);
+         return mapNodeById.itemFor(idx);
       }
       
       public function getHeroByConstant(heroConstant:String) : GMHero
@@ -1075,19 +395,751 @@ package GameMasterDictionary
          return _loc2_;
       }
       
-      public function getMapNode(idx:uint) : GMMapNode
+      public function getActorMap(type:uint) : GMMap
       {
-         return mapNodeById.itemFor(idx);
+         if(heroById.hasKey(type))
+         {
+            return heroById;
+         }
+         if(npcById.hasKey(type))
+         {
+            return npcById;
+         }
+         Logger.warn("ID: " + ("" + type) + " not found in hero or npc GMMap. Returning null");
+         return null;
       }
       
-      public function getStackableByConstant(skinConstant:String) : GMSkin
+      public function fixupMapNodeParents() : void
       {
-         var _loc2_:GMSkin = mSkinsByConstant.itemFor(skinConstant);
-         if(_loc2_ == null)
+         var _loc3_:int = 0;
+         var _loc4_:int = 0;
+         var _loc5_:int = 0;
+         var _loc6_:int = 0;
+         var _loc7_:* = null as GMMapNode;
+         var _loc1_:int = 0;
+         var _loc2_:int = int(MapNodes.length);
+         while(_loc1_ < _loc2_)
          {
-            Logger.error("Unable to find GMSkin for skinConstant: " + skinConstant);
+            _loc3_ = _loc1_++;
+            _loc4_ = 0;
+            _loc5_ = int(MapNodes[_loc3_].ChildNodes.length);
+            while(_loc4_ < _loc5_)
+            {
+               _loc6_ = _loc4_++;
+               _loc7_ = mapNodeByConstant.itemFor(MapNodes[_loc3_].ChildNodes[_loc6_]);
+               if(_loc7_ != null)
+               {
+                  _loc7_.ParentNodes.push(MapNodes[_loc3_]);
+                  MapNodes[_loc3_].ChildNodes[_loc6_] = _loc7_;
+               }
+            }
          }
-         return _loc2_;
+      }
+      
+      public function destroy() : void
+      {
+      }
+      
+      public function buildDictionary(splitTests:*) : void
+      {
+         var _gthis:GameMaster;
+         var _loc6_:int = 0;
+         var _loc11_:Number = NaN;
+         var _loc12_:Number = NaN;
+         var _loc13_:int = 0;
+         var _loc14_:int = 0;
+         var _loc15_:int = 0;
+         var _loc16_:Number = NaN;
+         var _loc17_:Number = NaN;
+         var _loc18_:Number = NaN;
+         var _loc19_:uint = 0;
+         var _loc20_:uint = 0;
+         var _loc21_:uint = 0;
+         var _loc27_:* = null as GMBuffColorType;
+         var _loc30_:* = null as GMModifier;
+         var _loc32_:* = null as GMLegendaryModifier;
+         var _loc34_:* = null as GMWeaponItem;
+         var _loc35_:* = null as GMModifier;
+         var _loc41_:* = null as GMInfiniteDungeon;
+         var _loc45_:* = null as GMOffer;
+         var _loc47_:* = null as GMOfferDetail;
+         var _loc49_:* = null as GMChest;
+         var _loc51_:* = null as GMKey;
+         var _loc53_:* = null as GMRarity;
+         var _loc55_:* = null as GMWeaponAesthetic;
+         var _loc56_:* = null as Vector.<GMWeaponAesthetic>;
+         var _loc57_:* = null as Vector.<GMWeaponAesthetic>;
+         var _loc60_:* = null as GMOffer;
+         var _loc61_:* = null as GMOffer;
+         var _loc63_:* = null as GMStackable;
+         var _loc65_:* = null as GMHints;
+         var _loc67_:* = null as GMColiseumTier;
+         var _loc69_:* = null as GMSkin;
+         var _loc70_:* = null as GMSkin;
+         _gthis = this;
+         mSecurityValue = 0;
+         var _loc2_:* = 0;
+         statById = new GMMap();
+         statByConstant = new GMMap();
+         var _loc3_:Array = mGameMasterJson.Stats;
+         var _loc4_:int = 0;
+         var _loc5_:int = int(_loc3_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            Stats[_loc6_] = new GMStat(_loc3_[_loc6_]);
+            statById.add(Stats[_loc6_].Id,Stats[_loc6_]);
+            statByConstant.add(Stats[_loc6_].Constant,Stats[_loc6_]);
+         }
+         superStatById = new GMMap();
+         superStatByConstant = new GMMap();
+         var _loc7_:Array = mGameMasterJson.SuperStats;
+         _loc4_ = 0;
+         _loc5_ = int(_loc7_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            SuperStats[_loc6_] = new GMSuperStat(_loc7_[_loc6_]);
+            superStatById.add(SuperStats[_loc6_].Id,SuperStats[_loc6_]);
+            superStatByConstant.add(SuperStats[_loc6_].Constant,SuperStats[_loc6_]);
+         }
+         heroById = new GMMap();
+         heroByConstant = new GMMap();
+         var _loc8_:Array = mGameMasterJson.Hero;
+         var _loc9_:Array = mGameMasterJson.Leveling;
+         var _loc10_:Array = mGameMasterJson.AscensionLeveling;
+         maxAscensionCount = int(_loc10_.length) > 0 ? GMHero.MAX_EFFECTIVE_ASCENSIONS : 0;
+         _loc4_ = 0;
+         _loc5_ = int(_loc8_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            Heroes[_loc6_] = new GMHero(_loc8_[_loc6_],splitTests);
+            _loc11_ = 0;
+            _loc12_ = 0;
+            _loc13_ = 0;
+            _loc14_ = int(_loc9_.length);
+            while(_loc13_ < _loc14_)
+            {
+               _loc15_ = _loc13_++;
+               _loc16_ = _loc9_[_loc15_].Level;
+               _loc17_ = _loc9_[_loc15_].XpForLevel;
+               _loc18_ = _loc9_[_loc15_].StatPoints;
+               if(_loc17_ != 0)
+               {
+                  _loc11_ += _loc17_;
+                  _loc12_ += _loc18_;
+                  Heroes[_loc6_].LoadingOnly_addExpRecord(int(_loc16_),int(_loc11_ - 1),int(_loc12_));
+               }
+            }
+            _loc13_ = 0;
+            _loc14_ = int(_loc10_.length);
+            while(_loc13_ < _loc14_)
+            {
+               _loc15_ = _loc13_++;
+               _loc19_ = _loc10_[_loc15_].Level;
+               _loc20_ = _loc10_[_loc15_].XpForLevel;
+               _loc21_ = 2;
+               if(_loc20_ != 0)
+               {
+                  _loc11_ = _loc20_ + _loc11_;
+                  _loc12_ = _loc21_ + _loc12_;
+                  Heroes[_loc6_].LoadingOnly_addAscensionExpRecord(_loc19_,int(_loc11_ - 1),int(_loc12_));
+               }
+            }
+            heroById.add(Heroes[_loc6_].Id,Heroes[_loc6_]);
+            heroByConstant.add(Heroes[_loc6_].Constant,Heroes[_loc6_]);
+            Heroes[_loc6_].HeroSlotHelper(Heroes[_loc6_].StatUpgrade1,0,Heroes[_loc6_].AmtStat1,this);
+            Heroes[_loc6_].HeroSlotHelper(Heroes[_loc6_].StatUpgrade2,1,Heroes[_loc6_].AmtStat2,this);
+            Heroes[_loc6_].HeroSlotHelper(Heroes[_loc6_].StatUpgrade3,2,Heroes[_loc6_].AmtStat3,this);
+            Heroes[_loc6_].HeroSlotHelper(Heroes[_loc6_].StatUpgrade4,3,Heroes[_loc6_].AmtStat4,this);
+            _loc2_ += Heroes[_loc6_].get_SecurityValue();
+         }
+         _loc2_ %= 1097;
+         mSecurityValue += _loc2_;
+         _loc2_ = 0;
+         npcById = new GMMap();
+         npcByConstant = new GMMap();
+         var _loc22_:Array = mGameMasterJson.Npc;
+         _loc4_ = 0;
+         _loc5_ = int(_loc22_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            Npcs[_loc6_] = new GMNpc(_loc22_[_loc6_]);
+            npcById.add(Npcs[_loc6_].Id,Npcs[_loc6_]);
+            npcByConstant.add(Npcs[_loc6_].Constant,Npcs[_loc6_]);
+            _loc2_ += Npcs[_loc6_].get_SecurityValue();
+         }
+         _loc2_ %= 1097;
+         mSecurityValue += _loc2_;
+         _loc2_ = 0;
+         attackById = new GMMap();
+         attackByConstant = new GMMap();
+         var _loc23_:Array = mGameMasterJson.Attack;
+         _loc4_ = 0;
+         _loc5_ = int(_loc23_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            Attacks[_loc6_] = new GMAttack(_loc23_[_loc6_]);
+            attackById.add(Attacks[_loc6_].Id,Attacks[_loc6_]);
+            attackByConstant.add(Attacks[_loc6_].Constant,Attacks[_loc6_]);
+            _loc2_ += Attacks[_loc6_].get_SecurityValue();
+         }
+         _loc2_ %= 1097;
+         mSecurityValue += _loc2_;
+         _loc2_ = 0;
+         projectileById = new GMMap();
+         projectileByConstant = new GMMap();
+         var _loc24_:Array = mGameMasterJson.Projectile;
+         _loc4_ = 0;
+         _loc5_ = int(_loc24_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            Projectiles[_loc6_] = new GMProjectile(_loc24_[_loc6_]);
+            projectileById.add(Projectiles[_loc6_].Id,Projectiles[_loc6_]);
+            projectileByConstant.add(Projectiles[_loc6_].Constant,Projectiles[_loc6_]);
+            _loc2_ += Projectiles[_loc6_].get_SecurityValue();
+         }
+         _loc2_ %= 1097;
+         mSecurityValue += _loc2_;
+         _loc2_ = 0;
+         buffById = new GMMap();
+         buffByConstant = new GMMap();
+         var _loc25_:Array = mGameMasterJson.Buff;
+         _loc4_ = 0;
+         _loc5_ = int(_loc25_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            Buffs[_loc6_] = new GMBuff(_loc25_[_loc6_]);
+            buffById.add(Buffs[_loc6_].Id,Buffs[_loc6_]);
+            buffByConstant.add(Buffs[_loc6_].Constant,Buffs[_loc6_]);
+            _loc2_ += Buffs[_loc6_].get_SecurityValue();
+         }
+         _loc2_ %= 1097;
+         mSecurityValue += _loc2_;
+         _loc2_ = 0;
+         buffColorTypeById = new GMMap();
+         var _loc26_:Array = mGameMasterJson.BuffColorType;
+         _loc4_ = 0;
+         _loc5_ = int(_loc26_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc27_ = new GMBuffColorType(_loc26_[_loc6_]);
+            buffColorTypeById.add(_loc27_.Id,_loc27_);
+         }
+         auraById = new GMMap();
+         auraByConstant = new GMMap();
+         var _loc28_:Array = mGameMasterJson.Auras;
+         _loc4_ = 0;
+         _loc5_ = int(_loc28_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            Auras[_loc6_] = new GMAura(_loc28_[_loc6_]);
+            auraById.add(Auras[_loc6_].Id,Auras[_loc6_]);
+            auraByConstant.add(Auras[_loc6_].Constant,Auras[_loc6_]);
+         }
+         modifiersById = new GMMap();
+         modifiersByConstant = new GMMap();
+         var _loc29_:Array = mGameMasterJson.Modifiers;
+         _loc4_ = 0;
+         _loc5_ = int(_loc29_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc30_ = new GMModifier(_loc29_[_loc6_]);
+            Modifiers[_loc6_] = _loc30_;
+            modifiersById.add(_loc30_.Id,_loc30_);
+            modifiersByConstant.add(_loc30_.Constant,_loc30_);
+         }
+         legendaryModifiersById = new GMMap();
+         legendaryModifiersByConstant = new GMMap();
+         var _loc31_:Array = mGameMasterJson.LegendaryModifiers;
+         _loc4_ = 0;
+         _loc5_ = int(_loc31_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc32_ = new GMLegendaryModifier(_loc31_[_loc6_]);
+            LegendaryModifiers[_loc6_] = _loc32_;
+            legendaryModifiersById.add(_loc32_.Id,_loc32_);
+            legendaryModifiersByConstant.add(_loc32_.Constant,_loc32_);
+         }
+         weaponItemById = new GMMap();
+         weaponItemByConstant = new GMMap();
+         var _loc33_:Array = mGameMasterJson.WeaponItem;
+         _loc4_ = 0;
+         _loc5_ = int(_loc33_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc34_ = new GMWeaponItem(_loc33_[_loc6_]);
+            WeaponItems[_loc6_] = _loc34_;
+            weaponItemById.add(_loc34_.Id,_loc34_);
+            weaponItemByConstant.add(_loc34_.Constant,_loc34_);
+            _loc13_ = 0;
+            _loc14_ = int(Modifiers.length);
+            while(_loc13_ < _loc14_)
+            {
+               _loc15_ = _loc13_++;
+               _loc35_ = Modifiers[_loc15_];
+               if(As3Compat.truthy(Reflect.field(_loc33_[_loc6_],_loc35_.MODIFIER_TYPE)))
+               {
+                  _loc34_.PotentialModifiers.push(_loc35_);
+               }
+            }
+            _loc13_ = 0;
+            _loc14_ = int(LegendaryModifiers.length);
+            while(_loc13_ < _loc14_)
+            {
+               _loc15_ = _loc13_++;
+               _loc34_.PotentialLegendaryModifiers.push(LegendaryModifiers[_loc15_]);
+            }
+         }
+         weaponSubtypeById = new GMMap();
+         weaponSubtypeByConstant = new GMMap();
+         weaponSubtypesSortedByID = [];
+         var _loc36_:Array = mGameMasterJson.WeaponMastertype;
+         _loc4_ = 0;
+         _loc5_ = int(_loc36_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            WeaponMastertypes[_loc6_] = new GMWeaponMastertype(_loc36_[_loc6_]);
+            weaponSubtypeById.add(WeaponMastertypes[_loc6_].Id,WeaponMastertypes[_loc6_]);
+            weaponSubtypeByConstant.add(WeaponMastertypes[_loc6_].Constant,WeaponMastertypes[_loc6_]);
+            weaponSubtypesSortedByID.push(WeaponMastertypes[_loc6_].Id);
+         }
+         weaponSubtypesSortedByID.sort(function(a:*, b:*):int
+         {
+            var _loc3_:String = Std.string(a);
+            var _loc4_:String = Std.string(b);
+            if(_loc3_ < _loc4_)
+            {
+               return -1;
+            }
+            if(_loc3_ > _loc4_)
+            {
+               return 1;
+            }
+            return 0;
+         });
+         dooberById = new GMMap();
+         dooberByConstant = new GMMap();
+         dooberByChestId = new GMMap();
+         var _loc37_:Array = mGameMasterJson.Doobers;
+         _loc4_ = 0;
+         _loc5_ = int(_loc37_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            Doobers[_loc6_] = new GMDoober(_loc37_[_loc6_]);
+            dooberById.add(Doobers[_loc6_].Id,Doobers[_loc6_]);
+            dooberByConstant.add(Doobers[_loc6_].Constant,Doobers[_loc6_]);
+            if(Doobers[_loc6_].ChestId > 0)
+            {
+               dooberByChestId.add(Doobers[_loc6_].ChestId,Doobers[_loc6_]);
+            }
+         }
+         dooberDropById = new GMMap();
+         dooberDropByConstant = new GMMap();
+         var _loc38_:Array = mGameMasterJson.DooberDrop;
+         _loc4_ = 0;
+         _loc5_ = int(_loc38_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            DooberDrops[_loc6_] = new GMDooberDrop(_loc38_[_loc6_]);
+            dooberDropById.add(DooberDrops[_loc6_].Id,DooberDrops[_loc6_]);
+            dooberDropByConstant.add(DooberDrops[_loc6_].Constant,DooberDrops[_loc6_]);
+         }
+         mapNodeById = new GMMap();
+         mapNodeByConstant = new GMMap();
+         mapNodeByBitIndex = new GMMap();
+         var _loc39_:Array = mGameMasterJson.MapPage;
+         _loc4_ = 0;
+         _loc5_ = int(_loc39_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            MapNodes[_loc6_] = new GMMapNode(_loc39_[_loc6_]);
+            mapNodeById.add(MapNodes[_loc6_].Id,MapNodes[_loc6_]);
+            mapNodeByConstant.add(MapNodes[_loc6_].Constant,MapNodes[_loc6_]);
+            mapNodeByBitIndex.add(MapNodes[_loc6_].BitIndex,MapNodes[_loc6_]);
+         }
+         addChildrenToParentNodes();
+         fixupMapNodeParents();
+         infiniteDungeonsById = new GMMap();
+         infiniteDungeonsByConstant = new GMMap();
+         var _loc40_:Array = mGameMasterJson.InfiniteDungeons;
+         _loc4_ = 0;
+         _loc5_ = int(_loc40_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc41_ = new GMInfiniteDungeon(_loc40_[_loc6_]);
+            infiniteDungeonsById.add(_loc41_.Id,_loc41_);
+            infiniteDungeonsByConstant.add(_loc41_.Constant,_loc41_);
+         }
+         dungeonModifierById = new GMMap();
+         dungeonModifierByConstant = new GMMap();
+         var _loc42_:Array = mGameMasterJson.DungeonModifier;
+         _loc4_ = 0;
+         _loc5_ = int(_loc42_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            DungeonModifiers[_loc6_] = new GMDungeonModifier(_loc42_[_loc6_]);
+            dungeonModifierById.add(DungeonModifiers[_loc6_].Id,DungeonModifiers[_loc6_]);
+            dungeonModifierByConstant.add(DungeonModifiers[_loc6_].Constant,DungeonModifiers[_loc6_]);
+         }
+         propById = new GMMap();
+         propByConstant = new GMMap();
+         var _loc43_:Array = mGameMasterJson.Prop;
+         _loc4_ = 0;
+         _loc5_ = int(_loc43_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            Props[_loc6_] = new GMProp(_loc43_[_loc6_]);
+            propById.add(Props[_loc6_].Id,Props[_loc6_]);
+            propByConstant.add(Props[_loc6_].Constant,Props[_loc6_]);
+         }
+         offerById = new GMMap();
+         var _loc44_:Array = mGameMasterJson.Offers;
+         _loc4_ = 0;
+         _loc5_ = int(_loc44_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc45_ = new GMOffer(_loc44_[_loc6_],splitTests);
+            if(shouldIncludeOffer(_loc45_,splitTests))
+            {
+               Offers.push(_loc45_);
+               offerById.add(_loc45_.Id,_loc45_);
+            }
+         }
+         offerByStackableId = new GMMap();
+         var _loc46_:Array = mGameMasterJson.OfferDetails;
+         _loc4_ = 0;
+         _loc5_ = int(_loc46_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc47_ = new GMOfferDetail(_loc46_[_loc6_]);
+            _loc45_ = offerById.itemFor(_loc47_.OfferId);
+            if(_loc45_ != null)
+            {
+               _loc45_.Details.push(_loc47_);
+            }
+            if(_loc47_.StackableId > 0)
+            {
+               offerByStackableId.add(_loc47_.StackableId,_loc45_);
+            }
+         }
+         chestsById = new GMMap();
+         var _loc48_:Array = mGameMasterJson.Chests;
+         _loc4_ = 0;
+         _loc5_ = int(_loc48_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc49_ = new GMChest(_loc48_[_loc6_]);
+            Chests[_loc6_] = _loc49_;
+            chestsById.add(_loc49_.Id,_loc49_);
+         }
+         keysByOfferId = new GMMap();
+         var _loc50_:Array = mGameMasterJson.Keys;
+         _loc4_ = 0;
+         _loc5_ = int(_loc50_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc51_ = new GMKey(_loc50_[_loc6_]);
+            Keys[_loc6_] = _loc51_;
+            keysByOfferId.add(_loc51_.OfferId,_loc51_);
+         }
+         rarityById = new GMMap();
+         rarityByConstant = new GMMap();
+         var _loc52_:Array = mGameMasterJson.Rarity;
+         _loc4_ = 0;
+         _loc5_ = int(_loc52_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc53_ = new GMRarity(_loc52_[_loc6_]);
+            Rarity[_loc6_] = _loc53_;
+            rarityById.add(_loc53_.Id,_loc53_);
+            rarityByConstant.add(_loc53_.Type,_loc53_);
+         }
+         weaponAestheticByWeaponItemConstant = new GMMap();
+         var _loc54_:Array = mGameMasterJson.WeaponAesthetics;
+         _loc4_ = 0;
+         _loc5_ = int(_loc54_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc55_ = new GMWeaponAesthetic(_loc54_[_loc6_]);
+            _loc56_ = weaponAestheticByWeaponItemConstant.itemFor(_loc55_.WeaponItemConstant);
+            if(_loc56_ == null)
+            {
+               _loc57_ = new Vector.<GMWeaponAesthetic>();
+               _loc57_.push(_loc55_);
+               weaponAestheticByWeaponItemConstant.add(_loc55_.WeaponItemConstant,_loc57_);
+            }
+            else
+            {
+               _loc56_.push(_loc55_);
+            }
+         }
+         var _loc58_:Boolean = true;
+         var _loc59_:Boolean = true;
+         _loc4_ = 0;
+         _loc5_ = int(Offers.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc60_ = Offers[_loc6_];
+            if(_loc60_.SaleTargetOfferId != 0)
+            {
+               _loc61_ = offerById.itemFor(_loc60_.SaleTargetOfferId);
+               if(_loc61_ == null)
+               {
+                  Logger.error("Invalid sale from offer: " + ("" + _loc60_.Id) + " sale offer: " + ("" + _loc60_.SaleTargetOfferId));
+                  continue;
+               }
+               _loc60_.SaleTargetOffer = _loc61_;
+               if(_loc61_.SaleOffers == null)
+               {
+                  _loc61_.SaleOffers = new Vector.<GMOffer>();
+               }
+               _loc61_.SaleOffers.push(_loc60_);
+            }
+            if(_loc60_.CurrencyType == GMOffer.PREMIUM_CURRENCY && _loc60_.CoinOfferId != 0)
+            {
+               _loc61_ = offerById.itemFor(_loc60_.CoinOfferId);
+               if(_loc61_ == null)
+               {
+                  Logger.error("Invalid coin offer: " + ("" + _loc60_.Id) + " CoinOfferId: " + ("" + _loc60_.CoinOfferId));
+               }
+               if(_loc61_.CurrencyType != GMOffer.BASIC_CURRENCY)
+               {
+                  Logger.error("CoinOfferId must be BASIC_CURRENCY: " + ("" + _loc60_.CoinOfferId));
+               }
+               _loc61_.IsCoinAltOffer = true;
+               if(_loc58_ || _loc60_.Tab == "KEY")
+               {
+                  _loc60_.CoinOffer = _loc61_;
+               }
+            }
+         }
+         stackableById = new GMMap();
+         stackableByConstant = new GMMap();
+         var _loc62_:Array = mGameMasterJson.Stackables;
+         _loc4_ = 0;
+         _loc5_ = int(_loc62_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc63_ = new GMStackable(_loc62_[_loc6_]);
+            Stackables[_loc6_] = _loc63_;
+            stackableById.add(_loc63_.Id,_loc63_);
+            stackableByConstant.add(_loc63_.Constant,_loc63_);
+            _loc2_ += Stackables[_loc6_].get_SecurityValue();
+         }
+         _loc2_ %= 1097;
+         mSecurityValue += _loc2_;
+         _loc2_ = 0;
+         _loc4_ = 0;
+         _loc5_ = int(Offers.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc45_ = Offers[_loc6_];
+            if(_loc45_.Details == null)
+            {
+               Logger.error("Offer: " + ("" + _loc45_.Id) + " has no offer item details.");
+            }
+            if(!_loc45_.IsBundle && int(_loc45_.Details.length) > 1)
+            {
+               Logger.error("Offer: " + ("" + _loc45_.Id) + " is not a bundle but has multiple item details.");
+            }
+         }
+         hintsByConstant = new GMMap();
+         var _loc64_:Array = mGameMasterJson.Hints;
+         _loc4_ = 0;
+         _loc5_ = int(_loc64_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc65_ = new GMHints(_loc64_[_loc6_]);
+            Hints[_loc6_] = _loc65_;
+            hintsByConstant.add(_loc65_.Constant,_loc65_);
+         }
+         coliseumTierById = new GMMap();
+         coliseumTierByConstant = new GMMap();
+         var _loc66_:Array = mGameMasterJson.ColiseumTiers;
+         _loc4_ = 0;
+         _loc5_ = int(_loc66_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc67_ = new GMColiseumTier(_loc66_[_loc6_]);
+            ColiseumTiers[_loc6_] = _loc67_;
+            coliseumTierById.add(_loc67_.Id,_loc67_);
+            coliseumTierByConstant.add(_loc67_.Constant,_loc67_);
+         }
+         skinsById = new GMMap();
+         mSkinsByConstant = new GMMap();
+         var _loc68_:Array = mGameMasterJson.Skins;
+         _loc4_ = 0;
+         _loc5_ = int(_loc68_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc69_ = new GMSkin(_loc68_[_loc6_]);
+            Skins[_loc6_] = _loc69_;
+            skinsById.add(_loc69_.Id,_loc69_);
+            mSkinsByConstant.add(_loc69_.Constant,_loc69_);
+         }
+         Skins.sort(function(skinA:GMSkin, skinB:GMSkin):int
+         {
+            var _loc7_:int = 0;
+            var _loc8_:* = null as GMOffer;
+            var _loc3_:GMOffer = null;
+            var _loc4_:GMOffer = null;
+            var _loc5_:int = 0;
+            var _loc6_:int = int(_gthis.Offers.length);
+            while(_loc5_ < _loc6_)
+            {
+               _loc7_ = _loc5_++;
+               _loc8_ = _gthis.Offers[_loc7_];
+               if(_loc8_.Tab == "SKIN" && _loc8_.Location == "STORE" && !_loc8_.IsBundle && _loc8_.SaleTargetOffer == null && !_loc8_.IsCoinAltOffer)
+               {
+                  if(_loc8_.Details[0].SkinId == skinA.Id)
+                  {
+                     _loc3_ = _loc8_;
+                  }
+                  else if(_loc8_.Details[0].SkinId == skinB.Id)
+                  {
+                     _loc4_ = _loc8_;
+                  }
+                  if(_loc3_ != null && _loc4_ != null)
+                  {
+                     break;
+                  }
+               }
+            }
+            if(_loc3_ != null && _loc4_ != null)
+            {
+               return int(_loc4_.get_Price() - _loc3_.get_Price());
+            }
+            if(_loc3_ != null)
+            {
+               return 1;
+            }
+            if(_loc4_ != null)
+            {
+               return -1;
+            }
+            return 0;
+         });
+         mDefaultSkins = new GMMap();
+         _loc4_ = 0;
+         _loc5_ = int(_loc8_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            _loc70_ = mSkinsByConstant.itemFor(Heroes[_loc6_].DefaultSkin);
+            mDefaultSkins.add(_loc70_.Id,_loc70_);
+         }
+         var _loc71_:Array = mGameMasterJson.PlayerScale;
+         _loc4_ = 0;
+         _loc5_ = int(_loc71_.length);
+         while(_loc4_ < _loc5_)
+         {
+            _loc6_ = _loc4_++;
+            new GMPlayerScale(_loc71_[_loc6_]);
+         }
+      }
+      
+      public function addChildrenToParentNodes() : void
+      {
+         var _loc3_:int = 0;
+         var _loc4_:* = null as GMMapNode;
+         var _loc5_:* = null as String;
+         var _loc6_:* = null as GMMapNode;
+         var _loc1_:int = 0;
+         var _loc2_:int = int(MapNodes.length);
+         while(_loc1_ < _loc2_)
+         {
+            _loc3_ = _loc1_++;
+            _loc4_ = MapNodes[_loc3_];
+            _loc5_ = _loc4_.PrefixupParentNode;
+            if(_loc5_ != null && _loc5_.length > 0)
+            {
+               _loc6_ = mapNodeByConstant.itemFor(_loc4_.PrefixupParentNode);
+               _loc6_.ChildNodes.push(_loc4_.Constant);
+            }
+         }
+      }
+      
+      public function PostProcessWeaponItem() : void
+      {
+         var _loc3_:int = 0;
+         var _loc4_:* = null as GMWeaponItem;
+         var _loc1_:int = 0;
+         var _loc2_:int = int(WeaponItems.length);
+         while(_loc1_ < _loc2_)
+         {
+            _loc3_ = _loc1_++;
+            _loc4_ = WeaponItems[_loc3_];
+            _loc4_.WeaponAestheticList = weaponAestheticByWeaponItemConstant.itemFor(_loc4_.Constant);
+            if(_loc4_.WeaponAestheticList == null)
+            {
+               Logger.error(_loc4_.Constant + " doesn\'t have an aesthetic");
+            }
+         }
+      }
+      
+      public function PostProcess(slpittests:*) : void
+      {
+         var _loc4_:int = 0;
+         var _loc5_:* = null as GMStat;
+         PostProcessWeaponItem();
+         stat_bias = new StatVector();
+         stat_BonusMultiplier = new StatVector();
+         stat_MaxCap = new StatVector();
+         var _loc2_:int = 0;
+         var _loc3_:int = int(DBGlobal.StatNames.length);
+         while(_loc2_ < _loc3_)
+         {
+            _loc4_ = _loc2_++;
+            _loc5_ = statByConstant.itemFor(DBGlobal.StatNames[_loc4_]);
+            if(_loc5_ == null)
+            {
+               Log.trace("Error Finding State By name " + DBGlobal.StatNames[_loc4_],{
+                  "fileName":"../DungeonBusters/Client/GameMasterProjectHaxe/src/gamemasterdictionary/GameMaster.hx",
+                  "lineNumber":253,
+                  "className":"gamemasterdictionary.GameMaster",
+                  "methodName":"PostProcess"
+               });
+            }
+            else
+            {
+               stat_BonusMultiplier.values[_loc4_] = _loc5_.Bonus;
+               stat_MaxCap.values[_loc4_] = _loc5_.MaxCap;
+            }
+         }
+         stat_bias.values[DBGlobal.MELEE_SPD] = 1;
+         stat_bias.values[DBGlobal.SHOOT_SPD] = 1;
+         stat_bias.values[DBGlobal.MAGIC_SPD] = 1;
+         stat_bias.values[DBGlobal.MOVEMENT] = 1;
       }
    }
 }

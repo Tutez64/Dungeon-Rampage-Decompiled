@@ -11,8 +11,6 @@ package Combat.Attack
       
       public static const TYPE:String = "attemptRevive";
       
-      private static const REVIVE_KEYCODE:int = 32;
-      
       private var mKeyboardCheckTask:Task;
       
       private var mDeltaPerFrame:Number;
@@ -38,7 +36,7 @@ package Combat.Attack
       
       private function isReviveActionDown() : Boolean
       {
-         return mDBFacade.inputManager.check(32) || mDBFacade.steamInputManager.heldAction("revive_ally");
+         return mDBFacade.keyBindings.isDown("reviveAlly") || mDBFacade.steamInputManager.heldAction("revive_ally");
       }
       
       override public function execute(timeline:ScriptTimeline) : void

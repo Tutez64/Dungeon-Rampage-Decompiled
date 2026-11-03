@@ -18,14 +18,17 @@ package Town
       override protected function setupState() : void
       {
          super.setupState();
-         mUIHeroTraining = new UIHeroTraining(mDBFacade,mTownStateMachine.townSwf,mRootMovieClip,mTownStateMachine.townHeader);
+         mUIHeroTraining = new UIHeroTraining(mDBFacade,mTownStateMachine.townSwf,mRootMovieClip,mTownStateMachine.townHeader,function():Boolean
+         {
+            return mTownStateMachine.currentStateName == "TrainTownSubState";
+         });
       }
       
       override public function enterState() : void
       {
          super.resetHeaderLinks();
          super.setupHeaderLinks();
-         mDBFacade.menuNavigationController.pushNewLayer("TRAINING_MENU",mTownStateMachine.townHeader.determineCallback,mTownStateMachine.townHeader.closeButton,mTownStateMachine.townHeader.closeButton);
+         mDBFacade.menuNavigationController.pushNewLayer("TRAINING_MENU",mTownStateMachine.townHeader.determineCallback,mTownStateMachine.townHeader.closeButton,mTownStateMachine.townHeader.closeButton,mUIHeroTraining.selectPreviousHero,mUIHeroTraining.selectNextHero);
          super.enterState();
          if(mUIHeroTraining)
          {

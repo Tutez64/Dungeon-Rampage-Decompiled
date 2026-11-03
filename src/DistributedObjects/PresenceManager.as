@@ -1,7 +1,10 @@
 package DistributedObjects
 {
    import Brain.Event.EventComponent;
+   import Brain.Event.EventListeners;
    import Brain.GameObject.GameObject;
+   import Brain.Utils.Timers;
+   import Collections.Map;
    import Events.FriendStatusEvent;
    import Facade.DBFacade;
    import GeneratedCode.IPresenceManager;
@@ -9,7 +12,6 @@ package DistributedObjects
    import flash.events.Event;
    import flash.events.TimerEvent;
    import flash.utils.Timer;
-   import org.as3commons.collections.Map;
    
    public class PresenceManager extends GameObject implements IPresenceManager
    {
@@ -72,7 +74,7 @@ package DistributedObjects
       
       public function friendState(yesno:uint, who:uint, state:uint) : void
       {
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          if(yesno == 0)
          {
             if(mPresence.hasKey(who))
@@ -88,7 +90,7 @@ package DistributedObjects
          }
          else
          {
-            _loc4_ = uint(mPresence.itemFor(who));
+            _loc4_ = mPresence.itemFor(who);
             if(_loc4_ != state)
             {
                mPresence.replaceFor(who,state);
@@ -103,10 +105,10 @@ package DistributedObjects
          if(mAddFriendsTimer != null)
          {
             mAddFriendsTimer.stop();
-            mAddFriendsTimer.removeEventListener("timer",onAddFriendsTimerComplete);
+            EventListeners.remove(mAddFriendsTimer,"timer",onAddFriendsTimerComplete);
          }
-         mAddFriendsTimer = new Timer(2000,1);
-         mAddFriendsTimer.addEventListener("timer",onAddFriendsTimerComplete);
+         mAddFriendsTimer = Timers.create(2000,1,"PresenceManager.mAddFriendsTimer");
+         EventListeners.add(mAddFriendsTimer,"timer",onAddFriendsTimerComplete);
          mAddFriendsTimer.start();
       }
       

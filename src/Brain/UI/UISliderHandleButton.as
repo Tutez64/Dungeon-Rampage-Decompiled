@@ -1,5 +1,6 @@
 package Brain.UI
 {
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import flash.display.MovieClip;
    import flash.events.MouseEvent;
@@ -46,13 +47,13 @@ package Brain.UI
          {
             mRoot.startDrag(false,new Rectangle(0,0,0,mSliderHeight));
          }
-         mFacade.stageRef.addEventListener("mouseMove",onMouseMove);
+         EventListeners.add(mFacade.stageRef,"mouseMove",onMouseMove);
       }
       
       override protected function onRelease(event:MouseEvent) : void
       {
          super.onRelease(event);
-         mFacade.stageRef.removeEventListener("mouseMove",onMouseMove);
+         EventListeners.remove(mFacade.stageRef,"mouseMove",onMouseMove);
       }
       
       override protected function onMouseUp(event:MouseEvent) : void

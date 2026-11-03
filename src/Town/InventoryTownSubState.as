@@ -39,12 +39,15 @@ package Town
       override protected function setupState() : void
       {
          super.setupState();
-         mUIInventory = new UIInventory(mDBFacade,mTownStateMachine.townHeader);
+         mUIInventory = new UIInventory(mDBFacade,mTownStateMachine.townHeader,null,function():Boolean
+         {
+            return mTownStateMachine.currentStateName == "InventoryTownSubState";
+         });
       }
       
-      public function setRevlealedState(type:uint, offerId:uint, showEquipOption:Boolean = false) : void
+      public function setRevealedState(revealItemTypeId:uint, offerId:uint, showEquipOption:Boolean = false) : void
       {
-         mUIInventory.setRevealedState(type,offerId,showEquipOption);
+         mUIInventory.setRevealedState(revealItemTypeId,offerId,showEquipOption);
       }
       
       override public function enterState() : void
@@ -60,11 +63,12 @@ package Town
          {
             mUIInventory.refresh();
          });
-         mUIInventory.refresh(true);
-         mUIInventory.animateEntry();
          super.resetHeaderLinks();
          super.setupHeaderLinks();
          mDBFacade.menuNavigationController.pushNewLayer("INVENTORY_MENU",mTownStateMachine.townHeader.determineCallback,mTownStateMachine.townHeader.closeButton,mTownStateMachine.townHeader.closeButton);
+         mUIInventory.refresh(true);
+         mUIInventory.animateEntry();
+         mUIInventory.setupCategoryNavigation("INVENTORY_MENU");
       }
       
       override public function exitState() : void

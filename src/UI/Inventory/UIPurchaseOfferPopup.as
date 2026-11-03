@@ -2,6 +2,8 @@ package UI.Inventory
 {
    import Brain.AssetRepository.SwfAsset;
    import Brain.Logger.Logger;
+   import Brain.Utils.TextUtil;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
@@ -22,11 +24,11 @@ package UI.Inventory
       
       private var mGMOffer:GMOffer;
       
-      public function UIPurchaseOfferPopup(dbFacade:DBFacade, popupClassName:String, titleText:String, offer:GMOffer, leftText:String, leftCallback:Function, rightText:String, rightCallback:Function, allowClose:Boolean = true, closeCallback:Function = null)
+      public function UIPurchaseOfferPopup(dbFacade:DBFacade, uiLayerName:String, popupClassName:String, titleText:String, offer:GMOffer, leftText:String, leftCallback:Function, rightText:String, rightCallback:Function, allowClose:Boolean = true, closeCallback:Function = null)
       {
          mGMOffer = offer;
          mPopupClassName = popupClassName;
-         super(dbFacade,titleText,null,leftText,leftCallback,rightText,rightCallback,allowClose,closeCallback);
+         super(dbFacade,uiLayerName,titleText,null,leftText,leftCallback,rightText,rightCallback,allowClose,closeCallback);
       }
       
       override public function destroy() : void
@@ -71,8 +73,8 @@ package UI.Inventory
                swfPath = weaponAesthetic.IconSwf;
                iconName = weaponAesthetic.IconName;
                mPopup.power.visible = true;
-               mPopup.power.label.text = offerDetail.WeaponPower;
-               mPopup.power.attack_label.text = Locale.getString("POWER");
+               TextUtil.setText(mPopup.power.label,String(offerDetail.WeaponPower));
+               Locale.setText(mPopup.power.attack_label,"POWER");
             }
             else if(offerDetail.HeroId)
             {
@@ -111,17 +113,17 @@ package UI.Inventory
                   return;
                }
                var _loc2_:MovieClip = new _loc3_();
-               _loc2_.scaleX = _loc2_.scaleY = 70 / 100;
+               _loc2_.scaleX = _loc2_.scaleY = 70 / DBGlobal.WEAPON_ICON_NATIVE_SIZE;
                mPopup.item_icon.addChild(_loc2_);
             });
          }
          if(mPopup.message_label != null)
          {
-            mPopup.message_label.text = offerName;
+            TextUtil.setText(mPopup.message_label,offerName);
          }
-         mPopup.cash.visible = mGMOffer.Price > 0 && mGMOffer.CurrencyType == "PREMIUM";
-         mPopup.coin.visible = mGMOffer.Price > 0 && mGMOffer.CurrencyType == "BASIC";
-         mPopup.price.text = mGMOffer.Price > 0 ? mGMOffer.Price.toString() : Locale.getString("SHOP_FREE");
+         mPopup.cash.visible = mGMOffer.Price > 0 && mGMOffer.CurrencyType == GMOffer.PREMIUM_CURRENCY;
+         mPopup.coin.visible = mGMOffer.Price > 0 && mGMOffer.CurrencyType == GMOffer.BASIC_CURRENCY;
+         TextUtil.setText(mPopup.price,mGMOffer.Price > 0 ? mGMOffer.Price.toString() : Locale.getString("SHOP_FREE"));
       }
    }
 }

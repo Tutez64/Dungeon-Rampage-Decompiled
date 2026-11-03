@@ -2,14 +2,15 @@ package Brain.WorkLoop
 {
    import Brain.Clock.GameClock;
    import Brain.Utils.MemoryTracker;
+   import Collections.Set;
    import flash.display.Sprite;
-   import org.as3commons.collections.Set;
-   import org.as3commons.collections.framework.ISetIterator;
    
    public class WorkLoopManager extends Sprite
    {
       
       protected var mTasks:Set = new Set();
+      
+      private var mTaskSnapshot:Array;
       
       protected var mCurrentGameClock:GameClock;
       
@@ -39,6 +40,7 @@ package Brain.WorkLoop
          var _loc3_:Task = new Task();
          _loc3_.callback = callback;
          mTasks.add(_loc3_);
+         mTaskSnapshot = null;
          var _loc4_:String = ownerLabel ? "Task - " + ownerLabel + " every frame" : "Task - every frame task in WorkLoopManager.doEveryFrame()";
          MemoryTracker.track(_loc3_,_loc4_,"brain");
          return _loc3_;
@@ -66,7 +68,7 @@ package Brain.WorkLoop
          return _loc6_;
       }
       
-      protected function removeDoLater(doLaterTask:DoLater) : Boolean
+      public function removeDoLater(doLaterTask:DoLater) : Boolean
       {
          doLaterTask.destroy();
          return doLaterQueue.remove(doLaterTask);
@@ -75,6 +77,7 @@ package Brain.WorkLoop
       protected function removeTask(task:Task) : Boolean
       {
          task.destroy();
+         mTaskSnapshot = null;
          return mTasks.remove(task);
       }
       
@@ -86,24 +89,31 @@ package Brain.WorkLoop
       
       private function processTasks() : void
       {
-         var _loc2_:Task = null;
+         var _loc1_:Task = null;
+         var _loc3_:int = 0;
          if(mTasks.size == 0)
          {
             return;
          }
-         var _loc1_:ISetIterator = mTasks.iterator() as ISetIterator;
-         while(_loc1_.hasNext())
+         if(mTaskSnapshot == null)
          {
-            _loc2_ = _loc1_.next();
-            if(_loc2_.isDestroyed())
+            mTaskSnapshot = mTasks.toArray();
+         }
+         var _loc4_:Array = mTaskSnapshot;
+         var _loc2_:int = int(_loc4_.length);
+         _loc3_ = 0;
+         while(_loc3_ < _loc2_)
+         {
+            _loc1_ = _loc4_[_loc3_];
+            if(_loc1_.isDestroyed())
             {
-               _loc1_.remove();
-               removeTask(_loc2_);
+               removeTask(_loc1_);
             }
-            else if(_loc2_.callback != null)
+            else if(_loc1_.callback != null)
             {
-               _loc2_.callback(mCurrentGameClock);
+               _loc1_.callback(mCurrentGameClock);
             }
+            _loc3_++;
          }
       }
       
@@ -123,7 +133,7 @@ package Brain.WorkLoop
                {
                   _loc1_.callback(mCurrentGameClock);
                }
-               if(_loc1_.repeat)
+               if(_loc1_.repeat && !_loc1_.isDestroyed())
                {
                   _loc1_.dueTime += _loc1_.delay * 1000;
                   doLaterQueue.enqueue(_loc1_);

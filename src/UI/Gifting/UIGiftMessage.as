@@ -6,14 +6,18 @@ package UI.Gifting
    import Brain.AssetRepository.SwfAsset;
    import Brain.Logger.Logger;
    import Brain.UI.UIButton;
+   import Brain.Utils.TextUtil;
    import Facade.DBFacade;
    import Facade.Locale;
    import GameMasterDictionary.GMOffer;
+   import UI.Portrait.PlayerPortraits;
    import flash.display.MovieClip;
    import flash.text.TextField;
    
    public class UIGiftMessage
    {
+      
+      private var mPortraits:PlayerPortraits = new PlayerPortraits();
       
       private var mDBFacade:DBFacade;
       
@@ -50,7 +54,7 @@ package UI.Gifting
          mGiftText = mGiftMessage.message_label;
          mGiftText.text = "";
          mAcceptAndSendButton = new UIButton(mDBFacade,mGiftMessage.left_button);
-         mAcceptAndSendButton.label.text = Locale.getString("GIFT_MESSAGE_ACCEPT");
+         Locale.setText(mAcceptAndSendButton.label,"GIFT_MESSAGE_ACCEPT");
          mDeclineButton = new UIButton(mDBFacade,mGiftMessage.right_button);
          mFriendPic = mGiftMessage.friendPic;
          mGiftIcon = mGiftMessage.icon;
@@ -63,6 +67,7 @@ package UI.Gifting
          var friend:FriendInfo;
          var offer:GMOffer;
          var offerName:String;
+         mPortraits.clear();
          if(!data)
          {
             return;
@@ -74,19 +79,7 @@ package UI.Gifting
          if(friend)
          {
             friendName = friend.name;
-            if(mFriendPic.numChildren > 0)
-            {
-               mFriendPic.removeChildAt(0);
-            }
-            if(data.pic)
-            {
-               mFriendPic.addChildAt(data.pic,0);
-            }
-            else
-            {
-               data.pic = friend.clonePic();
-               mFriendPic.addChildAt(data.pic,0);
-            }
+            mPortraits.showFriend(mFriendPic,mDBFacade,friend);
          }
          giftText = giftText.replace("#NAME",friendName);
          offer = mDBFacade.gameMaster.offerById.itemFor(mGiftInfo.offerId);
@@ -116,7 +109,7 @@ package UI.Gifting
             }
             else
             {
-               Logger.error("OfferID" + offer.Id.toString() + " is missing a bunble swf path and/or buncle icon");
+               Logger.error("OfferID" + offer.Id.toString() + " is missing a bundle swf path and/or bundle icon");
             }
          }
          mAcceptAndSendButton.enabled = true;
@@ -131,29 +124,15 @@ package UI.Gifting
             var _loc5_:Array = mDBFacade.dbAccountInfo.giftExcludeIds;
             if(friend != null && _loc5_.indexOf(friend.excludeId) < 0)
             {
-               if(!friend.isDRFriend && friend.facebookId && friend.facebookId != "" && mDBFacade.facebookController.accessToken)
-               {
-                  mDBFacade.facebookController.sendGiftRequests(offerName,mGiftInfo.offerId,friend.facebookId);
-               }
-               else
-               {
-                  _loc6_ = [];
-                  _loc4_ = [];
-                  _loc3_ = new Date().time.toString();
-                  if(friend.isDRFriend)
-                  {
-                     _loc1_ = friend.id.toString();
-                  }
-                  else
-                  {
-                     _loc1_ = friend.kongregateId.toString();
-                  }
-                  _loc2_ = "0_" + _loc3_ + "_" + _loc1_;
-                  _loc4_.push(_loc2_);
-                  _loc6_.push(_loc1_);
-                  mDBFacade.dbAccountInfo.giftExcludeIds = _loc5_.concat(_loc6_);
-                  mDBFacade.dbAccountInfo.sendGiftData(offer.Id,_loc4_,_loc6_);
-               }
+               _loc6_ = [];
+               _loc4_ = [];
+               _loc3_ = new Date().time.toString();
+               _loc1_ = friend.id.toString();
+               _loc2_ = "0_" + _loc3_ + "_" + _loc1_;
+               _loc4_.push(_loc2_);
+               _loc6_.push(_loc1_);
+               mDBFacade.dbAccountInfo.giftExcludeIds = _loc5_.concat(_loc6_);
+               mDBFacade.dbAccountInfo.sendGiftData(offer.Id,_loc4_,_loc6_);
             }
             mDBFacade.dbAccountInfo.acceptGift(data.requestId,refreshGiftPopup);
          };
@@ -164,7 +143,7 @@ package UI.Gifting
             mDBFacade.dbAccountInfo.declineGift(data.requestId,refreshGiftPopup);
          };
          giftText = giftText.toLocaleUpperCase();
-         mGiftText.text = giftText;
+         TextUtil.setText(mGiftText,giftText);
       }
       
       private function refreshGiftPopup() : void
@@ -177,8 +156,26 @@ package UI.Gifting
          return mGiftMessage;
       }
       
+      public function get acceptAndSendButton() : UIButton
+      {
+         return mAcceptAndSendButton;
+      }
+      
+      public function get declineButton() : UIButton
+      {
+         return mDeclineButton;
+      }
+      
+      public function set visible(value:Boolean) : void
+      {
+         mGiftMessage.visible = value;
+         mAcceptAndSendButton.visible = value;
+         mDeclineButton.visible = value;
+      }
+      
       public function destroy() : void
       {
+         mPortraits.destroy();
          if(mAssetLoadingComponent)
          {
             mAssetLoadingComponent.destroy();

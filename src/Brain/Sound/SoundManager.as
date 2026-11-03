@@ -3,15 +3,15 @@ package Brain.Sound
    import Brain.Event.EventComponent;
    import Brain.Facade.Facade;
    import Brain.Logger.Logger;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.Set;
+   import Collections.Map;
+   import Collections.Set;
    
    public class SoundManager
    {
       
       private static const GLOBAL_VOLUME_DAMPENER:Number = 0.2040816;
       
-      private static const DEFAULT_VOLUME:Number = 0.7;
+      private static const DEFAULT_VOLUME:Number = 0.5;
       
       protected var mCategoryVolumeScale:Map;
       
@@ -99,8 +99,8 @@ package Brain.Sound
          {
             return mCategoryVolumeScale.itemFor(category);
          }
-         Logger.warn("No volume category found for category: " + category + "  Returning " + 0.7);
-         return 0.7;
+         Logger.warn("No volume category found for category: " + category + "  Returning " + 0.5);
+         return 0.5;
       }
    }
 }

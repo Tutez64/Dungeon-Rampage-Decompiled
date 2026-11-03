@@ -30,8 +30,6 @@ package StateMachine.MainStateMachine
       
       private var mShowedInvitePopup:Boolean = false;
       
-      private var mShowedHeroUpsellPopup:Boolean = false;
-      
       private var mShowedRewardPopup:Boolean = false;
       
       public function MainStateMachine(dbFacade:DBFacade)
@@ -57,7 +55,7 @@ package StateMachine.MainStateMachine
          this.transitionToState(mLoadingState);
       }
       
-      public function enterLoadingScreenState(mapNodeID:uint = 0, nodeType:String = "", friendID:uint = 0, mapID:uint = 0, jumpToMap:Boolean = false, makeprivate:Boolean = false) : void
+      public function enterLoadingScreenState(mapNodeID:uint = 0, nodeType:String = "", friendID:uint = 0, mapID:uint = 0, jumpToMap:Boolean = false, makePrivate:Boolean = false) : void
       {
          if(mapNodeID != 0)
          {
@@ -71,7 +69,7 @@ package StateMachine.MainStateMachine
          {
             mLoadingScreenState.mapID = mapID;
          }
-         mLoadingScreenState.friendsOnly = makeprivate;
+         mLoadingScreenState.friendsOnly = makePrivate;
          mLoadingScreenState.nodeType = nodeType;
          mLoadingScreenState.jumpToMapState = jumpToMap;
          this.transitionToState(mLoadingScreenState);
@@ -95,11 +93,11 @@ package StateMachine.MainStateMachine
          }
       }
       
-      public function enterTownInventoryState(type:uint = 0, offerId:uint = 0, showEquipOption:Boolean = false) : void
+      public function enterTownInventoryState(itemTypeId:uint = 0, offerId:uint = 0, showEquipOption:Boolean = false) : void
       {
          if(this.currentStateName == mTownState.name)
          {
-            mTownState.townStateMachine.enterInventoryState(false,"",type,offerId,showEquipOption);
+            mTownState.townStateMachine.enterInventoryState(false,"",itemTypeId,offerId,showEquipOption);
          }
          else
          {
@@ -125,6 +123,16 @@ package StateMachine.MainStateMachine
          this.transitionToState(mReloadTownState);
       }
       
+      public function setOneShotReloadTownCallback(callback:Function) : void
+      {
+         var stateMachine:MainStateMachine = this;
+         mReloadTownState.finishedCallback = function():void
+         {
+            mReloadTownState.finishedCallback = stateMachine.enterTownState;
+            callback();
+         };
+      }
+      
       public function enterRunState() : void
       {
          mDBFacade.mainStateMachine.markHasHeroLeveledUp();
@@ -145,23 +153,13 @@ package StateMachine.MainStateMachine
       public function markHasHeroLeveledUp() : Boolean
       {
          var _loc1_:Boolean = false;
-         if(mLastHeroId && mLastHeroId == mDBFacade.dbAccountInfo.activeAvatarInfo.avatarType && mLastHeroLevel && mLastHeroLevel < mDBFacade.dbAccountInfo.activeAvatarInfo.level)
+         if(mLastHeroId && mLastHeroId == mDBFacade.dbAccountInfo.activeAvatarInfo.avatarType && mLastHeroLevel && mLastHeroLevel < mDBFacade.dbAccountInfo.activeAvatarInfo.cloutLevel)
          {
             _loc1_ = true;
          }
          mLastHeroId = mDBFacade.dbAccountInfo.activeAvatarInfo.avatarType;
-         mLastHeroLevel = mDBFacade.dbAccountInfo.activeAvatarInfo.level;
+         mLastHeroLevel = mDBFacade.dbAccountInfo.activeAvatarInfo.cloutLevel;
          return _loc1_;
-      }
-      
-      public function set showedHeroUpsellPopup(value:Boolean) : void
-      {
-         mShowedHeroUpsellPopup = value;
-      }
-      
-      public function get showedHeroUpsellPopup() : Boolean
-      {
-         return mShowedHeroUpsellPopup;
       }
       
       public function set showedInvitePopup(value:Boolean) : void

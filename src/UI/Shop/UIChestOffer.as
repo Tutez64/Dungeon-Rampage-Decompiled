@@ -2,7 +2,6 @@ package UI.Shop
 {
    import Account.AvatarInfo;
    import Account.StoreServicesController;
-   import Brain.AssetRepository.SwfAsset;
    import Brain.Logger.Logger;
    import Brain.Utils.MemoryTracker;
    import Facade.DBFacade;
@@ -12,10 +11,6 @@ package UI.Shop
    
    public class UIChestOffer extends UIShopBundleOffer
    {
-      
-      private static const TOWN_PATH:String = "Resources/Art2D/UI/db_UI_town.swf";
-      
-      private static const CHEST_SHOP_POPUP_CLASS:String = "chest_shop_popup";
       
       private var mConfirmPurchaseChestPopup:DBUIConfirmChestPurchasePopup;
       
@@ -36,17 +31,8 @@ package UI.Shop
          {
             Logger.error("Unable to find GMChest for chestId: " + this.offer.Details[0].ChestId);
          }
-         mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_town.swf"),function(param1:SwfAsset):void
-         {
-            var _loc2_:Class = param1.getClass("chest_shop_popup");
-            if(!_loc2_)
-            {
-               Logger.error("Unable to find class: chest_shop_popup in: Resources/Art2D/UI/db_UI_town.swf");
-               return;
-            }
-            mConfirmPurchaseChestPopup = new DBUIConfirmChestPurchasePopup(mDBFacade,new _loc2_(),purchaseChest,close,offer,mSelectedAvatarInfo.skinId,true,null);
-            MemoryTracker.track(mConfirmPurchaseChestPopup,"DBUIConfirmChestPurchasePopup - created in UIChestOffer.buyButtonCallback()");
-         });
+         mConfirmPurchaseChestPopup = new DBUIConfirmChestPurchasePopup(mDBFacade,purchaseChest,close,offer,mSelectedAvatarInfo.skinId,true,null);
+         MemoryTracker.track(mConfirmPurchaseChestPopup,"DBUIConfirmChestPurchasePopup - created in UIChestOffer.buyButtonCallback()");
       }
       
       private function purchaseChest() : void

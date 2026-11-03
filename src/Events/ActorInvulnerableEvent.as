@@ -5,9 +5,9 @@ package Events
       
       public var mIsInvulnerable:Boolean;
       
-      public function ActorInvulnerableEvent(type:String, id:uint, isInvulnerable:Boolean, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function ActorInvulnerableEvent(actorInvulnerableType:String, id:uint, isInvulnerable:Boolean, bubbles:Boolean = false, cancelable:Boolean = false)
       {
-         super(type,id,bubbles,cancelable);
+         super(actorInvulnerableType,id,bubbles,cancelable);
          mIsInvulnerable = isInvulnerable;
       }
    }

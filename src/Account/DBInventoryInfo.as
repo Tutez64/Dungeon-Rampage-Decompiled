@@ -5,6 +5,8 @@ package Account
    import Brain.Event.EventComponent;
    import Brain.Logger.Logger;
    import Brain.jsonRPC.JSONRPCService;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import Events.BoostersParsedEvent;
    import Facade.DBFacade;
    import GameMasterDictionary.GMHero;
@@ -14,8 +16,6 @@ package Account
    import GameMasterDictionary.GMOfferDetail;
    import GameMasterDictionary.GMSkin;
    import GameMasterDictionary.GMStackable;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class DBInventoryInfo
    {
@@ -413,7 +413,7 @@ package Account
          while(_loc3_.hasNext())
          {
             _loc1_ = _loc3_.next();
-            _loc2_ = Math.max(_loc2_,_loc1_.level);
+            _loc2_ = Math.max(_loc2_,_loc1_.cloutLevel);
          }
          return _loc2_;
       }
@@ -450,16 +450,16 @@ package Account
       
       public function get mapnodes1() : Map
       {
-         var _loc5_:* = 0;
+         var _loc5_:uint = 0;
          var _loc1_:MapnodeInfo = null;
          var _loc2_:GMMapNode = null;
-         var _loc12_:* = 0;
+         var _loc12_:uint = 0;
          var _loc9_:Boolean = false;
-         var _loc10_:* = 0;
-         var _loc11_:* = 0;
+         var _loc10_:uint = 0;
+         var _loc11_:uint = 0;
          var _loc4_:Map = new Map();
          var _loc3_:AvatarInfo = mDBFacade.dbAccountInfo.activeAvatarInfo;
-         var _loc7_:uint = _loc3_.level;
+         var _loc7_:uint = _loc3_.ogLevel;
          var _loc6_:uint = mDBFacade.dbAccountInfo.trophies;
          var _loc8_:Object = mDBFacade.dbAccountInfo.activeAvatarInfo.mapNodes;
          _loc5_ = 0;
@@ -579,7 +579,7 @@ package Account
       private function parseAvatars(avatarsJson:Object) : void
       {
          var _loc2_:AvatarInfo = null;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          mAvatars.clear();
          var _loc3_:Array = avatarsJson as Array;
          _loc4_ = 0;
@@ -594,7 +594,7 @@ package Account
       private function parseItems(itemsJson:Object) : void
       {
          var _loc4_:ItemInfo = null;
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc3_:Array = mItems.keysToArray();
          mItems.clear();
          var _loc5_:Array = itemsJson as Array;
@@ -614,7 +614,7 @@ package Account
       private function parseChests(chestsJson:Object) : void
       {
          var _loc6_:ChestInfo = null;
-         var _loc7_:* = 0;
+         var _loc7_:uint = 0;
          var _loc5_:Boolean = false;
          var _loc3_:Vector.<ChestInfo> = mChests.slice();
          mChests.splice(0,mChests.length);
@@ -651,9 +651,9 @@ package Account
       private function parseKeys(accountsJson:Object) : void
       {
          var _loc6_:KeyInfo = null;
-         var _loc4_:* = 0;
-         var _loc5_:* = 0;
-         var _loc2_:* = 0;
+         var _loc4_:uint = 0;
+         var _loc5_:uint = 0;
+         var _loc2_:uint = 0;
          mKeys.splice(0,mKeys.length);
          var _loc3_:Vector.<GMKey> = mDBFacade.gameMaster.Keys;
          _loc4_ = 0;
@@ -684,7 +684,7 @@ package Account
       private function parseStackables(stackablesJson:Object) : void
       {
          var _loc5_:StackableInfo = null;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc2_:Array = mStackablesByDatabaseId.keysToArray();
          mStackablesByDatabaseId.clear();
          mStackablesByStackableId.clear();
@@ -706,7 +706,7 @@ package Account
       private function parseBoosters(boostersJson:Object) : void
       {
          var _loc2_:BoosterInfo = null;
-         var _loc3_:* = 0;
+         var _loc3_:uint = 0;
          var _loc5_:Array = mBoostersByDatabaseId.keysToArray();
          mBoostersByDatabaseId.clear();
          mBoostersByStackableId.clear();
@@ -729,7 +729,7 @@ package Account
       private function parsePetInfo(petsJson:Object) : void
       {
          var _loc3_:PetInfo = null;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc5_:Array = mPets.keysToArray();
          mPets.clear();
          var _loc2_:Array = petsJson as Array;
@@ -749,7 +749,7 @@ package Account
       private function parseSkinInfo(skinsJson:Object) : void
       {
          var _loc3_:SkinInfo = null;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          mSkins.clear();
          var _loc2_:Array = skinsJson as Array;
          _loc4_ = 0;
@@ -817,7 +817,7 @@ package Account
          {
             return false;
          }
-         if(avatarInfo.level < itemInfo.requiredLevel)
+         if(avatarInfo.levelForWeaponComparison < itemInfo.requiredLevel)
          {
             return false;
          }

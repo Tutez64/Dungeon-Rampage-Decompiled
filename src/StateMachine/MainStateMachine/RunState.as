@@ -151,7 +151,7 @@ package StateMachine.MainStateMachine
                mTutorialController.queueTutorial("SUPER_WEAK_TUTORIAL");
             }
          }
-         mDBFacade.eventManager.addEventListener("SEND_EVENT",receivedClientEvent);
+         mEventComponent.addListener("SEND_EVENT",receivedClientEvent);
       }
       
       private function receivedClientEvent(lecEvt:LEClientEvent) : void
@@ -195,6 +195,7 @@ package StateMachine.MainStateMachine
       {
          mNewsFeedController.stopFeedTask();
          mEventComponent.removeAllListeners();
+         mDBFacade.uiHideToggle.reveal();
          mDBFacade.assetRepository.removeCacheForAllSpriteSheetAssets();
          super.exitState();
       }

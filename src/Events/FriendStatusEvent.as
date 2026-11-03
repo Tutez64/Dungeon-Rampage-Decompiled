@@ -13,9 +13,9 @@ package Events
       
       private var mStatus:Boolean;
       
-      public function FriendStatusEvent(type:String, friendId:uint, status:Boolean, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function FriendStatusEvent(friendStatusEventType:String, friendId:uint, status:Boolean, bubbles:Boolean = false, cancelable:Boolean = false)
       {
-         super(type,bubbles,cancelable);
+         super(friendStatusEventType,bubbles,cancelable);
          mFriendId = friendId;
          mStatus = status;
       }

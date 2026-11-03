@@ -1,5 +1,7 @@
 package GameMasterDictionary
 {
+   import flash.Boot;
+   
    public class GMLegendaryModifier extends GMItem
    {
       
@@ -7,11 +9,14 @@ package GameMasterDictionary
       
       public var Description:String;
       
-      public function GMLegendaryModifier(jsonAsset:Object)
+      public function GMLegendaryModifier(jsonAsset:Object = undefined)
       {
-         super(jsonAsset);
-         IconName = jsonAsset.IconName;
-         Description = jsonAsset.Description;
+         if(!Boot.skip_constructor)
+         {
+            super(jsonAsset);
+            IconName = jsonAsset.IconName;
+            Description = jsonAsset.Description;
+         }
       }
    }
 }

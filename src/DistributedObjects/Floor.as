@@ -29,6 +29,8 @@ package DistributedObjects
       
       public static const FLOOR_INTEREST_CLOSURE:String = "FLOOR_INTEREST_CLOSURE";
       
+      public static const FLOOR_REVEALED:String = "FLOOR_REVEALED";
+      
       public static const BOX2D_SCALE:Number = 50;
       
       private static const POSITION_ITERATIONS:uint = 3;
@@ -54,6 +56,8 @@ package DistributedObjects
       public var pastInitialLoad:Boolean;
       
       private var mFloorEndingGui:FloorEndingGui;
+      
+      private var mRevealed:Boolean;
       
       protected var mSceneGraphComponent:SceneGraphComponent;
       
@@ -100,9 +104,31 @@ package DistributedObjects
          mEventComponent = new EventComponent(mDBFacade);
          mEventComponent.addListener(HeroGameObjectOwner.HERO_OWNER_READY,function(param1:Event):void
          {
+            heroOwnerReady();
+         });
+         mEventComponent.addListener("FLOOR_REVEALED",function(param1:Event):void
+         {
+            if(mFloorEndingGui == null)
+            {
+               return;
+            }
+            mEventComponent.removeListener("FLOOR_REVEALED");
+            mRevealed = true;
             floorStart();
          });
-         mSceneGraphComponent.fadeIn(1);
+      }
+      
+      protected function heroOwnerReady() : void
+      {
+         if(!mRevealed && mDBFacade.mainStateMachine.currentStateName != "LoadingScreenState")
+         {
+            revealFloor();
+         }
+      }
+      
+      protected function revealFloor() : void
+      {
+         mEventComponent.dispatchEvent(new Event("FLOOR_REVEALED"));
       }
       
       protected function buildFloorEndingGui() : void
@@ -117,7 +143,7 @@ package DistributedObjects
       
       public function set activeDungeonModifiers(val:Vector.<DungeonModifier>) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          _loc2_ = 0;
          while(_loc2_ < val.length)
          {

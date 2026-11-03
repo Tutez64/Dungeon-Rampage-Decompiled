@@ -29,8 +29,6 @@ package Actor.Player
       
       private var mLogicalWorkComponent:LogicalWorkComponent;
       
-      private var mAbortAstarPathWalk:Boolean;
-      
       private var mWantCameraZoom:Boolean;
       
       private var mKeyboardController:KeyboardController;
@@ -42,6 +40,8 @@ package Actor.Player
       private var mInputType:String = "free";
       
       private var mCombatDisabled:Boolean;
+      
+      private var mStillVelocity:Vector3D = new Vector3D();
       
       public function InputController(heroGameObject:HeroGameObjectOwner, dbFacade:DBFacade)
       {
@@ -85,6 +85,11 @@ package Actor.Player
       {
          var _loc5_:Boolean = false;
          mHeroGameObject.position = mHeroGameObject.navCollisions[0].position;
+         if(mDBFacade.heroInputSuspended)
+         {
+            holdStill();
+            return;
+         }
          var _loc3_:Number = mDBFacade.inputManager.mouseWheelDelta;
          if(_loc3_ != 0)
          {
@@ -105,6 +110,7 @@ package Actor.Player
             mHeroGameObject.PlayerAttack.weaponCommandQueueUpCall();
          }
          translateInputIntoConsumableUse();
+         translateInputIntoMenuUse();
          if(!canMoveXY(mInputType))
          {
             _loc1_.scaleBy(0);
@@ -116,6 +122,14 @@ package Actor.Player
          {
             mHeroGameObject.heading = _loc2_;
          }
+      }
+      
+      private function holdStill() : void
+      {
+         mStillVelocity.setTo(0,0,0);
+         mHeroGameObject.inputVelocity = mStillVelocity;
+         mHeroGameObject.autoMoveVelocity.setTo(0,0,0);
+         mHeroGameObject.setViewVelocity();
       }
       
       public function doFrameUpCallsOnInputControllers() : void
@@ -147,7 +161,7 @@ package Actor.Player
       private function translateInputIntoAttacks() : void
       {
          var _loc3_:* = 0;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          var _loc6_:Array = null;
          var _loc2_:Tuple = null;
          var _loc7_:Boolean = false;
@@ -156,7 +170,7 @@ package Actor.Player
          _loc4_ = 0;
          while(_loc4_ < _loc1_.length)
          {
-            _loc3_ = uint(mKeyboardController.KeyIndexToAttack(_loc4_));
+            _loc3_ = _loc4_;
             if(_loc1_[_loc4_])
             {
                mHeroGameObject.PlayerAttack.addToPotentialWeaponInputQueue(_loc3_,true,true);
@@ -198,14 +212,14 @@ package Actor.Player
       private function translateInputIntoConsumableUse() : void
       {
          var _loc2_:* = 0;
-         var _loc3_:* = 0;
-         var _loc4_:* = 0;
+         var _loc3_:uint = 0;
+         var _loc4_:uint = 0;
          var _loc1_:Boolean = false;
          var _loc6_:Vector.<int> = mKeyboardController.releasedConsumableKeysThisFrame;
          _loc3_ = 0;
          while(_loc3_ < _loc6_.length)
          {
-            _loc2_ = uint(mKeyboardController.KeyIndexToConsumable(_loc3_));
+            _loc2_ = _loc3_;
             if(_loc6_[_loc3_])
             {
                mHeroGameObject.tryToUseConsumable(_loc2_);
@@ -222,6 +236,33 @@ package Actor.Player
             _loc1_ = true;
             _loc4_++;
          }
+      }
+      
+      private function translateInputIntoMenuUse() : void
+      {
+         var _loc1_:* = 0;
+         var _loc2_:uint = 0;
+         var _loc3_:uint = 0;
+         var _loc5_:Vector.<int> = mKeyboardController.releasedMenuKeysThisFrame;
+         _loc2_ = 0;
+         while(_loc2_ < _loc5_.length)
+         {
+            _loc1_ = _loc2_;
+            if(_loc5_[_loc2_])
+            {
+               mDBFacade.hud.handleMenuButtonPressed(_loc1_);
+               return;
+            }
+            _loc2_++;
+         }
+         var _loc4_:Vector.<int> = mGamepadController.releasedMenuButtonsThisFrame;
+         _loc3_ = 0;
+         if(_loc3_ >= _loc4_.length)
+         {
+            return;
+         }
+         _loc1_ = uint(_loc4_[_loc3_]);
+         mDBFacade.hud.handleMenuButtonPressed(_loc1_);
       }
       
       private function determineInputVelocity() : Vector3D
@@ -267,7 +308,7 @@ package Actor.Player
       
       public function canMoveXY(inputType:String) : Boolean
       {
-         return inputType != "lock_xy" && inputType != "lock_xy_r" && !mDBFacade.inputManager.check(16);
+         return inputType != "lock_xy" && inputType != "lock_xy_r" && !mDBFacade.keyBindings.isDown("holdInPlace");
       }
       
       public function get directionVector() : Vector3D

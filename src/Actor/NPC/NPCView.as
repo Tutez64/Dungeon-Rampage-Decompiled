@@ -3,9 +3,9 @@ package Actor.NPC
    import Actor.ActorRenderer;
    import Actor.ActorView;
    import Brain.Sound.SoundAsset;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.NPCGameObject;
    import Facade.DBFacade;
-   import flash.display.Sprite;
    import flash.geom.Vector3D;
    
    public class NPCView extends ActorView
@@ -25,9 +25,9 @@ package Actor.NPC
       
       protected var mDeactivateSoundEffect:SoundAsset;
       
-      public function NPCView(facade:DBFacade, npcGameObject:NPCGameObject)
+      public function NPCView(dbFacade:DBFacade, npcGameObject:NPCGameObject)
       {
-         super(facade,npcGameObject);
+         super(dbFacade,npcGameObject);
          mParentNPCObject = npcGameObject;
          HIT_AREA_HALF_WIDTH = mDBFacade.dbConfigManager.getConfigNumber("enemy_hit_area_half_width",100);
          HIT_AREA_HALF_HEIGHT = mDBFacade.dbConfigManager.getConfigNumber("enemy_hit_area_half_height",100);
@@ -36,7 +36,6 @@ package Actor.NPC
       
       override public function init() : void
       {
-         var hitSprite:Sprite;
          mWantNametag = mParentNPCObject.gmNpc.HasHealthbar;
          super.init();
          if(!mParentNPCObject.isAttackable)
@@ -46,26 +45,19 @@ package Actor.NPC
          }
          if(mParentNPCObject.gmNpc.IsMover)
          {
-            hitSprite = new Sprite();
-            hitSprite.mouseEnabled = false;
-            hitSprite.graphics.beginFill(0,0);
-            hitSprite.graphics.drawRect(-HIT_AREA_HALF_WIDTH,-HIT_AREA_HALF_HEIGHT + BODY_Y_OFFSET + HIT_AREA_Y_OFFSET,HIT_AREA_HALF_WIDTH * 2,HIT_AREA_HALF_HEIGHT * 2);
-            hitSprite.graphics.endFill();
-            hitSprite.name = "NPCViewRoot.hitArea";
+            setFixedMouseHitRect(-HIT_AREA_HALF_WIDTH,-HIT_AREA_HALF_HEIGHT + BODY_Y_OFFSET + HIT_AREA_Y_OFFSET,HIT_AREA_HALF_WIDTH * 2,HIT_AREA_HALF_HEIGHT * 2);
             root.mouseChildren = false;
-            root.hitArea = hitSprite;
-            root.addChild(root.hitArea);
          }
          if(mParentNPCObject.gmNpc.ActivateSound)
          {
-            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),mParentNPCObject.gmNpc.ActivateSound,function(param1:SoundAsset):void
+            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),mParentNPCObject.gmNpc.ActivateSound,function(param1:SoundAsset):void
             {
                mActivateSoundEffect = param1;
             });
          }
          if(mParentNPCObject.gmNpc.DeactivateSound)
          {
-            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),mParentNPCObject.gmNpc.DeactivateSound,function(param1:SoundAsset):void
+            mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),mParentNPCObject.gmNpc.DeactivateSound,function(param1:SoundAsset):void
             {
                mDeactivateSoundEffect = param1;
             });
@@ -96,7 +88,6 @@ package Actor.NPC
             mBodyOffAnimRenderer = null;
          }
          mParentNPCObject = null;
-         root.hitArea = null;
          super.destroy();
       }
       
@@ -147,10 +138,17 @@ package Actor.NPC
             if(mBodyOffAnimRenderer)
             {
                mBodyOffAnimRenderer.stop();
+               mBodyOffAnimRenderer.setLayer(0);
+               mBodyOffAnimRenderer.visible = false;
             }
             if(mBodyAnimRenderer)
             {
-               mBodyAnimRenderer.play(mAnimName,0,true);
+               if(mSceneGraphComponent.contains(root,this.layer))
+               {
+                  mBodyAnimRenderer.setLayer(this.layer);
+               }
+               mBodyAnimRenderer.visible = true;
+               mBodyAnimRenderer.play(mAnimName,0,_loc2_,mBodyAnimRenderer.loop);
             }
          }
          else
@@ -170,10 +168,17 @@ package Actor.NPC
             if(mBodyAnimRenderer)
             {
                mBodyAnimRenderer.stop();
+               mBodyAnimRenderer.setLayer(0);
+               mBodyAnimRenderer.visible = false;
             }
             if(mBodyOffAnimRenderer)
             {
-               mBodyOffAnimRenderer.play(mAnimName,0,true);
+               if(mSceneGraphComponent.contains(root,this.layer))
+               {
+                  mBodyOffAnimRenderer.setLayer(this.layer);
+               }
+               mBodyOffAnimRenderer.visible = true;
+               mBodyOffAnimRenderer.play(mAnimName,0,_loc2_,mBodyOffAnimRenderer.loop);
             }
             if(_loc2_)
             {

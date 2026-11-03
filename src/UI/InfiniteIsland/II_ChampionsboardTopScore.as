@@ -1,6 +1,6 @@
 package UI.InfiniteIsland
 {
-   import com.maccherone.json.JSON;
+   import Json.JsonCodec;
    
    public class II_ChampionsboardTopScore
    {
@@ -22,7 +22,7 @@ package UI.InfiniteIsland
          mWeaponsJson = new Vector.<Object>();
          if(weapon1 != null)
          {
-            mWeaponsJson.push(com.maccherone.json.JSON.decode(weapon1));
+            mWeaponsJson.push(JsonCodec.decode(weapon1));
          }
          else
          {
@@ -30,7 +30,7 @@ package UI.InfiniteIsland
          }
          if(weapon1 != null)
          {
-            mWeaponsJson.push(com.maccherone.json.JSON.decode(weapon2));
+            mWeaponsJson.push(JsonCodec.decode(weapon2));
          }
          else
          {
@@ -38,7 +38,7 @@ package UI.InfiniteIsland
          }
          if(weapon1 != null)
          {
-            mWeaponsJson.push(com.maccherone.json.JSON.decode(weapon3));
+            mWeaponsJson.push(JsonCodec.decode(weapon3));
          }
          else
          {

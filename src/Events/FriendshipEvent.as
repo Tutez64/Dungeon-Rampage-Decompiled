@@ -7,9 +7,9 @@ package Events
       
       public var id:uint;
       
-      public function FriendshipEvent(type:String, id:uint, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function FriendshipEvent(friendshipEventType:String, id:uint, bubbles:Boolean = false, cancelable:Boolean = false)
       {
-         super(type,bubbles,cancelable);
+         super(friendshipEventType,bubbles,cancelable);
          this.id = id;
       }
    }

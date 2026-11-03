@@ -10,7 +10,7 @@ package UI.Popup
       
       public function UIGiftPage(dbFacade:DBFacade, buyCallback:Function, closeCallback:Function)
       {
-         super(dbFacade,Locale.getString("SHOP_GIFT_PAGE_TITLE"),StoreServicesController.GIFT_OFFERS,buyCallback,closeCallback,false,false);
+         super(dbFacade,Locale.getString("SHOP_GIFT_PAGE_TITLE"),StoreServicesController.GIFT_OFFERS,buyCallback,closeCallback,false,false,"POPUP_GIFT");
          if(mBuyCallback == null)
          {
             mBuyCallback = function():void

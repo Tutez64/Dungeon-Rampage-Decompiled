@@ -6,7 +6,9 @@ package UI.Hud
    import Brain.Clock.GameClock;
    import Brain.SceneGraph.SceneGraphComponent;
    import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
+   import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
@@ -58,6 +60,7 @@ package UI.Hud
       
       public function initializeHud(rootClass:Class) : void
       {
+         hide();
          mUIRootClass = rootClass;
          mUIRoot = new mUIRootClass();
          mUIRoot.x = 480;
@@ -76,7 +79,7 @@ package UI.Hud
       
       private function createStacks() : void
       {
-         var _loc1_:* = null;
+         var _loc1_:UIObject = null;
          mStacksUI = new <UIObject>[new UIObject(mDBFacade,mUIRoot.potion_slot_A),new UIObject(mDBFacade,mUIRoot.potion_slot_B),new UIObject(mDBFacade,mUIRoot.potion_slot_C)];
          mStackTimersUI = new <CountdownTextTimer>[null,null,null];
          for each(_loc1_ in mStacksUI)
@@ -127,8 +130,8 @@ package UI.Hud
             xpStack = mStacksUI[slot];
             xpStack.enabled = true;
             xpStack.tooltipDelay = 0.5;
-            xpStack.tooltip.title_label.text = GameMasterLocale.getGameMasterSubString("STACKABLE_NAME",boosterInfo.StackInfo.Constant).toUpperCase();
-            xpStack.tooltip.description_label.text = Locale.getString("TIME_REMAINING") + boosterInfo.getDisplayTimeLeft();
+            TextUtil.setText(xpStack.tooltip.title_label,GameMasterLocale.getGameMasterSubString("STACKABLE_NAME",boosterInfo.StackInfo.Constant).toUpperCase());
+            TextUtil.setText(xpStack.tooltip.description_label,Locale.getString("TIME_REMAINING") + boosterInfo.getDisplayTimeLeft());
             mStackTimersUI[slot] = new CountdownTextTimer(xpStack.tooltip.description_label,boosterInfo.getEndDate(),GameClock.getWebServerDate,checkBoosters,Locale.getString("BOOSTER_REMAINING"),"",Locale.getString("EXPIRED"));
             mStackTimersUI[slot].start();
             mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(boosterInfo.StackInfo.UISwfFilepath),function(param1:SwfAsset):void
@@ -139,7 +142,7 @@ package UI.Hud
                   return;
                }
                var _loc3_:MovieClip = new _loc2_();
-               _loc3_.scaleX = _loc3_.scaleY = 80 / 100;
+               _loc3_.scaleX = _loc3_.scaleY = 80 / DBGlobal.WEAPON_ICON_NATIVE_SIZE;
                mStacksUI[slot].root.graphic.addChildAt(_loc3_,0);
             });
          }
@@ -173,8 +176,8 @@ package UI.Hud
       
       private function removeStacks() : void
       {
-         var _loc2_:* = null;
-         var _loc1_:* = null;
+         var _loc2_:UIObject = null;
+         var _loc1_:CountdownTextTimer = null;
          if(mStacksUI)
          {
             for each(_loc2_ in mStacksUI)

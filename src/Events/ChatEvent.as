@@ -9,10 +9,10 @@ package Events
       
       public var message:String;
       
-      public function ChatEvent(type:String, id:uint, message:String, bubbles:Boolean = false, cancelable:Boolean = false)
+      public function ChatEvent(chatEventType:String, id:uint, message:String, bubbles:Boolean = false, cancelable:Boolean = false)
       {
          this.message = message;
-         super(type,id,bubbles,cancelable);
+         super(chatEventType,id,bubbles,cancelable);
       }
    }
 }

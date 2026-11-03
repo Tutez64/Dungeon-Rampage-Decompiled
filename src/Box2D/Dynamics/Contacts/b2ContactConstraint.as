@@ -1,52 +1,67 @@
 package Box2D.Dynamics.Contacts
 {
-   import Box2D.Collision.*;
-   import Box2D.Common.*;
-   import Box2D.Common.Math.*;
-   import Box2D.Dynamics.*;
-   
-   use namespace b2internal;
+   import Box2D.Collision.b2Manifold;
+   import Box2D.Common.Math.b2Mat22;
+   import Box2D.Common.Math.b2Vec2;
+   import Box2D.Common.b2Settings;
+   import Box2D.Dynamics.b2Body;
+   import box2D.collision.B2ManifoldType;
+   import flash.Boot;
    
    public class b2ContactConstraint
    {
       
-      public var points:Vector.<b2ContactConstraintPoint>;
-      
-      public var localPlaneNormal:b2Vec2 = new b2Vec2();
-      
-      public var localPoint:b2Vec2 = new b2Vec2();
-      
-      public var normal:b2Vec2 = new b2Vec2();
-      
-      public var normalMass:b2Mat22 = new b2Mat22();
-      
-      public var K:b2Mat22 = new b2Mat22();
-      
-      public var bodyA:b2Body;
-      
-      public var bodyB:b2Body;
-      
-      public var type:int;
-      
-      public var radius:Number;
-      
-      public var friction:Number;
+      public var type:B2ManifoldType;
       
       public var restitution:Number;
       
+      public var radius:Number;
+      
+      public var points:Array;
+      
       public var pointCount:int;
+      
+      public var normalMass:b2Mat22;
+      
+      public var normal:b2Vec2;
       
       public var manifold:b2Manifold;
       
+      public var localPoint:b2Vec2;
+      
+      public var localPlaneNormal:b2Vec2;
+      
+      public var friction:Number;
+      
+      public var bodyB:b2Body;
+      
+      public var bodyA:b2Body;
+      
+      public var K:b2Mat22;
+      
       public function b2ContactConstraint()
       {
-         super();
-         this.points = new Vector.<b2ContactConstraintPoint>(b2Settings.b2_maxManifoldPoints);
-         var _loc1_:* = 0;
-         while(_loc1_ < b2Settings.b2_maxManifoldPoints)
+         var _loc3_:int = 0;
+         if(Boot.skip_constructor)
          {
-            this.points[_loc1_] = new b2ContactConstraintPoint();
-            _loc1_++;
+            return;
+         }
+         pointCount = 0;
+         restitution = 0;
+         friction = 0;
+         radius = 0;
+         localPlaneNormal = new b2Vec2();
+         localPoint = new b2Vec2();
+         normal = new b2Vec2();
+         normalMass = new b2Mat22();
+         K = new b2Mat22();
+         points = [];
+         var _loc1_:int = 0;
+         var _loc2_:int = b2Settings.b2_maxManifoldPoints;
+         while(_loc1_ < _loc2_)
+         {
+            _loc3_ = _loc1_++;
+            points[_loc3_] = new b2ContactConstraintPoint();
          }
       }
    }

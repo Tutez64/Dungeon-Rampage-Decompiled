@@ -115,6 +115,8 @@ package GeneratedCode
       
       public var consumable2_count:uint;
       
+      public var ascension_level:uint;
+      
       public function DungeonReport()
       {
          super();
@@ -178,6 +180,7 @@ package GeneratedCode
          _loc2_.consumable1_count = packet.readUnsignedInt();
          _loc2_.consumable2_id = packet.readUnsignedInt();
          _loc2_.consumable2_count = packet.readUnsignedInt();
+         _loc2_.ascension_level = packet.readUnsignedInt();
          return _loc2_;
       }
       
@@ -238,6 +241,7 @@ package GeneratedCode
          outpacket.writeUnsignedInt(consumable1_count);
          outpacket.writeUnsignedInt(consumable2_id);
          outpacket.writeUnsignedInt(consumable2_count);
+         outpacket.writeUnsignedInt(ascension_level);
       }
    }
 }

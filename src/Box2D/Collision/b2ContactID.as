@@ -1,46 +1,60 @@
 package Box2D.Collision
 {
-   import Box2D.Common.b2internal;
-   
-   use namespace b2internal;
+   import flash.Boot;
    
    public class b2ContactID
    {
       
-      public var features:Features = new Features();
+      public var features:Features;
       
-      b2internal var _key:uint;
+      public var _key:int;
       
       public function b2ContactID()
       {
-         super();
-         this.features._m_id = this;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         _key = 0;
+         features = new Features();
+         features._m_id = this;
+      }
+      
+      public function set_key(value:int) : int
+      {
+         _key = value;
+         features._referenceEdge = _key & 0xFF;
+         features._incidentEdge = (_key & 0xFF00) >> 8 & 0xFF;
+         features._incidentVertex = (_key & 0xFF0000) >> 16 & 0xFF;
+         features._flip = (_key & -16777216) >> 24 & 0xFF;
+         return _key;
+      }
+      
+      public function set(id:b2ContactID) : void
+      {
+         Set(id);
+      }
+      
+      public function get_key() : int
+      {
+         return _key;
+      }
+      
+      public function copy() : b2ContactID
+      {
+         return Copy();
       }
       
       public function Set(id:b2ContactID) : void
       {
-         this.key = id._key;
+         set_key(id._key);
       }
       
       public function Copy() : b2ContactID
       {
          var _loc1_:b2ContactID = new b2ContactID();
-         _loc1_.key = this.key;
+         _loc1_.set_key(get_key());
          return _loc1_;
-      }
-      
-      public function get key() : uint
-      {
-         return this._key;
-      }
-      
-      public function set key(value:uint) : void
-      {
-         this._key = value;
-         this.features._referenceEdge = this._key & 0xFF;
-         this.features._incidentEdge = (this._key & 0xFF00) >> 8 & 0xFF;
-         this.features._incidentVertex = (this._key & 0xFF0000) >> 16 & 0xFF;
-         this.features._flip = (this._key & 0xFF000000) >> 24 & 0xFF;
       }
    }
 }

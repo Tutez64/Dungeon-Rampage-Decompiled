@@ -20,10 +20,6 @@ package Actor
       
       override public function getSwfFilePath() : String
       {
-         if(mGMSkin.HDSwfFilepath)
-         {
-            return DBFacade.buildFullDownloadPath(mGMSkin.HDSwfFilepath);
-         }
          return DBFacade.buildFullDownloadPath(mGMSkin.SwfFilepath);
       }
       
@@ -50,6 +46,16 @@ package Actor
       override public function get assetClassName() : String
       {
          return mGMSkin.AssetClassName;
+      }
+      
+      override public function get spriteWidth() : Number
+      {
+         return mGMSkin.SpriteWidth > 0 ? mGMSkin.SpriteWidth : super.spriteWidth;
+      }
+      
+      override public function get spriteHeight() : Number
+      {
+         return mGMSkin.SpriteHeight > 0 ? mGMSkin.SpriteHeight : super.spriteHeight;
       }
       
       override public function get hue() : Number
@@ -90,11 +96,6 @@ package Actor
       override public function get deathVolume() : Number
       {
          return mGMSkin.DeathVol;
-      }
-      
-      override public function get scale3DModel() : Number
-      {
-         return mGMSkin.Scale3DModel;
       }
    }
 }

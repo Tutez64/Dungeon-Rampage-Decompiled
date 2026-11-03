@@ -2,6 +2,8 @@ package UI.Popup
 {
    import Brain.AssetRepository.SwfAsset;
    import Brain.UI.UIButton;
+   import Brain.UI.UIObject;
+   import Brain.Utils.TextUtil;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    
@@ -18,13 +20,13 @@ package UI.Popup
       
       protected var mSwfOverride:String;
       
-      public function DBUIOneButtonPopup(dbFacade:DBFacade, titleText:String, content:*, centerText:String, centerCallback:Function, allowClose:Boolean = true, closeCallback:Function = null, classOverride:String = null, swfOverride:String = null, scalePopup:Boolean = true, UILayerName:String = "")
+      public function DBUIOneButtonPopup(dbFacade:DBFacade, uiLayerName:String, titleText:String, content:*, centerText:String, centerCallback:Function, allowClose:Boolean = true, closeCallback:Function = null, classOverride:String = null, swfOverride:String = null, scalePopup:Boolean = true)
       {
          mClassOverride = classOverride;
          mSwfOverride = swfOverride;
          mCenterText = centerText;
          mCenterCallback = centerCallback;
-         super(dbFacade,titleText,content,allowClose,true,closeCallback,true,scalePopup,UILayerName);
+         super(dbFacade,uiLayerName,titleText,content,allowClose,true,closeCallback,true,scalePopup);
       }
       
       override public function destroy() : void
@@ -45,10 +47,9 @@ package UI.Popup
          {
             mPopup.center_button.visible = true;
             mCenterButton = new UIButton(mDBFacade,mPopup.center_button);
-            mCenterButton.label.text = mCenterText;
+            TextUtil.setText(mCenterButton.label,mCenterText);
             mCenterButton.releaseCallback = this.centerButtonCallback;
             mCenterButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
-            setupMenuNavigation();
          }
          else if(mPopup.center_button)
          {
@@ -81,11 +82,16 @@ package UI.Popup
       
       override protected function setupMenuNavigation() : void
       {
-         if(mCloseButton)
+         if(mCloseButton && mCenterButton)
          {
             mCloseButton.isAbove(mCenterButton);
             mCenterButton.isToTheLeftOf(mCloseButton);
          }
+      }
+      
+      override protected function getDefaultNavigationObject() : UIObject
+      {
+         return mCenterButton ? mCenterButton : mCloseButton;
       }
    }
 }

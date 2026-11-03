@@ -6,8 +6,10 @@ package Actor.Pets
    import Brain.Render.MovieClipRenderer;
    import Brain.UI.UIObject;
    import Brain.UI.UIProgressBar;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
    import Brain.WorkLoop.Task;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.NPCGameObject;
    import Events.GameObjectEvent;
    import Events.HpEvent;
@@ -54,8 +56,8 @@ package Actor.Pets
             mNoPetUI = new UIObject(mDBFacade,petPortraitNoneClip,0,true);
             if(mNoPetUI.tooltip)
             {
-               mNoPetUI.tooltip.title_label.text = Locale.getString("NO_PET_EQUIPPED_TOOLTIP_TITLE");
-               mNoPetUI.tooltip.description_label.text = Locale.getString("NO_PET_EQUIPPED_TOOLTIP_DESCRIPTION");
+               Locale.setText(mNoPetUI.tooltip.title_label,"NO_PET_EQUIPPED_TOOLTIP_TITLE");
+               Locale.setText(mNoPetUI.tooltip.description_label,"NO_PET_EQUIPPED_TOOLTIP_DESCRIPTION");
             }
          }
          mLogicalWorkComponent = new LogicalWorkComponent(mDBFacade,"PetPortraitUI");
@@ -80,14 +82,14 @@ package Actor.Pets
          }
          if(mPetNPCGameObject != null)
          {
-            mRoot.tooltip.description_label.text = GameMasterLocale.getGameMasterSubString("PET_DESCRIPTION",mPetNPCGameObject.gmNpc.Constant);
-            mRoot.tooltip.title_label.text = GameMasterLocale.getGameMasterSubString("PET_NAME",mPetNPCGameObject.gmNpc.Constant).toUpperCase();
+            TextUtil.setText(mRoot.tooltip.description_label,GameMasterLocale.getGameMasterSubString("PET_DESCRIPTION",mPetNPCGameObject.gmNpc.Constant));
+            TextUtil.setText(mRoot.tooltip.title_label,GameMasterLocale.getGameMasterSubString("PET_NAME",mPetNPCGameObject.gmNpc.Constant).toUpperCase());
             mEventComponent.addListener(GameObjectEvent.uniqueEvent("HpEvent_HP_UPDATE",mPetNPCGameObject.id),function(param1:HpEvent):void
             {
                setHp(param1.hp,param1.maxHp);
             });
             setHp(mPetNPCGameObject.hitPoints,mPetNPCGameObject.maxHitPoints);
-            ItemInfo.loadItemIcon(mPetNPCGameObject.actorData.gMActor.IconSwfFilepath,mPetNPCGameObject.actorData.gMActor.IconName,root.graphic,mDBFacade,80,68);
+            ItemInfo.loadItemIcon(mPetNPCGameObject.actorData.gMActor.IconSwfFilepath,mPetNPCGameObject.actorData.gMActor.IconName,root.graphic,mDBFacade,80,DBGlobal.PET_ICON_NATIVE_SIZE);
             if(mNoPetUI)
             {
                mNoPetUI.visible = false;
@@ -133,10 +135,10 @@ package Actor.Pets
       
       private function handleRespawningPetDeath(respawnTimer:Number) : void
       {
-         ItemInfo.loadItemIcon(mPetNPCGameObject.actorData.gMActor.IconSwfFilepath,mPetNPCGameObject.actorData.gMActor.IconName,root.graphic,mDBFacade,80,68);
+         ItemInfo.loadItemIcon(mPetNPCGameObject.actorData.gMActor.IconSwfFilepath,mPetNPCGameObject.actorData.gMActor.IconName,root.graphic,mDBFacade,80,DBGlobal.PET_ICON_NATIVE_SIZE);
          mRoot.hp_death.visible = true;
-         root.tooltip.title_label.text = GameMasterLocale.getGameMasterSubString("PET_NAME",mPetNPCGameObject.gmNpc.Constant).toUpperCase();
-         root.tooltip.description_label.text = Locale.getString("PET_RESPAWNS_IN") + ": " + respawnTimer.toString();
+         TextUtil.setText(root.tooltip.title_label,GameMasterLocale.getGameMasterSubString("PET_NAME",mPetNPCGameObject.gmNpc.Constant).toUpperCase());
+         TextUtil.setText(root.tooltip.description_label,Locale.getString("PET_RESPAWNS_IN") + ": " + respawnTimer.toString());
          mCoolDownRenderer.playRate = mCoolDownClipLength / respawnTimer;
          mCoolDownRenderer.clip.visible = true;
          mCoolDownRenderer.play();
@@ -147,7 +149,7 @@ package Actor.Pets
          mRespawnTask = mLogicalWorkComponent.doEverySeconds(1,function(param1:GameClock):void
          {
             respawnTimer = respawnTimer - 1;
-            root.tooltip.description_label.text = Locale.getString("PET_RESPAWNS_IN") + respawnTimer.toString();
+            TextUtil.setText(root.tooltip.description_label,Locale.getString("PET_RESPAWNS_IN") + respawnTimer.toString());
             if(respawnTimer == 0)
             {
                if(mRespawnTask)
@@ -193,6 +195,11 @@ package Actor.Pets
             mCoolDownRenderer.destroy();
          }
          mCoolDownRenderer = null;
+         if(mHpBar)
+         {
+            mHpBar.dontKillMyChildren = true;
+            mHpBar.destroy();
+         }
          mHpBar = null;
          if(mEventComponent != null)
          {

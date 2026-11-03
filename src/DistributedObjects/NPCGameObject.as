@@ -7,6 +7,8 @@ package DistributedObjects
    import Brain.Logger.Logger;
    import Brain.Utils.MemoryTracker;
    import Dungeon.NavCollider;
+   import Dungeon.Tile;
+   import Dungeon.TileFactory;
    import Facade.DBFacade;
    import Floor.FloorView;
    import GameMasterDictionary.GMNpc;
@@ -40,12 +42,30 @@ package DistributedObjects
       override public function init() : void
       {
          mGmNpc = this.mDBFacade.gameMaster.npcById.itemFor(this.type);
+         determineForceFlash();
          super.init();
          this.createOffNavCollisions(this.actorData.constant);
          this.triggerState = this.triggerState;
          tryRegisterPet();
          mArchwayAlpha = mGmNpc.ArchwayAlpha;
          initializeToFirstValidWeapon();
+      }
+      
+      private function determineForceFlash() : void
+      {
+         if(this.distributedDungeonFloor == null || this.tile == null)
+         {
+            return;
+         }
+         var _loc1_:TileFactory = this.distributedDungeonFloor.dungeonFloorFactory.tileFactory;
+         if(_loc1_ == null)
+         {
+            return;
+         }
+         var _loc2_:Tile = this.tile;
+         var _loc4_:Number = this.position.x - _loc2_.position.x;
+         var _loc3_:Number = this.position.y - _loc2_.position.y;
+         this.forceFlash = _loc1_.getForceFlashForNpc(this.actorData.constant,_loc2_.position,_loc4_,_loc3_);
       }
       
       override public function get maxHitPoints() : Number
@@ -263,6 +283,12 @@ package DistributedObjects
       public function get masterId() : uint
       {
          return mMasterId;
+      }
+      
+      override public function get belongsToRemotePlayer() : Boolean
+      {
+         var _loc1_:HeroGameObject = mDBFacade.gameObjectManager.getReferenceFromId(mMasterId) as HeroGameObject;
+         return _loc1_ != null && !_loc1_.isOwner;
       }
    }
 }

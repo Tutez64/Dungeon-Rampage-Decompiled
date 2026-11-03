@@ -13,7 +13,6 @@ package UI.UINewsFeed
    import Events.FriendSummaryNewsFeedEvent;
    import Events.GenericNewsFeedEvent;
    import Facade.DBFacade;
-   import com.greensock.TweenMax;
    
    public class UINewsFeedController
    {
@@ -145,7 +144,7 @@ package UI.UINewsFeed
          var _loc2_:UINewsFeed = mQueuedFeeds.shift();
          mVisibleFeeds.push(_loc2_);
          _loc2_.root.x = mDBFacade.viewWidth;
-         _loc2_.root.y = (mVisibleFeeds.length + 1) * 75;
+         _loc2_.root.y = (mVisibleFeeds.length + 1) * 75 + _loc2_.topShift;
          _loc2_.lerpIntoScreen();
       }
       
@@ -162,7 +161,7 @@ package UI.UINewsFeed
          {
             if(_loc1_)
             {
-               TweenMax.to(_loc1_.root,0.16666666666666666,{"y":_loc1_.root.y - 75});
+               mDBFacade.mTween.tweenMaxTo(_loc1_.root,0.16666666666666666,{"y":_loc1_.root.y - 75});
             }
          }
       }

@@ -1,98 +1,100 @@
 package com.junkbyte.console.vos
 {
-   import flash.utils.Proxy;
-   import flash.utils.flash_proxy;
+   import flash.Boot;
+   import haxe.IMap;
+   import haxe.ds.IntMap;
+   import haxe.ds._IntMap.IntMapKeysIterator;
    
-   use namespace flash_proxy;
-   
-   public dynamic class WeakObject extends Proxy
+   public class WeakObject
    {
       
-      private var _item:Array;
-      
-      private var _dir:Object;
+      public var _dict:IMap;
       
       public function WeakObject()
       {
-         super();
-         this._dir = new Object();
-      }
-      
-      public function set(n:String, obj:Object, strong:Boolean = false) : void
-      {
-         if(obj == null)
+         if(Boot.skip_constructor)
          {
-            delete this._dir[n];
+            return;
          }
-         else
+         _dict = new IntMap();
+      }
+      
+      public function set(_tmp_n:Object, obj:*, strong:Boolean = false) : void
+      {
+         var _loc5_:* = null as IMap;
+         var _loc6_:* = null as WeakRef;
+         var _loc4_:Object = _tmp_n;
+         remove(_loc4_);
+         if(obj != null)
          {
-            this._dir[n] = new WeakRef(obj,strong);
+            _loc5_ = _dict;
+            _loc6_ = new WeakRef(obj,strong);
+            _loc5_.h[int(_loc4_)] = _loc6_;
          }
       }
       
-      public function get(n:String) : *
+      public function remove(_tmp_n:Object) : void
       {
-         var _loc2_:WeakRef = this.getWeakRef(n);
-         return _loc2_ ? _loc2_.reference : undefined;
+         var _loc2_:Object = _tmp_n;
+         IntMap(_dict).remove(int(_loc2_));
       }
       
-      public function getWeakRef(n:String) : WeakRef
+      public function keys() : Array
       {
-         return this._dir[n] as WeakRef;
-      }
-      
-      override flash_proxy function getProperty(n:*) : *
-      {
-         return this.get(n);
-      }
-      
-      override flash_proxy function callProperty(n:*, ... rest) : *
-      {
-         var _loc3_:Object = this.get(n);
-         return _loc3_.apply(this,rest);
-      }
-      
-      override flash_proxy function setProperty(n:*, v:*) : void
-      {
-         this.set(n,v);
-      }
-      
-      override flash_proxy function nextName(index:int) : String
-      {
-         return this._item[index - 1];
-      }
-      
-      override flash_proxy function nextValue(index:int) : *
-      {
-         return this[this.nextName(index)];
-      }
-      
-      override flash_proxy function nextNameIndex(index:int) : int
-      {
-         var _loc2_:* = undefined;
-         if(index == 0)
+         var _loc3_:* = null as Object;
+         var _loc1_:Array = [];
+         var _loc2_:* = new IntMapKeysIterator(IntMap(_dict).h);
+         while(_loc2_.hasNext())
          {
-            this._item = new Array();
-            for(_loc2_ in this._dir)
+            _loc3_ = _loc2_.next();
+            _loc1_.push(_loc3_);
+         }
+         return _loc1_;
+      }
+      
+      public function getWeakRef(_tmp_n:Object) : WeakRef
+      {
+         var _loc2_:Object = _tmp_n;
+         return IntMap(_dict).h[int(_loc2_)];
+      }
+      
+      public function getReferenceIndex(reference:*) : Object
+      {
+         var _loc3_:* = null as Object;
+         var _loc4_:* = null as WeakRef;
+         var _loc2_:* = new IntMapKeysIterator(IntMap(_dict).h);
+         while(_loc2_.hasNext())
+         {
+            _loc3_ = _loc2_.next();
+            _loc4_ = IntMap(_dict).h[int(_loc3_)];
+            if(_loc4_.get_reference() == reference)
             {
-               this._item.push(_loc2_);
+               return _loc3_;
             }
          }
-         if(index < this._item.length)
+         return null;
+      }
+      
+      public function get(_tmp_n:Object) : *
+      {
+         var _loc2_:Object = _tmp_n;
+         var _loc3_:WeakRef = getWeakRef(_loc2_);
+         if(_loc3_ != null)
          {
-            return index + 1;
+            return _loc3_.get_reference();
          }
-         return 0;
+         return null;
       }
       
-      override flash_proxy function deleteProperty(name:*) : Boolean
+      public function exists(_tmp_n:Object) : Boolean
       {
-         return delete this._dir[name];
-      }
-      
-      public function toString() : String
-      {
-         return "[WeakObject]";
+         var _loc2_:Object = _tmp_n;
+         var _loc3_:IMap = _dict;
+         if(int(_loc2_) in IntMap(_loc3_).h)
+         {
+            return get(_loc2_) != null;
+         }
+         return false;
       }
    }
 }

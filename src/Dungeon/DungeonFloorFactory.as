@@ -1,13 +1,14 @@
 package Dungeon
 {
+   import Brain.Render.RendererFactorySelector;
    import Brain.Utils.MemoryTracker;
+   import Collections.IIterator;
+   import Collections.Set;
    import DistributedObjects.DistributedDungeonFloor;
    import Facade.DBFacade;
    import Floor.FloorObject;
    import GeneratedCode.DungeonTileUsage;
    import flash.geom.Vector3D;
-   import org.as3commons.collections.Set;
-   import org.as3commons.collections.framework.IIterator;
    
    public class DungeonFloorFactory
    {
@@ -55,10 +56,24 @@ package Dungeon
          return mTileFactory;
       }
       
-      public function buildDungeonFloor(tileNetworkComponents:Vector.<DungeonTileUsage>, tilesBuiltCallback:Function) : void
+      public function buildDungeonFloor(tileNetworkComponents:Vector.<DungeonTileUsage>, tilesBuiltCallback:Function, clearGroundLayer:Boolean = true) : void
       {
+         var _loc4_:RendererFactorySelector = null;
+         if(clearGroundLayer)
+         {
+            _loc4_ = mDBFacade.rendererFactorySelector;
+            if(_loc4_ != null)
+            {
+               _loc4_.clearLayer(5);
+            }
+            else if(mDBFacade.starlingLayerManager != null)
+            {
+               mDBFacade.starlingLayerManager.cleanLayers();
+            }
+         }
          mTileNetworkComponents = tileNetworkComponents;
          mTilesBuiltCallback = tilesBuiltCallback;
+         mNumTilesCreated = 0;
          buildGrid(tileNetworkComponents);
          AddFillerTiles();
       }
@@ -74,13 +89,13 @@ package Dungeon
             _loc4_.tileId = mTileFactory.mFillerTiles[0].id;
             _loc4_.x = pos.x;
             _loc4_.y = pos.y;
-            mTileFactory.buildTile(_loc4_,addToGrid,tileInitialized,mDistributedDungeonFloor);
+            mTileFactory.buildTile(_loc4_,addToGrid,tileInitialized,mDistributedDungeonFloor,true);
          }
       }
       
       private function AddFillerTiles() : void
       {
-         var _loc1_:* = undefined;
+         var _loc1_:Vector.<Vector3D> = undefined;
          if(mTileFactory.mFillerTiles.length > 0)
          {
             _loc1_ = mTileGrid.getNonFillTilePositions();
@@ -100,7 +115,7 @@ package Dungeon
       
       protected function buildGrid(tileNetworkComponents:Vector.<DungeonTileUsage>) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          _loc2_ = 0;
          while(_loc2_ < tileNetworkComponents.length)
          {
@@ -135,7 +150,6 @@ package Dungeon
       protected function tileInitialized(tile:Tile) : void
       {
          mTileGrid.setTileAtPosition(tile.position,tile);
-         mDistributedDungeonFloor.astarGrids.InitTileAstarGrids(tile.position.x / 900 + 1,tile.position.y / 900 + 1);
          mNumTilesCreated = mNumTilesCreated + 1;
          if(mNumTilesCreated == mTileNetworkComponents.length)
          {

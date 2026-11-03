@@ -1,8 +1,7 @@
 package UI
 {
+   import Brain.Render.Tweens.TweenHandle;
    import Facade.DBFacade;
-   import com.greensock.TimelineMax;
-   import com.greensock.TweenMax;
    import flash.display.MovieClip;
    
    public class UITownTweens
@@ -19,10 +18,10 @@ package UI
          super();
       }
       
-      public static function avatarFadeInTweenSequence(clip:MovieClip) : void
+      public static function avatarFadeInTweenSequence(clip:MovieClip, dbFacade:DBFacade) : void
       {
          clip.alpha = 0;
-         TweenMax.to(clip,0.2916666666666667,{"alpha":1});
+         dbFacade.mTween.tweenMaxTo(clip,0.2916666666666667,{"alpha":1});
       }
       
       public static function headerTweenSequence(clip:MovieClip, dbFacade:DBFacade) : void
@@ -30,11 +29,11 @@ package UI
          var _loc4_:Number = clip.y;
          clip.y = 0 - clip.height;
          clip.visible = true;
-         var _loc3_:TimelineMax = new TimelineMax({
-            "tweens":[TweenMax.to(clip,0.08333333333333333,{"y":_loc4_}),TweenMax.to(clip,0.08333333333333333,{"scaleY":1.25}),TweenMax.to(clip,0.08333333333333333,{
+         var _loc3_:TweenHandle = dbFacade.mTween.createTimeline({
+            "tweens":[dbFacade.mTween.tweenMaxTo(clip,0.08333333333333333,{"y":_loc4_}),dbFacade.mTween.tweenMaxTo(clip,0.08333333333333333,{"scaleY":1.25}),dbFacade.mTween.tweenMaxTo(clip,0.08333333333333333,{
                "scaleY":0.85,
                "y":_loc4_ * 0.85
-            }),TweenMax.to(clip,0.041666666666666664,{
+            }),dbFacade.mTween.tweenMaxTo(clip,0.041666666666666664,{
                "scaleY":1,
                "y":_loc4_
             })],
@@ -48,11 +47,11 @@ package UI
          var _loc3_:Number = clip.height;
          clip.y = dbFacade.viewHeight + clip.height;
          clip.visible = true;
-         var _loc4_:TimelineMax = new TimelineMax({
-            "tweens":[TweenMax.to(clip,0.125,{"y":_loc5_}),TweenMax.to(clip,0.08333333333333333,{"scaleY":1.25}),TweenMax.to(clip,0.041666666666666664,{
+         var _loc4_:TweenHandle = dbFacade.mTween.createTimeline({
+            "tweens":[dbFacade.mTween.tweenMaxTo(clip,0.125,{"y":_loc5_}),dbFacade.mTween.tweenMaxTo(clip,0.08333333333333333,{"scaleY":1.25}),dbFacade.mTween.tweenMaxTo(clip,0.041666666666666664,{
                "scaleY":0.85,
                "y":_loc5_ + _loc3_ * 0.15
-            }),TweenMax.to(clip,0.041666666666666664,{
+            }),dbFacade.mTween.tweenMaxTo(clip,0.041666666666666664,{
                "scaleY":1,
                "y":_loc5_
             })],
@@ -66,11 +65,11 @@ package UI
          clip.x = dbFacade.viewWidth + clip.width;
          clip.scaleX = 1.25;
          clip.visible = true;
-         var _loc3_:TimelineMax = new TimelineMax({
-            "tweens":[TweenMax.to(clip,0.2916666666666667,{
+         var _loc3_:TweenHandle = dbFacade.mTween.createTimeline({
+            "tweens":[dbFacade.mTween.tweenMaxTo(clip,0.2916666666666667,{
                "scaleX":1,
                "x":_loc4_ - 10
-            }),TweenMax.to(clip,0.041666666666666664,{"x":_loc4_ + 10}),TweenMax.to(clip,0.041666666666666664,{"x":_loc4_})],
+            }),dbFacade.mTween.tweenMaxTo(clip,0.041666666666666664,{"x":_loc4_ + 10}),dbFacade.mTween.tweenMaxTo(clip,0.041666666666666664,{"x":_loc4_})],
             "align":"sequence"
          });
       }

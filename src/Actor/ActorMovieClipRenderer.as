@@ -30,17 +30,17 @@ package Actor
          }
       }
       
-      public function get displayObject() : DisplayObject
+      override public function get displayObject() : DisplayObject
       {
          return mClip;
       }
       
-      public function get rendererType() : String
+      override public function get rendererType() : String
       {
          return MOVIE_CLIP_RENDERER_TYPE;
       }
       
-      public function set heading(value:Number) : void
+      override public function set heading(value:Number) : void
       {
          mHeading = value;
       }

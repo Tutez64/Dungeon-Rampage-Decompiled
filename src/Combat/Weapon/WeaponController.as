@@ -6,6 +6,7 @@ package Combat.Weapon
    import Combat.Attack.AttackTimeline;
    import Combat.Attack.PotentialWeaponInputQueueStruct;
    import Combat.Attack.ScriptTimeline;
+   import DBGlobals.DBGlobal;
    import DistributedObjects.HeroGameObjectOwner;
    import Events.FirstCooldownEvent;
    import Facade.DBFacade;
@@ -41,6 +42,8 @@ package Combat.Weapon
       private var mTimeStartedAttack:Number;
       
       private var mQueueAttack:GMAttack;
+      
+      private var mAttackSerial:uint = 0;
       
       public function WeaponController(dbFacade:DBFacade, controlledWeapon:WeaponGameObject, hero:HeroGameObjectOwner)
       {
@@ -93,6 +96,7 @@ package Combat.Weapon
          var actorAttackSpeed:Number;
          var buffMult:Number;
          var baseAttackSpeed:Number;
+         var attackSerial:uint;
          var stopCallback:Function;
          var gmAttack:GMAttack = mDBFacade.gameMaster.attackById.itemFor(attackType);
          var attackSpeedMultiplier:Number = 1;
@@ -122,9 +126,13 @@ package Combat.Weapon
             Logger.error("AttackTimeline for attack: <" + attackType + "> was null. Ignoring onWeaponDown");
             return;
          }
+         attackSerial = ++mAttackSerial;
          stopCallback = function():void
          {
-            mCurrentAttackTimeline = null;
+            if(attackSerial == mAttackSerial)
+            {
+               mCurrentAttackTimeline = null;
+            }
          };
          mHero.attack(attackType,null,attackSpeedMultiplier,mCurrentAttackTimeline,function():void
          {
@@ -132,33 +140,38 @@ package Combat.Weapon
          },stopCallback,false,autoAim);
          if(autoStartCooldown && gmAttack.CooldownLength > 0)
          {
-            startCooldown();
+            startCooldown(gmAttack);
          }
       }
       
       private function finishedAttack(autoAim:Boolean, attackSpeedModifier:uint) : void
       {
+         var _loc3_:GMAttack = null;
          if(mQueueAttack)
          {
-            attack(mQueueAttack.Id,autoAim,attackSpeedModifier);
+            _loc3_ = mQueueAttack;
             mQueueAttack = null;
+            attack(_loc3_.Id,autoAim,attackSpeedModifier);
          }
       }
       
       public function doQueue() : void
       {
+         var _loc1_:GMAttack = null;
          if(mQueueAttack)
          {
-            attack(mQueueAttack.Id,false,1);
+            _loc1_ = mQueueAttack;
             mQueueAttack = null;
+            attack(_loc1_.Id,false,1);
          }
       }
       
-      public function startCooldown() : void
+      public function startCooldown(gmAttack:GMAttack = null) : void
       {
          mIsInCooldown = true;
-         var _loc1_:Number = currentTimeline.currentGMAttack.CooldownLength ? currentTimeline.currentGMAttack.CooldownLength : currentTimeline.currentGMAttack.AIRechargeT;
-         mCoolDownTime = _loc1_ * 1000 * weapon.cooldownReduction() - _loc1_ * 1000 * mHero.attackCooldownMultiplier;
+         var _loc3_:GMAttack = gmAttack ?? currentTimeline.currentGMAttack;
+         var _loc2_:Number = _loc3_.CooldownLength ? _loc3_.CooldownLength : _loc3_.AIRechargeT;
+         mCoolDownTime = _loc2_ * 1000 * weapon.cooldownReduction() - _loc2_ * 1000 * mHero.attackCooldownMultiplier;
          mTimeStartedAttack = mLogicalWorkComponent.gameClock.gameTime;
          updateHudCooldown(true);
          mLogicalWorkComponent.doEveryFrame(updateCooldown);
@@ -192,7 +205,7 @@ package Combat.Weapon
       
       protected function getNextAttackId() : uint
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          var _loc1_:GMAttack = getAttackFromComboArray();
          if(_loc1_ == null)
          {
@@ -226,7 +239,7 @@ package Combat.Weapon
                mAttackArray.push(_loc3_);
             }
          }
-         if(mAttackArray.length == 0)
+         if(mAttackArray.length == 0 && mWeapon.weaponData.Id != DBGlobal.CONSUMABLE_WEAPON_ID)
          {
             Logger.warn("Did not find any attacks for weaponId: " + mWeapon.weaponData.Id);
          }
@@ -286,18 +299,14 @@ package Combat.Weapon
       {
          if(mCurrentAttackTimeline)
          {
-            if(mCurrentAttackTimeline.isAttackWithinComboWindow())
-            {
-               return true;
-            }
-            return false;
+            return mCurrentAttackTimeline.isAttackWithinComboWindow();
          }
          return true;
       }
       
       public function berserkModeStart() : void
       {
-         if(mWeapon.weaponData.ClassType == "MELEE")
+         if(mWeapon.weaponData.ClassType == DBGlobal.MELEE_ITEM_CATEGORY)
          {
             overrideAttacksWithRampage();
          }

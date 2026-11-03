@@ -1,13 +1,24 @@
 package DistributedObjects
 {
+   import Account.ItemInfo;
    import Actor.ActorGameObject;
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.AssetRepository.SwfAsset;
+   import Brain.Event.EventComponent;
+   import Brain.Event.EventListeners;
    import Brain.GameObject.GameObject;
    import Brain.Logger.Logger;
    import Brain.Sound.SoundAsset;
    import Brain.Sound.SoundHandle;
+   import Brain.Starling.SwfConverter.BakeScheduler;
    import Brain.Utils.MemoryTracker;
+   import Brain.WorkLoop.DoLater;
+   import Collections.IIterator;
+   import Collections.IMapIterator;
+   import Collections.ISetIterator;
+   import Collections.Map;
+   import Collections.Set;
+   import DBGlobals.DBGlobal;
    import Doobers.DooberGameObject;
    import Dungeon.DungeonFloorFactory;
    import Dungeon.RectangleNavCollider;
@@ -16,6 +27,8 @@ package DistributedObjects
    import Effects.EffectManager;
    import Events.ActorLifetimeEvent;
    import Facade.DBFacade;
+   import Facade.LoadingPrewarm;
+   import Facade.TrickleCacheLoader;
    import Floor.FloorMessageView;
    import Floor.FloorObject;
    import GameMasterDictionary.GMColiseumTier;
@@ -23,8 +36,13 @@ package DistributedObjects
    import GeneratedCode.DistributedDungeonFloorNetworkComponent;
    import GeneratedCode.DungeonTileUsage;
    import GeneratedCode.IDistributedDungeonFloor;
-   import Pathfinding.Astar;
+   import Projectile.ProjectileGameObject;
    import Sound.DBSoundComponent;
+   import Sound.DBSoundManager;
+   import StateMachine.MainStateMachine.LoadingScreenState;
+   import SteamAchievements.SteamAPINames;
+   import UI.CutsceneOverlay;
+   import UI.CutsceneVideo;
    import flash.display.MovieClip;
    import flash.events.Event;
    import flash.events.KeyboardEvent;
@@ -33,13 +51,9 @@ package DistributedObjects
    import flash.geom.Vector3D;
    import flash.media.Sound;
    import flash.media.SoundLoaderContext;
+   import flash.media.SoundTransform;
    import flash.net.URLRequest;
    import flash.utils.Dictionary;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.Set;
-   import org.as3commons.collections.framework.IIterator;
-   import org.as3commons.collections.framework.IMapIterator;
-   import org.as3commons.collections.framework.ISetIterator;
    
    public class DistributedDungeonFloor extends Floor implements IDistributedDungeonFloor
    {
@@ -54,8 +68,6 @@ package DistributedObjects
       
       protected var mTileGrid:TileGrid;
       
-      public var astarGrids:Astar = new Astar();
-      
       private var mActiveOwnerAvatar:HeroGameObjectOwner;
       
       private var mRemoteHeroes:Map;
@@ -63,6 +75,8 @@ package DistributedObjects
       private var mRemoteActors:Map;
       
       private var mDoobers:Dictionary;
+      
+      private var mProjectiles:Dictionary;
       
       private var mBuildPropReady:Boolean = false;
       
@@ -88,6 +102,34 @@ package DistributedObjects
       
       private var mCurrentFloorNum:uint;
       
+      private var mEntryAtlasesQueued:Boolean = false;
+      
+      private var mEntryPropAtlasesQueued:Boolean = false;
+      
+      private var mEntryGeneration:int;
+      
+      private var mEntryReleaseChecked:Boolean = false;
+      
+      private var mPrewarm:LoadingPrewarm;
+      
+      private var mEntryReleaseEvents:EventComponent;
+      
+      private var mFloorTilesRequested:Boolean = false;
+      
+      private var mHeroEntryWanted:Boolean = false;
+      
+      private var mAwaitingStarlingAssets:Boolean = false;
+      
+      private var mEntryStarted:Boolean = false;
+      
+      private var mIntroMovieAsset:SwfAsset;
+      
+      private var mIntroOverlay:CutsceneOverlay;
+      
+      private var mIntroVideo:CutsceneVideo;
+      
+      private var mViewHold:FloorViewHold;
+      
       protected var mDBSoundComponent:DBSoundComponent;
       
       private var mMusicTestSoundHandle:SoundHandle;
@@ -102,6 +144,7 @@ package DistributedObjects
          mRemoteHeroes = new Map();
          mRemoteActors = new Map();
          mDoobers = new Dictionary(true);
+         mProjectiles = new Dictionary(true);
          mFloorObjectsAwaitingDungeonFloor = new Set();
          mEffectManager = new EffectManager(mDBFacade);
          MemoryTracker.track(mEffectManager,"EffectManager - created in DistributedDungeonFloor.constructor()");
@@ -147,6 +190,22 @@ package DistributedObjects
       public function get effectManager() : EffectManager
       {
          return mEffectManager;
+      }
+      
+      public function registerProjectile(projectile:ProjectileGameObject) : void
+      {
+         if(mProjectiles)
+         {
+            mProjectiles[projectile] = true;
+         }
+      }
+      
+      public function unregisterProjectile(projectile:ProjectileGameObject) : void
+      {
+         if(mProjectiles)
+         {
+            delete mProjectiles[projectile];
+         }
       }
       
       public function get numHeroes() : uint
@@ -206,34 +265,122 @@ package DistributedObjects
       public function postGenerate() : void
       {
          mPostGenerate = true;
+         BakeScheduler.floorLoadStarted();
          mDungeonFloorFactory = new DungeonFloorFactory(this,initGridCallback,mDBFacade,mTileLibraryPath);
          MemoryTracker.track(mDungeonFloorFactory,"DungeonFloorFactory - created in DistributedDungeonFloor.postGenerate()");
-         astarGrids.Init(this);
-         mDungeonFloorFactory.buildDungeonFloor(mTileNetworkComponents,finishedBuildingTiles);
+         buildTiles(mTileNetworkComponents,true);
          mMapNode = mDBFacade.gameMaster.getMapNode(mCurrentMapNodeId);
-         this.playIntroMovie();
-         this.playMusic();
+         if(mMapNode != null)
+         {
+            mDBFacade.steamAchievementsHelper.checkHighestUltimateRampageFloorAchieved(mMapNode,getCurrentFloorNum());
+            mDBFacade.steamAchievementsHelper.updateMapsAtFloor25Stat(mMapNode);
+         }
          buildFloorEndingGui();
+         loadIntroMovie();
+         var _loc1_:LoadingScreenState = mDBFacade.mainStateMachine.currentState as LoadingScreenState;
+         if(_loc1_ != null && _loc1_.holdsHeroEntry)
+         {
+            mEventComponent.addListener("LOADING_SCREEN_HERO_ENTRY_RELEASED",onHeroEntryReleased);
+         }
+         else
+         {
+            if(_loc1_ == null)
+            {
+               holdViewForFloorChange();
+            }
+            startEntry();
+         }
+      }
+      
+      private function holdViewForFloorChange() : void
+      {
+         mViewHold = new FloorViewHold(function(param1:Number, param2:Function):Object
+         {
+            return mDBFacade.realClockWorkManager.doLater(param1,param2,false,"DistributedDungeonFloor.viewHold");
+         },function(param1:Object):void
+         {
+            mDBFacade.realClockWorkManager.removeDoLater(param1 as DoLater);
+         },onViewHoldReleased);
+         mViewHold.begin();
+         mSceneGraphComponent.fadeOut(0);
+      }
+      
+      private function onViewHoldReleased(timedOut:Boolean) : void
+      {
+         if(timedOut)
+         {
+            Logger.warn("DistributedDungeonFloor: floor change view hold timed out after 15 s (heroReady=" + mViewHold.heroIsReady + " closure=" + mViewHold.closureHasArrived + "); fading in anyway");
+         }
+         mSceneGraphComponent.fadeIn(1);
+         revealFloor();
+      }
+      
+      override protected function heroOwnerReady() : void
+      {
+         if(mViewHold != null && mViewHold.holding)
+         {
+            mViewHold.heroReady();
+         }
+         else
+         {
+            super.heroOwnerReady();
+         }
+      }
+      
+      override public function InterestClosure() : void
+      {
+         super.InterestClosure();
+         if(mViewHold)
+         {
+            mViewHold.closureArrived();
+         }
+      }
+      
+      private function onHeroEntryReleased(e:Event) : void
+      {
+         mEventComponent.removeListener("LOADING_SCREEN_HERO_ENTRY_RELEASED");
+         startEntry();
+      }
+      
+      private function startEntry() : void
+      {
+         mEntryStarted = true;
+         if(mViewHold == null || !mViewHold.holding)
+         {
+            mSceneGraphComponent.fadeIn(1);
+         }
+         playMusic();
+         if(mIntroMovieSwfFilePath && mIntroMovieAssetClassName)
+         {
+            playIntroMovie();
+         }
+         else
+         {
+            requestEntryHero();
+         }
       }
       
       override public function victory() : void
       {
          logDungeonCompletion();
          super.victory();
-         if(mDBFacade.steamAchievementsManager)
+         var _loc1_:String = mDBFacade.dbAccountInfo.activeAvatarInfo.gmHero.Constant;
+         var _loc2_:Vector.<ItemInfo> = mDBFacade.dbAccountInfo.inventoryInfo.getEquipedItemsOnAvatar(mDBFacade.dbAccountInfo.activeAvatarInfo.id);
+         mDBFacade.steamAchievementsHelper.unlockBossChallengeWithUncommonWeapon(mMapNode,_loc1_,_loc2_);
+         mDBFacade.steamAchievementsHelper.unlockDarkBarrowsAsVampireHunter(_loc1_,mMapNode.Constant);
+         if(mMapNode.NodeType == GMMapNode.BOSS_NODE_TYPE)
          {
-            mDBFacade.steamAchievementsManager.unlockFloorCompleted(mMapNode.Constant);
+            mDBFacade.steamAchievementsHelper.unlockAchievement(SteamAPINames.getUnlockFloorCompletedAPIName(mMapNode.Constant));
          }
+         mDBFacade.steamAchievementsHelper.unlockFinishFloorWithThreeTeammatesDowned(mRemoteHeroes);
+         mDBFacade.steamAchievementsHelper.addValueToStatInt(1,"DUNGEONS_COMPLETED");
+         var _loc3_:Map = mDBFacade.dbAccountInfo.friendInfos;
+         mDBFacade.steamAchievementsHelper.finishDungeonWithFriends(mRemoteHeroes,_loc3_);
       }
       
       override public function defeat() : void
       {
          logDungeonCompletion();
-         var _loc1_:uint = getCurrentFloorNum();
-         if(mDBFacade.steamAchievementsManager)
-         {
-            mDBFacade.steamAchievementsManager.setHighestFloorAchieved(mMapNode,_loc1_);
-         }
          super.defeat();
       }
       
@@ -313,9 +460,9 @@ package DistributedObjects
             _loc2_ = new SoundLoaderContext(1000,true);
             _loc2_.checkPolicyFile = true;
             mBgMusic.load(_loc3_,_loc2_);
-            mBgMusic.addEventListener("complete",onBgMusicLoaded);
-            mBgMusic.addEventListener("ioError",onBgMusicError);
-            mBgMusic.addEventListener("securityError",onBgMusicError);
+            EventListeners.add(mBgMusic,"complete",onBgMusicLoaded);
+            EventListeners.add(mBgMusic,"ioError",onBgMusicError);
+            EventListeners.add(mBgMusic,"securityError",onBgMusicError);
          }
       }
       
@@ -375,47 +522,231 @@ package DistributedObjects
          mCurrentFloorNum = value;
       }
       
-      private function playIntroMovie() : void
+      private function loadIntroMovie() : void
       {
          if(mIntroMovieSwfFilePath && mIntroMovieAssetClassName)
          {
             mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(mIntroMovieSwfFilePath),function(param1:SwfAsset):void
             {
-               var onKeyDown:Function;
-               var asset:SwfAsset = param1;
-               var movieClass:Class = asset.getClass(mIntroMovieAssetClassName);
-               var movie:MovieClip = new movieClass();
-               var stopMovie:Function = function(param1:Event = null):void
+               mIntroMovieAsset = param1;
+               if(mEntryStarted)
                {
-                  if(movie.currentFrame == movie.totalFrames || param1 == null)
-                  {
-                     mDBFacade.stageRef.removeEventListener("keyDown",onKeyDown);
-                     mDBFacade.removeRootDisplayObject(movie);
-                     movie.removeEventListener("enterFrame",stopMovie);
-                     mEventComponent.dispatchEvent(new Event("REQUEST_ENTRY_PLAYER_HERO"));
-                     movie.stop();
-                     mDBFacade.assetRepository.removeFromCache(asset);
-                     movie = null;
-                  }
-               };
-               mDBFacade.addRootDisplayObject(movie);
-               movie.addEventListener("enterFrame",stopMovie);
-               movie.gotoAndPlay(1);
-               movie.x = 972.5;
-               movie.y = 320;
-               onKeyDown = function(param1:KeyboardEvent):void
-               {
-                  if(param1.keyCode == 27)
-                  {
-                     stopMovie();
-                  }
-               };
-               mDBFacade.stageRef.addEventListener("keyDown",onKeyDown);
+                  playIntroMovie();
+               }
             });
          }
-         else
+      }
+      
+      private function playIntroMovie() : void
+      {
+         var movieClass:Class;
+         var movie:MovieClip;
+         var dbSoundManager:DBSoundManager;
+         var volume:SoundTransform;
+         var stopMovie:Function;
+         var onKeyDown:Function;
+         var asset:SwfAsset = mIntroMovieAsset;
+         if(asset == null)
          {
-            mEventComponent.dispatchEvent(new Event("REQUEST_ENTRY_PLAYER_HERO"));
+            return;
+         }
+         mIntroMovieAsset = null;
+         movieClass = asset.getClass(mIntroMovieAssetClassName);
+         movie = new movieClass();
+         dbSoundManager = mDBFacade.soundManager as DBSoundManager;
+         dbSoundManager.applyStoredVolumeSettings();
+         volume = new SoundTransform(dbSoundManager.getDampenedVolumeScaleForCategory("music"));
+         stopMovie = function(param1:Event = null):void
+         {
+            if(movie == null)
+            {
+               return;
+            }
+            if(movie.currentFrame == movie.totalFrames || param1 == null)
+            {
+               EventListeners.remove(mDBFacade.stageRef,"keyDown",onKeyDown);
+               mDBFacade.removeRootDisplayObject(movie);
+               EventListeners.remove(movie,"enterFrame",stopMovie);
+               destroyIntroOverlay();
+               destroyIntroVideo();
+               if(mViewHold)
+               {
+                  mViewHold.introEnded();
+               }
+               requestEntryHero();
+               movie.stop();
+               mDBFacade.assetRepository.removeFromCache(asset);
+               movie = null;
+            }
+         };
+         mIntroVideo = new CutsceneVideo(mDBFacade.stageRef,movie,asset.root.loaderInfo.frameRate,DBFacade.buildFullDownloadPath(mIntroMovieSwfFilePath.replace(/\.swf$/i,"_1920x1080.mp4")),volume);
+         mDBFacade.addRootDisplayObject(mIntroVideo.display);
+         mDBFacade.addRootDisplayObject(movie);
+         if(mViewHold)
+         {
+            mViewHold.introStarted();
+         }
+         EventListeners.add(movie,"enterFrame",stopMovie);
+         movie.x = 972.5;
+         movie.y = 320;
+         mIntroOverlay = new CutsceneOverlay(mDBFacade,stopMovie,false);
+         mDBFacade.addRootDisplayObject(mIntroOverlay.skipButton.root);
+         mDBFacade.menuNavigationController.pushNewLayer("BOSS_INTRO_CINEMATIC",stopMovie,mIntroOverlay.skipButton);
+         onKeyDown = function(param1:KeyboardEvent):void
+         {
+            if(param1.keyCode == 27)
+            {
+               stopMovie();
+            }
+         };
+         EventListeners.add(mDBFacade.stageRef,"keyDown",onKeyDown);
+      }
+      
+      private function destroyIntroOverlay() : void
+      {
+         if(mIntroOverlay == null)
+         {
+            return;
+         }
+         mDBFacade.menuNavigationController.removeLayer("BOSS_INTRO_CINEMATIC");
+         mDBFacade.removeRootDisplayObject(mIntroOverlay.skipButton.root);
+         mIntroOverlay.destroy();
+         mIntroOverlay = null;
+      }
+      
+      private function destroyIntroVideo() : void
+      {
+         if(mIntroVideo == null)
+         {
+            return;
+         }
+         mDBFacade.removeRootDisplayObject(mIntroVideo.display);
+         mIntroVideo.destroy();
+         mIntroVideo = null;
+      }
+      
+      private function queueEntryAtlases() : void
+      {
+         var _loc2_:AssetLoadingComponent = mDBFacade.assetLoadingComponent;
+         if(mEntryAtlasesQueued || _loc2_ == null)
+         {
+            return;
+         }
+         mEntryAtlasesQueued = true;
+         mEntryGeneration = _loc2_.floorGeneration;
+         var _loc1_:DistributedDungionArea = parentArea as DistributedDungionArea;
+         for each(var _loc3_:String in TrickleCacheLoader.starlingAtlasPaths(mDBFacade,_loc1_ ? _loc1_.mCacheNpc : null))
+         {
+            _loc2_.queueStarlingAssetsForPath(_loc3_);
+         }
+         TrickleCacheLoader.queueBossAtlases(mDBFacade,_loc1_ ? _loc1_.mCacheNpc : null);
+         queueEntryPropAtlases();
+      }
+      
+      private function queueEntryPropAtlases() : void
+      {
+         var _loc3_:AssetLoadingComponent = mDBFacade.assetLoadingComponent;
+         if(mEntryPropAtlasesQueued || !mEntryAtlasesQueued || !mFloorTilesRequested || _loc3_ == null)
+         {
+            return;
+         }
+         mEntryPropAtlasesQueued = true;
+         var _loc1_:DistributedDungionArea = parentArea as DistributedDungionArea;
+         var _loc4_:String = _loc3_.isEntryFloorPending ? null : _loc3_.requestedFloorBiome;
+         var _loc2_:Object = TrickleCacheLoader.starlingPropAtlasClassNames(mDBFacade,_loc1_ ? _loc1_.mCacheNpc : null,_loc4_);
+         for(var _loc5_:String in _loc2_)
+         {
+            _loc3_.queueStarlingAssetsForProps(_loc5_,_loc2_[_loc5_]);
+         }
+         releaseLastDungeonAtlases();
+      }
+      
+      private function releaseLastDungeonAtlases() : void
+      {
+         var _loc1_:DistributedDungionArea = null;
+         var _loc2_:AssetLoadingComponent = mDBFacade.assetLoadingComponent;
+         if(mEntryReleaseChecked || !mEntryPropAtlasesQueued || _loc2_ == null)
+         {
+            return;
+         }
+         if(_loc2_.isStarlingLoadPending)
+         {
+            if(mEntryReleaseEvents == null)
+            {
+               mEntryReleaseEvents = new EventComponent(mDBFacade);
+               mEntryReleaseEvents.addListener("StarlingAssetsReady",onEntryReleaseAssetsReady);
+            }
+            return;
+         }
+         mEntryReleaseChecked = true;
+         stopEntryReleaseEvents();
+         if(mDBFacade.mainStateMachine.currentState is LoadingScreenState)
+         {
+            _loc1_ = parentArea as DistributedDungionArea;
+            mPrewarm = LoadingPrewarm.startLoadingAndRelease(mDBFacade,_loc1_ != null ? _loc1_.mCacheNpc : null,mEntryGeneration);
+         }
+      }
+      
+      private function onEntryReleaseAssetsReady(e:Event) : void
+      {
+         releaseLastDungeonAtlases();
+      }
+      
+      private function stopEntryReleaseEvents() : void
+      {
+         if(mEntryReleaseEvents != null)
+         {
+            mEntryReleaseEvents.destroy();
+            mEntryReleaseEvents = null;
+         }
+      }
+      
+      private function requestEntryHero() : void
+      {
+         mHeroEntryWanted = true;
+         if(parentArea == null)
+         {
+            return;
+         }
+         if(!mFloorTilesRequested)
+         {
+            return;
+         }
+         var _loc1_:AssetLoadingComponent = mDBFacade.assetLoadingComponent;
+         if(_loc1_ != null && _loc1_.isStarlingLoadPending)
+         {
+            if(!mAwaitingStarlingAssets)
+            {
+               mAwaitingStarlingAssets = true;
+               mEventComponent.addListener("StarlingAssetsReady",onStarlingAssetsReady);
+            }
+            return;
+         }
+         releaseLastDungeonAtlases();
+         if(mPrewarm != null && mPrewarm.running)
+         {
+            mPrewarm.hold(requestEntryHero);
+            return;
+         }
+         mHeroEntryWanted = false;
+         BakeScheduler.floorLoaded();
+         mEventComponent.dispatchEvent(new Event("REQUEST_ENTRY_PLAYER_HERO"));
+      }
+      
+      private function onStarlingAssetsReady(e:Event) : void
+      {
+         mAwaitingStarlingAssets = false;
+         mEventComponent.removeListener("StarlingAssetsReady");
+         requestEntryHero();
+      }
+      
+      override public function SetParentArea(area:Area) : void
+      {
+         super.SetParentArea(area);
+         queueEntryAtlases();
+         if(mHeroEntryWanted)
+         {
+            requestEntryHero();
          }
       }
       
@@ -427,7 +758,7 @@ package DistributedObjects
       
       public function play_sound(sound:String) : void
       {
-         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath("Resources/Audio/soundEffects.swf"),sound,function(param1:SoundAsset):void
+         mAssetLoadingComponent.getSoundAsset(DBFacade.buildFullDownloadPath(DBGlobal.SFX_PATH),sound,function(param1:SoundAsset):void
          {
             mDBSoundComponent.playOneShot(param1,"sfx");
          });
@@ -445,10 +776,10 @@ package DistributedObjects
       
       public function tiles(tiles:Vector.<DungeonTileUsage>) : void
       {
-         var _loc3_:* = undefined;
-         var _loc4_:* = 0;
+         var _loc3_:Vector.<DungeonTileUsage> = undefined;
+         var _loc4_:uint = 0;
          var _loc2_:Boolean = false;
-         var _loc5_:* = 0;
+         var _loc5_:uint = 0;
          if(mPostGenerate)
          {
             _loc3_ = new Vector.<DungeonTileUsage>();
@@ -471,7 +802,7 @@ package DistributedObjects
                }
                _loc4_++;
             }
-            mDungeonFloorFactory.buildDungeonFloor(_loc3_,finishedBuildingTiles);
+            buildTiles(_loc3_,false);
          }
          mTileNetworkComponents = tiles;
       }
@@ -491,10 +822,29 @@ package DistributedObjects
          fillInEmptyTilesWithCollisionVolumes();
       }
       
+      private function buildTiles(tiles:Vector.<DungeonTileUsage>, clearGroundLayer:Boolean) : void
+      {
+         mDungeonFloorFactory.buildDungeonFloor(tiles,finishedBuildingTiles,clearGroundLayer);
+         if(tiles != null && tiles.length > 0)
+         {
+            onFloorTilesRequested();
+         }
+      }
+      
+      private function onFloorTilesRequested() : void
+      {
+         mFloorTilesRequested = true;
+         queueEntryPropAtlases();
+         if(mHeroEntryWanted)
+         {
+            requestEntryHero();
+         }
+      }
+      
       private function fillInEmptyTilesWithCollisionVolumes() : void
       {
-         var _loc9_:* = 0;
-         var _loc5_:* = 0;
+         var _loc9_:uint = 0;
+         var _loc5_:uint = 0;
          var _loc6_:Tile = null;
          var _loc2_:Number = NaN;
          var _loc1_:Number = NaN;
@@ -511,7 +861,7 @@ package DistributedObjects
             while(_loc5_ < 12)
             {
                _loc6_ = mTileGrid.getTileAtIndex(_loc5_,_loc9_);
-               if(_loc6_ == null)
+               if(_loc6_ == null || _loc6_.isGeneratedFiller)
                {
                   if(mTileGrid.getEmptyColliderAtIndex(_loc5_,_loc9_) == null)
                   {
@@ -522,7 +872,7 @@ package DistributedObjects
                      _loc3_ = 900 * _loc9_ - 900 * 0.5;
                      _loc4_ = new Vector3D(_loc11_,_loc3_);
                      _loc10_ = 0;
-                     _loc8_ = new RectangleNavCollider(mDBFacade,_loc6_,_loc7_,_loc10_,mB2World,900 * 0.5,900 * 0.5);
+                     _loc8_ = new RectangleNavCollider(mDBFacade,null,_loc7_,_loc10_,mB2World,900 * 0.5,900 * 0.5);
                      _loc8_.position = _loc4_;
                      mTileGrid.SetEmptyColliderAtIndex(_loc5_,_loc9_,_loc8_);
                   }
@@ -535,15 +885,24 @@ package DistributedObjects
       
       override public function destroy() : void
       {
-         var _loc2_:DooberGameObject = null;
+         var _loc3_:DooberGameObject = null;
          Logger.debug("destroy DistributedDungeonFloor " + id.toString());
+         if(mViewHold)
+         {
+            mViewHold.stop();
+            mViewHold = null;
+         }
          mEventComponent.dispatchEvent(new Event("DUNGEON_FLOOR_DESTROY"));
+         BakeScheduler.floorPurged();
+         stopEntryReleaseEvents();
+         LoadingPrewarm.cancelLoading();
+         mPrewarm = null;
          mActiveOwnerAvatar = null;
          if(mBgMusic)
          {
-            mBgMusic.removeEventListener("complete",onBgMusicLoaded);
-            mBgMusic.removeEventListener("ioError",onBgMusicError);
-            mBgMusic.removeEventListener("securityError",onBgMusicError);
+            EventListeners.remove(mBgMusic,"complete",onBgMusicLoaded);
+            EventListeners.remove(mBgMusic,"ioError",onBgMusicError);
+            EventListeners.remove(mBgMusic,"securityError",onBgMusicError);
             try
             {
                mBgMusic.close();
@@ -558,6 +917,13 @@ package DistributedObjects
             mDBSoundComponent.destroy();
             mDBSoundComponent = null;
          }
+         if(mIntroMovieAsset)
+         {
+            mDBFacade.assetRepository.removeFromCache(mIntroMovieAsset);
+            mIntroMovieAsset = null;
+         }
+         destroyIntroOverlay();
+         destroyIntroVideo();
          if(mAssetLoadingComponent)
          {
             mAssetLoadingComponent.destroy();
@@ -565,28 +931,28 @@ package DistributedObjects
          }
          mDungeonFloorFactory.destroy();
          mDungeonFloorFactory = null;
-         var _loc6_:Array = [];
-         var _loc3_:IMapIterator = mRemoteHeroes.iterator() as IMapIterator;
-         while(_loc3_.hasNext())
+         var _loc7_:Array = [];
+         var _loc4_:IMapIterator = mRemoteHeroes.iterator() as IMapIterator;
+         while(_loc4_.hasNext())
          {
-            _loc6_.push(_loc3_.next());
+            _loc7_.push(_loc4_.next());
          }
-         for each(var _loc7_:HeroGameObject in _loc6_)
+         for each(var _loc8_:HeroGameObject in _loc7_)
          {
-            if(_loc7_)
+            if(_loc8_)
             {
-               _loc7_.destroy();
+               _loc8_.destroy();
             }
          }
          mRemoteHeroes.clear();
          mRemoteHeroes = null;
-         var _loc5_:Array = [];
-         var _loc4_:IMapIterator = mRemoteActors.iterator() as IMapIterator;
-         while(_loc4_.hasNext())
+         var _loc6_:Array = [];
+         var _loc5_:IMapIterator = mRemoteActors.iterator() as IMapIterator;
+         while(_loc5_.hasNext())
          {
-            _loc5_.push(_loc4_.next());
+            _loc6_.push(_loc5_.next());
          }
-         for each(var _loc1_:ActorGameObject in _loc5_)
+         for each(var _loc1_:ActorGameObject in _loc6_)
          {
             if(_loc1_)
             {
@@ -595,23 +961,34 @@ package DistributedObjects
          }
          mRemoteActors.clear();
          mRemoteActors = null;
-         for(var _loc8_:Object in mDoobers)
+         for(var _loc11_:Object in mDoobers)
          {
-            _loc2_ = _loc8_ as DooberGameObject;
-            if(_loc2_ && !_loc2_.isDestroyed)
+            _loc3_ = _loc11_ as DooberGameObject;
+            if(_loc3_ && !_loc3_.isDestroyed)
             {
-               _loc2_.destroy();
+               _loc3_.destroy();
             }
          }
          mDoobers = null;
+         var _loc2_:Array = [];
+         for(var _loc9_:Object in mProjectiles)
+         {
+            _loc2_.push(_loc9_);
+         }
+         for each(var _loc10_:ProjectileGameObject in _loc2_)
+         {
+            if(_loc10_ && !_loc10_.isDestroyed)
+            {
+               _loc10_.destroyForFloorShutdown();
+            }
+         }
+         mProjectiles = null;
          mFloorObjectsAwaitingDungeonFloor.clear();
          mFloorObjectsAwaitingDungeonFloor = null;
          mTileGrid.destroy();
          mTileGrid = null;
          mEffectManager.destroy();
          mEffectManager = null;
-         astarGrids.destroy();
-         astarGrids = null;
          super.destroy();
       }
       
@@ -697,7 +1074,7 @@ package DistributedObjects
       
       public function GetTileIdWhichAvatarIsOn() : String
       {
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          if(mTileNetworkComponents.length == 0)
          {
             Logger.error("Invalid tile location in getTileNetworkComponentAtLocation");
@@ -746,7 +1123,7 @@ package DistributedObjects
       
       public function isTavern() : Boolean
       {
-         return mMapNode.NodeType == "TAVERN";
+         return mMapNode.NodeType == GMMapNode.TAVERN_NODE_TYPE;
       }
    }
 }

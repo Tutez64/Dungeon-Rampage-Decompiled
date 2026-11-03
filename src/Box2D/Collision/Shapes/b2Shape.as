@@ -11,70 +11,91 @@ package Box2D.Collision.Shapes
    import Box2D.Common.Math.b2Transform;
    import Box2D.Common.Math.b2Vec2;
    import Box2D.Common.b2Settings;
-   import Box2D.Common.b2internal;
-   
-   use namespace b2internal;
+   import flash.Boot;
    
    public class b2Shape
    {
       
-      b2internal static const e_unknownShape:int = -1;
+      public static var e_hitCollide:int = 1;
       
-      b2internal static const e_circleShape:int = 0;
+      public static var e_missCollide:int = 0;
       
-      b2internal static const e_polygonShape:int = 1;
+      public static var e_startsInsideCollide:int = -1;
       
-      b2internal static const e_edgeShape:int = 2;
+      public var m_type:int;
       
-      b2internal static const e_shapeTypeCount:int = 3;
-      
-      public static const e_hitCollide:int = 1;
-      
-      public static const e_missCollide:int = 0;
-      
-      public static const e_startsInsideCollide:int = -1;
-      
-      b2internal var m_type:int;
-      
-      b2internal var m_radius:Number;
+      public var m_radius:Number;
       
       public function b2Shape()
       {
-         super();
-         this.m_type = b2internal::e_unknownShape;
-         this.m_radius = b2Settings.b2_linearSlop;
+         if(Boot.skip_constructor)
+         {
+            return;
+         }
+         m_type = 0;
+         m_radius = b2Settings.b2_linearSlop;
       }
       
-      public static function TestOverlap(shape1:b2Shape, transform1:b2Transform, shape2:b2Shape, transform2:b2Transform) : Boolean
+      public static function testOverlap(shape1:b2Shape, transform1:b2Transform, shape2:b2Shape, transform2:b2Transform) : Boolean
       {
          var _loc5_:b2DistanceInput = new b2DistanceInput();
          _loc5_.proxyA = new b2DistanceProxy();
-         _loc5_.proxyA.Set(shape1);
+         _loc5_.proxyA.set(shape1);
          _loc5_.proxyB = new b2DistanceProxy();
-         _loc5_.proxyB.Set(shape2);
+         _loc5_.proxyB.set(shape2);
          _loc5_.transformA = transform1;
          _loc5_.transformB = transform2;
          _loc5_.useRadii = true;
          var _loc6_:b2SimplexCache = new b2SimplexCache();
          _loc6_.count = 0;
          var _loc7_:b2DistanceOutput = new b2DistanceOutput();
-         b2Distance.Distance(_loc7_,_loc6_,_loc5_);
-         return _loc7_.distance < 10 * Number.MIN_VALUE;
+         b2Distance.distance(_loc7_,_loc6_,_loc5_);
+         return _loc7_.distance < 10 * Number(Number.MIN_VALUE);
       }
       
-      public function Copy() : b2Shape
+      public static function TestOverlap(shape1:b2Shape, transform1:b2Transform, shape2:b2Shape, transform2:b2Transform) : Boolean
       {
-         return null;
+         return b2Shape.testOverlap(shape1,transform1,shape2,transform2);
       }
       
-      public function Set(other:b2Shape) : void
+      public function testPoint(xf:b2Transform, p:b2Vec2) : Boolean
       {
-         this.m_radius = other.m_radius;
+         return TestPoint(xf,p);
       }
       
-      public function GetType() : int
+      public function set(other:b2Shape) : void
       {
-         return this.m_type;
+         Set(other);
+      }
+      
+      public function rayCast(output:b2RayCastOutput, input:b2RayCastInput, transform:b2Transform) : Boolean
+      {
+         return RayCast(output,input,transform);
+      }
+      
+      public function getType() : int
+      {
+         return GetType();
+      }
+      
+      public function copy() : b2Shape
+      {
+         return Copy();
+      }
+      
+      public function computeSubmergedArea(normal:b2Vec2, offset:Number, xf:b2Transform, c:b2Vec2) : Number
+      {
+         return ComputeSubmergedArea(normal,offset,xf,c);
+      }
+      
+      public function computeMass(massData:b2MassData, density:Number) : void
+      {
+         ComputeMass(massData,density);
+      }
+      
+      public function computeAABB(aabb:b2AABB, xf:b2Transform) : void
+      {
+         ComputeAABB(aabb,xf);
       }
       
       public function TestPoint(xf:b2Transform, p:b2Vec2) : Boolean
@@ -82,22 +103,37 @@ package Box2D.Collision.Shapes
          return false;
       }
       
+      public function Set(other:b2Shape) : void
+      {
+         m_radius = other.m_radius;
+      }
+      
       public function RayCast(output:b2RayCastOutput, input:b2RayCastInput, transform:b2Transform) : Boolean
       {
          return false;
       }
       
-      public function ComputeAABB(aabb:b2AABB, xf:b2Transform) : void
+      public function GetType() : int
       {
+         return m_type;
+      }
+      
+      public function Copy() : b2Shape
+      {
+         return null;
+      }
+      
+      public function ComputeSubmergedArea(normal:b2Vec2, offset:Number, xf:b2Transform, c:b2Vec2) : Number
+      {
+         return 0;
       }
       
       public function ComputeMass(massData:b2MassData, density:Number) : void
       {
       }
       
-      public function ComputeSubmergedArea(normal:b2Vec2, offset:Number, xf:b2Transform, c:b2Vec2) : Number
+      public function ComputeAABB(aabb:b2AABB, xf:b2Transform) : void
       {
-         return 0;
       }
    }
 }

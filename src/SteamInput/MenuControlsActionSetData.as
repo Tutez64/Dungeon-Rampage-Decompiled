@@ -21,6 +21,12 @@ package SteamInput
       
       public static const returnActionName:String = "menu_return";
       
+      public static const previousCategoryActionName:String = "menu_previous_category";
+      
+      public static const nextCategoryActionName:String = "menu_next_category";
+      
+      public static const optionsMenuActionName:String = "menu_options";
+      
       public function MenuControlsActionSetData()
       {
          super();
@@ -43,6 +49,9 @@ package SteamInput
          _loc1_.push("menu_select");
          _loc1_.push("menu_cancel");
          _loc1_.push("menu_return");
+         _loc1_.push("menu_previous_category");
+         _loc1_.push("menu_next_category");
+         _loc1_.push("menu_options");
          return _loc1_;
       }
    }

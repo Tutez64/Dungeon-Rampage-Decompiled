@@ -11,12 +11,14 @@ package UI.Tavern
    import Brain.UI.UIObject;
    import Brain.UI.UIProgressBar;
    import Brain.Utils.ColorMatrix;
+   import Brain.Utils.TextUtil;
    import Brain.WorkLoop.LogicalWorkComponent;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import DBGlobals.DBGlobal;
    import Facade.DBFacade;
    import Facade.GameMasterLocale;
    import Facade.Locale;
-   import FacebookAPI.DBFacebookBragFeedPost;
    import GameMasterDictionary.GMHero;
    import GameMasterDictionary.GMOffer;
    import GameMasterDictionary.GMSkin;
@@ -26,8 +28,6 @@ package UI.Tavern
    import flash.display.MovieClip;
    import flash.geom.Point;
    import flash.text.TextField;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class UITavern
    {
@@ -191,18 +191,18 @@ package UI.Tavern
          mDefenseStars.push(mStoryInfoClip.defense_star_0,mStoryInfoClip.defense_star_1,mStoryInfoClip.defense_star_2,mStoryInfoClip.defense_star_3,mStoryInfoClip.defense_star_4);
          mSpeedStars = new Vector.<MovieClip>();
          mSpeedStars.push(mStoryInfoClip.speed_star_0,mStoryInfoClip.speed_star_1,mStoryInfoClip.speed_star_2,mStoryInfoClip.speed_star_3,mStoryInfoClip.speed_star_4);
-         mStoryInfoClip.likes_text.text = Locale.getString("TAVERN_LIKES_LABEL");
-         mStoryInfoClip.dislikes_text.text = Locale.getString("TAVERN_DISLIKES_LABEL");
-         mStoryInfoClip.attack_label.text = Locale.getString("TAVERN_ATTACK_LABEL");
-         mStoryInfoClip.defense_label.text = Locale.getString("TAVERN_DEFENSE_LABEL");
-         mStoryInfoClip.speed_label.text = Locale.getString("TAVERN_SPEED_LABEL");
+         Locale.setText(mStoryInfoClip.likes_text,"TAVERN_LIKES_LABEL");
+         Locale.setText(mStoryInfoClip.dislikes_text,"TAVERN_DISLIKES_LABEL");
+         Locale.setText(mStoryInfoClip.attack_label,"TAVERN_ATTACK_LABEL");
+         Locale.setText(mStoryInfoClip.defense_label,"TAVERN_DEFENSE_LABEL");
+         Locale.setText(mStoryInfoClip.speed_label,"TAVERN_SPEED_LABEL");
          mCharacterInfoClip = mTavernInfoClip.character_info;
          mCharacterInfoClip.visible = true;
-         mCharacterInfoClip.weapon_types_text.text = Locale.getString("TAVERN_USABLE_WEAPON_TYPES_LABEL");
+         Locale.setText(mCharacterInfoClip.weapon_types_text,"TAVERN_USABLE_WEAPON_TYPES_LABEL");
          mSkinInfoClip = mRootMovieClip.UI_town_tavern_body.UI_town_tavern_skin;
          mSkinNameLabel = mSkinInfoClip.skin_name_text;
          mSkinNotAvailableLabel = mSkinInfoClip.label_not_available;
-         mSkinNotAvailableLabel.text = Locale.getString("TAVERN_SKIN_NOT_AVAILABLE");
+         Locale.setText(mSkinNotAvailableLabel,"TAVERN_SKIN_NOT_AVAILABLE");
          mSkinNotAvailableLabel.mouseEnabled = false;
          mSkinNotAvailableLabel.visible = false;
          mSkinVector = new Vector.<UITavernSkinButton>();
@@ -241,16 +241,18 @@ package UI.Tavern
          mRecruitButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
          mRecruitButton.visible = false;
          mHeroRequiredForSkinPurchase = mSkinInfoClip.hero_required_label;
-         mHeroRequiredForSkinPurchase.hero_label.text = Locale.getString("PURCHASE_HERO_BEFORE_BUYING_SYTLE_TAVERN_LABEL");
+         Locale.setText(mHeroRequiredForSkinPurchase.hero_label,"PURCHASE_HERO_BEFORE_BUYING_SYTLE_TAVERN_LABEL");
          mSaleLabel = mTavernInfoClip.sale_label;
          mSaleLabel.visible = false;
          mXPParentObject = new UIObject(mDBFacade,mTavernInfoClip.character_info.UI_XP);
          mXPBar = new UIProgressBar(mDBFacade,mTavernInfoClip.character_info.UI_XP.xp_bar);
+         if(mTavernInfoClip.character_info.UI_XP.xp_bar_delta)
+         {
+            mTavernInfoClip.character_info.UI_XP.xp_bar_delta.visible = false;
+         }
          mXPText = mTavernInfoClip.character_info.UI_XP.xp_points;
-         mXPText.scaleY = mXPText.scaleX = 1.8;
-         mXPText.x = 80;
-         mXPText.y = 25;
          mXPParentObject.setTooltip(mXPText);
+         mXPParentObject.lockTooltipToParent(mTavernInfoClip.character_info.UI_XP);
          mXPParentObject.tooltipDelay = 0;
          mXPBar.value = 0;
          mXPLevelText = mTavernInfoClip.character_info.UI_XP.xp_level;
@@ -316,14 +318,7 @@ package UI.Tavern
             mActiveAvatar = mDBFacade.dbAccountInfo.inventoryInfo.avatars.itemFor(keys[0]);
          }
          avatarStartIndex = getActiveAvatarIndex();
-         if(mHeroIds.length <= mHeroSlots.length)
-         {
-            mSelectorRightScroll.visible = false;
-         }
-         if(mAvatarSelectorStartIndex == 0)
-         {
-            mSelectorLeftScroll.visible = false;
-         }
+         updateSelectorScrollButtons();
          mCurrentChosenIndex = avatarStartIndex;
          populateAvatarSelector();
          populateAvatarInfo(avatarStartIndex);
@@ -331,27 +326,25 @@ package UI.Tavern
       
       private function getActiveAvatarIndex() : uint
       {
-         var _loc2_:int = 0;
-         var _loc1_:uint = 0;
+         var _loc1_:int = 0;
          if(mActiveAvatar)
          {
-            _loc2_ = 0;
-            while(_loc2_ < mHeroIds.length)
+            _loc1_ = 0;
+            while(_loc1_ < mHeroIds.length)
             {
-               if(mHeroIds[_loc2_] == mActiveAvatar.avatarType)
+               if(mHeroIds[_loc1_] == mActiveAvatar.avatarType)
                {
-                  _loc1_ = uint(_loc2_);
-                  if(_loc2_ >= mHeroSlots.length)
+                  if(_loc1_ < mAvatarSelectorStartIndex || _loc1_ >= mAvatarSelectorStartIndex + mHeroSlots.length)
                   {
-                     mAvatarSelectorStartIndex = _loc2_ - mHeroSlots.length + 1;
-                     _loc1_ = mHeroSlots.length - 1;
+                     mAvatarSelectorStartIndex = _loc1_ < mHeroSlots.length ? 0 : _loc1_ - mHeroSlots.length + 1;
                   }
-                  break;
+                  return _loc1_ - mAvatarSelectorStartIndex;
                }
-               _loc2_++;
+               _loc1_++;
             }
          }
-         return _loc1_;
+         mAvatarSelectorStartIndex = 0;
+         return 0;
       }
       
       private function loadHeroOffers() : void
@@ -425,7 +418,7 @@ package UI.Tavern
       {
          if(mDBFacade.featureFlags.getFlagValue("want-town-animations"))
          {
-            UITownTweens.avatarFadeInTweenSequence(mHeroPic);
+            UITownTweens.avatarFadeInTweenSequence(mHeroPic,mDBFacade);
             mTownHeader.rootMovieClip.visible = false;
             mLogicalWorkComponent.doLater(0.20833333333333334,function(param1:GameClock):void
             {
@@ -462,6 +455,7 @@ package UI.Tavern
          }
          mActiveAvatar = mDBFacade.dbAccountInfo.activeAvatarInfo;
          var _loc1_:uint = getActiveAvatarIndex();
+         updateSelectorScrollButtons();
          mCurrentChosenIndex = _loc1_;
          if(mHeroSlots[mCurrentChosenIndex].root.chosen)
          {
@@ -488,6 +482,7 @@ package UI.Tavern
             }
             _loc1_++;
          }
+         updateChosenMarkers();
       }
       
       private function loadAvatarHolderAtPosition(heroIndex:int, vectorIndex:int) : void
@@ -500,13 +495,13 @@ package UI.Tavern
          var avatarInfo:AvatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(gmHero.Id);
          if(avatarInfo == null)
          {
-            mHeroSlots[heroIndex].root.xp_star.visible = false;
+            mHeroSlots[vectorIndex].root.xp_star.visible = false;
             gmSkin = mDBFacade.gameMaster.getSkinByConstant(gmHero.DefaultSkin);
          }
          else
          {
-            mHeroSlots[heroIndex].root.xp_star.visible = true;
-            mHeroSlots[heroIndex].root.xp_star.xp_text.text = avatarInfo.level;
+            mHeroSlots[vectorIndex].root.xp_star.visible = true;
+            TextUtil.setText(mHeroSlots[vectorIndex].root.xp_star.xp_text,String(avatarInfo.cloutLevel));
             gmSkin = mDBFacade.gameMaster.getSkinByType(avatarInfo.skinId);
          }
          iconName = gmSkin.IconName;
@@ -514,13 +509,18 @@ package UI.Tavern
          mHeroSlots[vectorIndex].root.coming_soon.visible = false;
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(swfFilePath),function(param1:SwfAsset):void
          {
-            var _loc3_:ColorMatrix = null;
-            var _loc4_:Class = param1.getClass(iconName);
-            if(_loc4_ == null)
+            var _loc4_:ColorMatrix = null;
+            var _loc3_:int = vectorIndex + mAvatarSelectorStartIndex;
+            if(_loc3_ >= mHeroIds.length || mHeroIds[_loc3_] != avatarID)
             {
                return;
             }
-            var _loc2_:MovieClip = new _loc4_();
+            var _loc5_:Class = param1.getClass(iconName);
+            if(_loc5_ == null)
+            {
+               return;
+            }
+            var _loc2_:MovieClip = new _loc5_();
             _loc2_.scaleX *= 0.86;
             _loc2_.scaleY *= 0.86;
             if(mHeroSlots[vectorIndex].root.avatar_icon.numChildren > 0)
@@ -535,11 +535,11 @@ package UI.Tavern
             }
             else
             {
-               _loc3_ = new ColorMatrix();
-               _loc3_.adjustSaturation(0.1);
-               _loc3_.adjustBrightness(-64);
-               _loc3_.adjustContrast(-0.5);
-               mHeroSlots[vectorIndex].root.avatar_icon.filters = [_loc3_.filter];
+               _loc4_ = new ColorMatrix();
+               _loc4_.adjustSaturation(0.1);
+               _loc4_.adjustBrightness(-64);
+               _loc4_.adjustContrast(-0.5);
+               mHeroSlots[vectorIndex].root.avatar_icon.filters = [_loc4_.filter];
             }
          });
       }
@@ -558,9 +558,42 @@ package UI.Tavern
          handleScaledSlotIndex(-1);
       }
       
+      public function selectPreviousHero() : void
+      {
+         selectAdjacentHero(-1);
+      }
+      
+      public function selectNextHero() : void
+      {
+         selectAdjacentHero(1);
+      }
+      
+      private function selectAdjacentHero(direction:int) : void
+      {
+         if(mHeroIds.length == 0)
+         {
+            return;
+         }
+         var _loc2_:int = mAvatarSelectorStartIndex + mCurrentChosenIndex;
+         _loc2_ = (_loc2_ + direction + mHeroIds.length) % mHeroIds.length;
+         if(_loc2_ < mAvatarSelectorStartIndex)
+         {
+            avatarSelectorStartIndex = _loc2_;
+         }
+         else if(_loc2_ >= mAvatarSelectorStartIndex + mHeroSlots.length)
+         {
+            avatarSelectorStartIndex = _loc2_ - mHeroSlots.length + 1;
+         }
+         populateAvatarInfo(_loc2_ - mAvatarSelectorStartIndex);
+         if(mSkinVector.length > 0 && mSkinVector[0].canBeFocused())
+         {
+            mDBFacade.menuNavigationController.setFocusedUiObject(mSkinVector[0]);
+         }
+      }
+      
       private function scrollSkins(scrollAmount:int) : void
       {
-         var _loc3_:GMHero = mDBFacade.gameMaster.heroById.itemFor(mHeroIds[mCurrentChosenIndex]);
+         var _loc3_:GMHero = mDBFacade.gameMaster.heroById.itemFor(mHeroIds[mCurrentChosenIndex + mAvatarSelectorStartIndex]);
          var _loc2_:Vector.<GMSkin> = this.getSkinsToDisplay(_loc3_);
          var _loc4_:uint = mSkinStartIndex + scrollAmount;
          if(_loc4_ >= 0 && _loc4_ + mSkinVector.length <= _loc2_.length)
@@ -596,12 +629,12 @@ package UI.Tavern
          }
          var _loc3_:GMHero = mDBFacade.gameMaster.heroById.itemFor(mHeroIds[index]);
          chooseThisHero(_loc3_.Id,index - mAvatarSelectorStartIndex);
-         mTavernInfoClip.avatar_name_text.text = GameMasterLocale.getGameMasterSubString("SKIN_NAME",_loc3_.Constant).toUpperCase();
+         TextUtil.setText(mTavernInfoClip.avatar_name_text,GameMasterLocale.getGameMasterSubString("SKIN_NAME",_loc3_.Constant).toUpperCase());
          var _loc2_:AvatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(_loc3_.Id);
          if(_loc2_ != null)
          {
-            setXP(_loc2_.experience,_loc3_);
-            mDBFacade.steamAchievementsManager.setHeroLevelStat(_loc2_.level,_loc2_.gmHero);
+            setXP(_loc2_.experience,_loc2_.mAscensionLevel,_loc3_);
+            mDBFacade.steamAchievementsHelper.updateHeroLevelStat(_loc2_.gmHero.Constant,_loc2_.cloutLevel,_loc2_.mAscensionLevel);
          }
          mXPParentObject.visible = _loc2_ != null;
          populateWeaponIcons(index);
@@ -613,7 +646,7 @@ package UI.Tavern
       
       private function populateHeroStars(gmHero:GMHero) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          _loc2_ = 0;
          while(_loc2_ < mAttackStars.length)
          {
@@ -633,8 +666,15 @@ package UI.Tavern
          mSkinNotAvailableLabel.visible = false;
          mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath(gmSkin.PortraitName),function(param1:SwfAsset):void
          {
-            var _loc3_:Class = param1.getClass(gmSkin.CardName);
-            var _loc4_:MovieClip = new _loc3_();
+            var _loc5_:Class = param1.getClass(gmSkin.BackgroundClassName);
+            var _loc3_:Class = param1.getClass(gmSkin.PortraitClassName);
+            if(_loc5_ == null || _loc3_ == null)
+            {
+               return;
+            }
+            var _loc4_:MovieClip = new MovieClip();
+            _loc4_.addChild(new _loc5_());
+            _loc4_.addChild(new _loc3_());
             var _loc2_:MovieClipRenderController = new MovieClipRenderController(mDBFacade,_loc4_);
             _loc2_.play();
             if(mHeroPic.numChildren > 0)
@@ -662,7 +702,7 @@ package UI.Tavern
                setupBuyButtonWithSkin(gmSkin,false);
             }
          }
-         mSkinNameLabel.text = GameMasterLocale.getGameMasterSubString("SKIN_NAME",gmSkin.Constant).toUpperCase();
+         TextUtil.setText(mSkinNameLabel,GameMasterLocale.getGameMasterSubString("SKIN_NAME",gmSkin.Constant).toUpperCase());
          setUpSkinSelector();
       }
       
@@ -715,7 +755,7 @@ package UI.Tavern
                      comingSoonText += Math.floor(hoursRemaining).toString() + Locale.getString("SKIN_MINS_LEFT");
                   }
                }
-               mSkinNotAvailableLabel.text = comingSoonText;
+               setSkinStatusText(comingSoonText);
                return;
             }
             if(offer.EndDate && offer.EndDate.getTime() <= nowTime)
@@ -723,7 +763,7 @@ package UI.Tavern
                mBuyButton.visible = false;
                mHeroRequiredForSkinPurchase.visible = false;
                mSkinNotAvailableLabel.visible = true;
-               mSkinNotAvailableLabel.text = Locale.getString("TAVERN_SKIN_SOLD_OUT");
+               setSkinStatusText(Locale.getString("TAVERN_SKIN_SOLD_OUT"));
                return;
             }
          }
@@ -732,24 +772,24 @@ package UI.Tavern
             mBuyButton.visible = false;
             mHeroRequiredForSkinPurchase.visible = false;
             mSkinNotAvailableLabel.visible = true;
-            mSkinNotAvailableLabel.text = Locale.getString("TAVERN_SKIN_NOT_AVAILABLE");
+            setSkinStatusText(Locale.getString("TAVERN_SKIN_NOT_AVAILABLE"));
             return;
          }
          mBuyButton.visible = true;
          mBuyButton.enabled = true;
-         mBuyButton.label.text = Locale.getString("SKIN_BUY_BUTTON_BUY_TEXT");
+         Locale.setText(mBuyButton.label,"SKIN_BUY_BUTTON_BUY_TEXT");
          saleOffer = offer.isOnSaleNow;
          currentOffer = saleOffer ? saleOffer : offer;
          mBuyButton.root.cost_text.visible = true;
-         mBuyButton.root.cost_text.text = currentOffer.Price;
-         mBuyButton.root.cash_icon.visible = currentOffer.CurrencyType == "PREMIUM";
-         mBuyButton.root.coin_icon.visible = currentOffer.CurrencyType == "BASIC";
-         mBuyButton.root.dlc_cash_icon.visible = currentOffer.CurrencyType == "DLC";
+         TextUtil.setText(mBuyButton.root.cost_text,String(currentOffer.Price));
+         mBuyButton.root.cash_icon.visible = currentOffer.CurrencyType == GMOffer.PREMIUM_CURRENCY;
+         mBuyButton.root.coin_icon.visible = currentOffer.CurrencyType == GMOffer.BASIC_CURRENCY;
+         mBuyButton.root.dlc_cash_icon.visible = currentOffer.CurrencyType == GMOffer.DLC_CURRENCY;
          mBuyButton.releaseCallback = function():void
          {
             buySkin(gmSkin.Id);
          };
-         if(currentOffer.CurrencyType == "DLC")
+         if(currentOffer.CurrencyType == GMOffer.DLC_CURRENCY)
          {
             mBuyButton.visible = true;
             mBuyButtonCoin.visible = false;
@@ -757,9 +797,9 @@ package UI.Tavern
             mSkinInfoClip.label_or.visible = false;
             mRecruitButton.visible = false;
             mBuyButton.root.cost_text.visible = false;
-            mBuyButton.root.cash_icon.visible = currentOffer.CurrencyType == "PREMIUM";
-            mBuyButton.root.coin_icon.visible = currentOffer.CurrencyType == "BASIC";
-            mBuyButton.root.dlc_cash_icon.visible = currentOffer.CurrencyType == "DLC";
+            mBuyButton.root.cash_icon.visible = currentOffer.CurrencyType == GMOffer.PREMIUM_CURRENCY;
+            mBuyButton.root.coin_icon.visible = currentOffer.CurrencyType == GMOffer.BASIC_CURRENCY;
+            mBuyButton.root.dlc_cash_icon.visible = currentOffer.CurrencyType == GMOffer.DLC_CURRENCY;
             mBuyButton.releaseCallback = function():void
             {
                mDBFacade.overlaySteamBasedOnAppId(offer.SteamAppId);
@@ -777,8 +817,14 @@ package UI.Tavern
          }
          if(offer && offer.SaleStartDate && offer.SaleEndDate && offer.SaleStartDate.getTime() <= nowTime && offer.SaleEndDate.getTime() > nowTime)
          {
-            mBuyButton.label.text = Locale.getString("TAVERN_SKIN_ON_SALE");
+            Locale.setText(mBuyButton.label,"TAVERN_SKIN_ON_SALE");
          }
+      }
+      
+      private function setSkinStatusText(text:String) : void
+      {
+         TextUtil.setText(mSkinNotAvailableLabel,text,1.55);
+         TextUtil.fitToField(mSkinNotAvailableLabel);
       }
       
       private function setupBuyButtonForHero(gmHero:GMHero) : void
@@ -792,7 +838,7 @@ package UI.Tavern
          mSkinNotAvailableLabel.visible = false;
          mBuyButton.visible = true;
          mBuyButton.enabled = true;
-         mBuyButton.label.text = Locale.getString("TAVERN_BUY_HERO_BUTTON_TEXT");
+         Locale.setText(mBuyButton.label,"TAVERN_BUY_HERO_BUTTON_TEXT");
          offer = mHeroOffers.itemFor(gmHero.Id);
          saleOffer = offer.isOnSaleNow;
          coinOffer = offer.CoinOffer;
@@ -816,8 +862,8 @@ package UI.Tavern
             mBuyButtonCash.visible = true;
             mSkinInfoClip.label_or.visible = true;
             mRecruitButton.visible = false;
-            mBuyButtonCash.label.text = currentOffer.Price.toString();
-            mBuyButtonCoin.label.text = currentCoinOffer.Price.toString();
+            TextUtil.setText(mBuyButtonCash.label,currentOffer.Price.toString());
+            TextUtil.setText(mBuyButtonCoin.label,currentCoinOffer.Price.toString());
             mBuyButtonCash.releaseCallback = function():void
             {
                buyThisHero(currentOffer,mCurrentChosenIndex);
@@ -835,10 +881,10 @@ package UI.Tavern
             mSkinInfoClip.label_or.visible = false;
             mRecruitButton.visible = false;
             mBuyButton.root.cost_text.visible = true;
-            mBuyButton.root.cost_text.text = currentOffer.Price.toString();
-            mBuyButton.root.cash_icon.visible = currentOffer.CurrencyType == "PREMIUM";
-            mBuyButton.root.coin_icon.visible = currentOffer.CurrencyType == "BASIC";
-            mBuyButton.root.dlc_cash_icon.visible = currentOffer.CurrencyType == "DLC";
+            TextUtil.setText(mBuyButton.root.cost_text,currentOffer.Price.toString());
+            mBuyButton.root.cash_icon.visible = currentOffer.CurrencyType == GMOffer.PREMIUM_CURRENCY;
+            mBuyButton.root.coin_icon.visible = currentOffer.CurrencyType == GMOffer.BASIC_CURRENCY;
+            mBuyButton.root.dlc_cash_icon.visible = currentOffer.CurrencyType == GMOffer.DLC_CURRENCY;
             mBuyButton.releaseCallback = function():void
             {
                buyThisHero(currentOffer,mCurrentChosenIndex);
@@ -874,8 +920,8 @@ package UI.Tavern
       
       private function determineSkinSelectorStartIndex(gmSkin:GMSkin) : void
       {
-         var _loc4_:* = 0;
-         var _loc3_:GMHero = mDBFacade.gameMaster.heroById.itemFor(mHeroIds[mCurrentChosenIndex]);
+         var _loc4_:uint = 0;
+         var _loc3_:GMHero = mDBFacade.gameMaster.heroById.itemFor(mHeroIds[mCurrentChosenIndex + mAvatarSelectorStartIndex]);
          var _loc2_:Vector.<GMSkin> = this.getSkinsToDisplay(_loc3_);
          _loc4_ = 0;
          while(_loc4_ < _loc2_.length)
@@ -902,10 +948,10 @@ package UI.Tavern
          mSelectedSkin = gmSkin;
          if(gmSkin != null)
          {
-            mStoryInfoClip.avatar_description_text.text = GameMasterLocale.getGameMasterSubString("SKIN_DESCRIPTION",gmSkin.Constant);
-            mStoryInfoClip.avatar_likes_text.text = GameMasterLocale.getGameMasterSubString("SKIN_LIKES",gmSkin.Constant).toUpperCase();
-            mStoryInfoClip.avatar_dislikes_text.text = GameMasterLocale.getGameMasterSubString("SKIN_DISLIKES",gmSkin.Constant).toUpperCase();
-            mStoryInfoClip.avatar_nickname_text.text = GameMasterLocale.getGameMasterSubString("SKIN_NICKNAME",gmSkin.Constant).toUpperCase();
+            TextUtil.setText(mStoryInfoClip.avatar_description_text,GameMasterLocale.getGameMasterSubString("SKIN_DESCRIPTION",gmSkin.Constant),1.55);
+            TextUtil.setText(mStoryInfoClip.avatar_likes_text,GameMasterLocale.getGameMasterSubString("SKIN_LIKES",gmSkin.Constant).toUpperCase());
+            TextUtil.setText(mStoryInfoClip.avatar_dislikes_text,GameMasterLocale.getGameMasterSubString("SKIN_DISLIKES",gmSkin.Constant).toUpperCase());
+            TextUtil.setText(mStoryInfoClip.avatar_nickname_text,GameMasterLocale.getGameMasterSubString("SKIN_NICKNAME",gmSkin.Constant).toUpperCase());
          }
          var _loc4_:Boolean = mDBFacade.dbAccountInfo.inventoryInfo.doesPlayerOwnSkin(gmSkin.Id);
          var _loc3_:AvatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mChosenAvatarID);
@@ -934,8 +980,8 @@ package UI.Tavern
       
       private function setHeroAndSkin() : void
       {
-         var _loc4_:* = 0;
-         var _loc3_:* = 0;
+         var _loc4_:uint = 0;
+         var _loc3_:uint = 0;
          var _loc2_:AvatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(mAvatarIdToMakeActiveAvatar);
          if(_loc2_ == null)
          {
@@ -949,7 +995,7 @@ package UI.Tavern
          var _loc1_:IMapIterator = mHeroSelectionsToFlush.iterator() as IMapIterator;
          while(_loc1_.next())
          {
-            _loc3_ = uint(_loc1_.key);
+            _loc3_ = _loc1_.key;
             _loc4_ = _loc1_.current as uint;
             setSkinOnAvatar(_loc3_,_loc4_);
          }
@@ -986,8 +1032,8 @@ package UI.Tavern
       
       private function setUpSkinSelector() : void
       {
-         var _loc3_:* = 0;
-         var _loc2_:GMHero = mDBFacade.gameMaster.heroById.itemFor(mHeroIds[mCurrentChosenIndex]);
+         var _loc3_:uint = 0;
+         var _loc2_:GMHero = mDBFacade.gameMaster.heroById.itemFor(mHeroIds[mCurrentChosenIndex + mAvatarSelectorStartIndex]);
          var _loc1_:Vector.<GMSkin> = this.getSkinsToDisplay(_loc2_);
          _loc3_ = 0;
          while(_loc3_ < mSkinVector.length)
@@ -1030,7 +1076,7 @@ package UI.Tavern
       
       private function resizeHeroSlots(selectedIndex:uint) : void
       {
-         var _loc2_:* = 0;
+         var _loc2_:uint = 0;
          mScaledSlotIndex = selectedIndex;
          _loc2_ = 0;
          while(_loc2_ < mHeroSlots.length)
@@ -1059,17 +1105,17 @@ package UI.Tavern
          root.scaleY = 1;
       }
       
-      private function setXP(xp:uint, gmHero:GMHero) : void
+      private function setXP(xp:uint, ascensionLevel:uint, gmHero:GMHero) : void
       {
          mXPBar.value = xp;
-         var _loc5_:uint = gmHero.getLevelFromExp(xp);
-         var _loc4_:uint = xp;
-         var _loc3_:uint = uint(gmHero.getLevelIndex(xp));
-         var _loc7_:uint = uint(_loc3_ > 0 ? gmHero.getExpFromIndex(_loc3_ - 1) : 0);
-         var _loc6_:uint = gmHero.getExpFromIndex(_loc3_);
-         mXPLevelText.text = _loc5_.toString();
-         mXPBar.value = (_loc4_ - _loc7_) / (_loc6_ - _loc7_);
-         mXPText.text = _loc4_.toString() + " / " + _loc6_.toString();
+         var _loc6_:uint = gmHero.getLevelFromExp(xp,ascensionLevel);
+         var _loc5_:uint = xp;
+         var _loc4_:uint = uint(gmHero.getLevelIndex(xp,ascensionLevel));
+         var _loc8_:uint = uint(_loc4_ > 0 ? gmHero.getExpFromIndex(_loc4_ - 1) : 0);
+         var _loc7_:uint = gmHero.getExpFromIndex(_loc4_);
+         TextUtil.setText(mXPLevelText,_loc6_.toString());
+         mXPBar.value = (_loc5_ - _loc8_) / (_loc7_ - _loc8_);
+         TextUtil.setText(mXPText,_loc5_.toString() + " / " + _loc7_.toString());
       }
       
       public function populateWeaponIcons(index:int) : void
@@ -1100,7 +1146,7 @@ package UI.Tavern
                mWeaponIconsVector[index].visible = true;
                mWeaponIconsVector[index].root.bg_slot.addChild(_loc4_);
                _loc4_.name = "weaponIcon";
-               mWeaponIconsVector[index].tooltip.title_label.text = GameMasterLocale.getGameMasterSubString("WEAPON_MASTERTYPE",subType.Constant).toUpperCase();
+               TextUtil.setText(mWeaponIconsVector[index].tooltip.title_label,GameMasterLocale.getGameMasterSubString("WEAPON_MASTERTYPE",subType.Constant).toUpperCase());
             };
          };
          var allowedWeaponSubTypes:Vector.<String> = mDBFacade.gameMaster.heroById.itemFor(mHeroIds[index]).getAllowedWeaponSubTypes();
@@ -1160,34 +1206,30 @@ package UI.Tavern
       
       private function chooseThisHero(avatarID:uint, index:int) : void
       {
-         var _loc4_:* = 0;
          var _loc3_:AvatarInfo = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(avatarID);
          if(_loc3_ != null)
          {
-            if(_loc3_ != null && mCurrentChosenIndex < mHeroSlots.length && mCurrentChosenIndex >= 0)
-            {
-               if(mHeroSlots[mCurrentChosenIndex].root.chosen)
-               {
-                  mHeroSlots[mCurrentChosenIndex].root.chosen.visible = false;
-               }
-            }
-            _loc4_ = 0;
-            while(_loc4_ < mHeroSlots.length)
-            {
-               if(mHeroSlots[_loc4_].root.chosen)
-               {
-                  mHeroSlots[_loc4_].root.chosen.visible = false;
-               }
-               _loc4_++;
-            }
             mAvatarIdToMakeActiveAvatar = _loc3_.gmHero.Id;
-            if(mHeroSlots[index].root.chosen)
-            {
-               mHeroSlots[index].root.chosen.visible = true;
-            }
+            updateChosenMarkers();
          }
          mCurrentChosenIndex = index;
          mChosenAvatarID = avatarID;
+      }
+      
+      private function updateChosenMarkers() : void
+      {
+         var _loc2_:int = 0;
+         var _loc1_:int = 0;
+         _loc2_ = 0;
+         while(_loc2_ < mHeroSlots.length)
+         {
+            _loc1_ = _loc2_ + mAvatarSelectorStartIndex;
+            if(mHeroSlots[_loc2_].root.chosen)
+            {
+               mHeroSlots[_loc2_].root.chosen.visible = _loc1_ < mHeroIds.length && mHeroIds[_loc1_] == mAvatarIdToMakeActiveAvatar;
+            }
+            _loc2_++;
+         }
       }
       
       private function buyThisHero(offer:GMOffer, index:uint) : void
@@ -1195,7 +1237,7 @@ package UI.Tavern
          StoreServicesController.tryBuyOffer(mDBFacade,offer,function(param1:*):void
          {
             var _loc2_:uint = offer.Details[0].HeroId;
-            DBFacebookBragFeedPost.buyHeroSuccess(mTownHeader,mDBFacade.gameMaster.heroById.itemFor(_loc2_),mDBFacade,mAssetLoadingComponent);
+            UIBragFeedPost.buyHeroSuccess(mTownHeader,mDBFacade.gameMaster.heroById.itemFor(_loc2_),mDBFacade,mAssetLoadingComponent);
             populateAvatarInfo(index);
             populateAvatarSelector();
          });
@@ -1209,7 +1251,7 @@ package UI.Tavern
          StoreServicesController.tryBuyOffer(mDBFacade,currentOffer,function(param1:*):void
          {
             var _loc3_:GMSkin = mDBFacade.gameMaster.getSkinByType(skinId);
-            DBFacebookBragFeedPost.buySkinSuccess(_loc3_,mDBFacade,mAssetLoadingComponent);
+            UIBragFeedPost.buySkinSuccess(_loc3_,mDBFacade,mAssetLoadingComponent);
             var _loc2_:GMHero = mDBFacade.gameMaster.heroByConstant.itemFor(_loc3_.ForHero);
             if(_loc2_ == null)
             {
@@ -1232,21 +1274,38 @@ package UI.Tavern
          }
          mAvatarSelectorStartIndex = value;
          populateAvatarSelector();
-         if(mSelectorRightScroll.visible && mAvatarSelectorStartIndex + mHeroSlots.length >= mHeroIds.length)
+         updateSelectorScrollButtons();
+      }
+      
+      private function get canScrollSelectorLeft() : Boolean
+      {
+         return mAvatarSelectorStartIndex > 0;
+      }
+      
+      private function get canScrollSelectorRight() : Boolean
+      {
+         return mAvatarSelectorStartIndex + mHeroSlots.length < mHeroIds.length;
+      }
+      
+      private function updateSelectorScrollButtons() : void
+      {
+         mSelectorLeftScroll.visible = canScrollSelectorLeft;
+         mSelectorRightScroll.visible = canScrollSelectorRight;
+      }
+      
+      private function rotateSelectorLeft() : void
+      {
+         if(canScrollSelectorLeft)
          {
-            mSelectorRightScroll.visible = false;
+            scrollLeft();
          }
-         else if(!mSelectorRightScroll.visible && mAvatarSelectorStartIndex + mHeroSlots.length < mHeroIds.length)
+      }
+      
+      private function rotateSelectorRight() : void
+      {
+         if(canScrollSelectorRight)
          {
-            mSelectorRightScroll.visible = true;
-         }
-         if(mSelectorLeftScroll.visible && mAvatarSelectorStartIndex == 0)
-         {
-            mSelectorLeftScroll.visible = false;
-         }
-         else if(!mSelectorLeftScroll.visible && mAvatarSelectorStartIndex > 0)
-         {
-            mSelectorLeftScroll.visible = true;
+            scrollRight();
          }
       }
       
@@ -1317,7 +1376,51 @@ package UI.Tavern
          {
             mXPParentObject.destroy();
          }
+         if(mSkinVector)
+         {
+            _loc1_ = 0;
+            while(_loc1_ < mSkinVector.length)
+            {
+               if(mSkinVector[_loc1_])
+               {
+                  mSkinVector[_loc1_].destroy();
+               }
+               _loc1_++;
+            }
+            mSkinVector = null;
+         }
+         if(mScrollSkinsLeftButton)
+         {
+            mScrollSkinsLeftButton.destroy();
+         }
+         mScrollSkinsLeftButton = null;
+         if(mScrollSkinsRightButton)
+         {
+            mScrollSkinsRightButton.destroy();
+         }
+         mScrollSkinsRightButton = null;
+         if(mBuyButton)
+         {
+            mBuyButton.destroy();
+         }
+         mBuyButton = null;
+         if(mBuyButtonCoin)
+         {
+            mBuyButtonCoin.destroy();
+         }
+         mBuyButtonCoin = null;
+         if(mBuyButtonCash)
+         {
+            mBuyButtonCash.destroy();
+         }
+         mBuyButtonCash = null;
+         if(mRecruitButton)
+         {
+            mRecruitButton.destroy();
+         }
+         mRecruitButton = null;
          mTavernInfoClip = null;
+         mTownHeader = null;
       }
       
       public function setupHeaderLinks() : void
@@ -1350,6 +1453,14 @@ package UI.Tavern
          mHeroSlots[4].isToTheLeftOf(mHeroSlots[5]);
          mHeroSlots[5].isToTheLeftOf(mHeroSlots[6]);
          mHeroSlots[6].isToTheLeftOf(mHeroSlots[7]);
+         if(mHeroSlots[0].leftNavigationAdditionalInteraction == null)
+         {
+            mHeroSlots[0].leftNavigationAdditionalInteraction = rotateSelectorLeft;
+         }
+         if(mHeroSlots[7].rightNavigationAdditionalInteraction == null)
+         {
+            mHeroSlots[7].rightNavigationAdditionalInteraction = rotateSelectorRight;
+         }
          mHeroSlots[1].upNavigation = mBuyButton;
          mHeroSlots[2].upNavigation = mBuyButton;
          mHeroSlots[3].upNavigation = mBuyButton;

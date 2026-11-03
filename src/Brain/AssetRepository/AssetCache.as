@@ -1,8 +1,8 @@
 package Brain.AssetRepository
 {
+   import Collections.IMapIterator;
+   import Collections.Map;
    import flash.utils.*;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    internal final class AssetCache
    {
@@ -47,7 +47,7 @@ package Brain.AssetRepository
       {
          var _loc2_:SpriteSheetAsset = null;
          var _loc3_:String = null;
-         var _loc5_:* = 0;
+         var _loc5_:uint = 0;
          var _loc6_:Map = new Map();
          var _loc4_:Vector.<String> = new Vector.<String>();
          var _loc1_:IMapIterator = mCachedAssets.iterator() as IMapIterator;

@@ -2,7 +2,7 @@ package
 {
    import flash.display.MovieClip;
    
-   [Embed(source="/_assets/assets.swf", symbol="symbol41")]
+   [Embed(source="/_assets/assets.swf", symbol="symbol89")]
    public class db_UI_skip_button_swf extends MovieClip
    {
       

@@ -52,7 +52,7 @@ package GeneratedCode
          outpacket.writeFloat(scalingMaxProjectiles);
          combatResultsfunc = function():void
          {
-            var _loc2_:* = 0;
+            var _loc2_:uint = 0;
             var _loc1_:uint = combatResults.length;
             var _loc3_:DcNetworkPacket = outpacket;
             outpacket = new DcNetworkPacket();

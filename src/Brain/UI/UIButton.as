@@ -1,6 +1,7 @@
 package Brain.UI
 {
    import Brain.Clock.GameClock;
+   import Brain.Event.EventListeners;
    import Brain.Facade.Facade;
    import Brain.Render.MovieClipRenderController;
    import flash.display.Bitmap;
@@ -72,6 +73,8 @@ package Brain.UI
       protected var mSelectedFilter:GlowFilter;
       
       protected var mFiltersBeforeRollover:Array;
+      
+      protected var mFiltersCaptured:Boolean = false;
       
       protected var mMouseDown:Boolean = false;
       
@@ -211,7 +214,7 @@ package Brain.UI
          {
             mSelectedState.filters = value ? [mSelectedFilter] : [];
          }
-         this.showState(upState);
+         refreshVisualState();
       }
       
       public function set rolloverFilter(value:GlowFilter) : void
@@ -320,8 +323,8 @@ package Brain.UI
       override protected function addListeners() : void
       {
          super.addListeners();
-         mRoot.addEventListener("mouseDown",onPress);
-         mRoot.addEventListener("keyDown",onKey);
+         EventListeners.add(mRoot,"mouseDown",onPress);
+         EventListeners.add(mRoot,"keyDown",onKey);
       }
       
       protected function popRollOverMouseCursor() : void
@@ -333,14 +336,65 @@ package Brain.UI
          }
       }
       
+      protected function applyRolloverFilter() : void
+      {
+         if(!mRolloverFilter || mFiltersCaptured || !mRoot)
+         {
+            return;
+         }
+         mFiltersBeforeRollover = mRoot.filters.slice();
+         mFiltersCaptured = true;
+         mRoot.filters = [mRolloverFilter];
+      }
+      
+      protected function restoreFiltersBeforeRollover() : void
+      {
+         if(!mFiltersCaptured)
+         {
+            return;
+         }
+         if(mRoot)
+         {
+            mRoot.filters = mFiltersBeforeRollover;
+         }
+         mFiltersBeforeRollover = null;
+         mFiltersCaptured = false;
+      }
+      
+      protected function refreshVisualState() : void
+      {
+         if(!mRoot)
+         {
+            return;
+         }
+         if(!mEnabled)
+         {
+            showState(3);
+            return;
+         }
+         if(mMouseDown && mIsHovered)
+         {
+            showState(downState);
+            return;
+         }
+         if(isHighlighted)
+         {
+            showState(overState);
+         }
+         else
+         {
+            showState(upState);
+         }
+      }
+      
       override protected function removeListeners() : void
       {
          super.removeListeners();
-         mRoot.removeEventListener("mouseDown",onPress);
-         mRoot.removeEventListener("keyDown",onKey);
-         mRoot.removeEventListener("mouseUp",onMouseUp);
-         mFacade.stageRef.removeEventListener("mouseUp",onMouseUp);
-         mFacade.stageRef.removeEventListener("mouseLeave",onStageMouseLeave);
+         EventListeners.remove(mRoot,"mouseDown",onPress);
+         EventListeners.remove(mRoot,"keyDown",onKey);
+         EventListeners.remove(mRoot,"mouseUp",onMouseUp);
+         EventListeners.remove(mFacade.stageRef,"mouseUp",onMouseUp);
+         EventListeners.remove(mFacade.stageRef,"mouseLeave",onStageMouseLeave);
       }
       
       override public function set enabled(value:Boolean) : void
@@ -348,22 +402,20 @@ package Brain.UI
          super.enabled = value;
          mRoot.buttonMode = mEnabled;
          mRoot.tabEnabled = false;
-         showState(mEnabled ? upState : 3);
          mMouseDown = false;
          if(!value)
          {
-            if(mRolloverFilter)
-            {
-               mRoot.filters = mFiltersBeforeRollover;
-               mFiltersBeforeRollover = null;
-            }
+            restoreFiltersBeforeRollover();
             popRollOverMouseCursor();
          }
+         refreshVisualState();
       }
       
       override public function destroy() : void
       {
          popRollOverMouseCursor();
+         mFiltersBeforeRollover = null;
+         mFiltersCaptured = false;
          mStates = null;
          for each(var _loc1_:MovieClipRenderController in mRenderers)
          {
@@ -430,13 +482,13 @@ package Brain.UI
       override protected function onFocused() : void
       {
          super.onFocused();
-         showState(overState);
+         refreshVisualState();
       }
       
       override protected function onUnfocused() : void
       {
          super.onUnfocused();
-         showState(upState);
+         refreshVisualState();
       }
       
       protected function onPress(event:MouseEvent) : void
@@ -445,14 +497,18 @@ package Brain.UI
          {
             event.stopImmediatePropagation();
          }
-         mRoot.addEventListener("mouseUp",onMouseUp);
-         mFacade.stageRef.addEventListener("mouseUp",onMouseUp);
-         mFacade.stageRef.addEventListener("mouseLeave",onStageMouseLeave);
+         EventListeners.add(mRoot,"mouseUp",onMouseUp);
+         EventListeners.add(mFacade.stageRef,"mouseUp",onMouseUp);
+         EventListeners.add(mFacade.stageRef,"mouseLeave",onStageMouseLeave);
          if(mDraggable)
          {
-            mFacade.stageRef.addEventListener("mouseMove",onMouseMove);
+            EventListeners.add(mFacade.stageRef,"mouseMove",onMouseMove);
          }
          mMouseDown = true;
+         if(!mIsHovered)
+         {
+            onMouseRollOver(event);
+         }
          showState(downState);
          if(mDraggable)
          {
@@ -468,7 +524,7 @@ package Brain.UI
       {
          if(mDraggable)
          {
-            mFacade.stageRef.removeEventListener("mouseMove",onMouseMove);
+            EventListeners.remove(mFacade.stageRef,"mouseMove",onMouseMove);
             startDrag();
          }
       }
@@ -488,7 +544,7 @@ package Brain.UI
          mDragged = true;
          mDragStartPos = new Point(mRoot.x,mRoot.y);
          mDragStartParent = mRoot.parent;
-         var _loc1_:Point = mRoot.localToGlobal(new Point(0,0));
+         var _loc1_:Point = mFacade.designLocalToGlobal(mRoot,new Point(0,0));
          mFacade.sceneGraphManager.addChild(mRoot,75);
          mRoot.x = _loc1_.x;
          mRoot.y = _loc1_.y;
@@ -516,11 +572,11 @@ package Brain.UI
          }
          if(mDraggable)
          {
-            mFacade.stageRef.removeEventListener("mouseMove",onMouseMove);
+            EventListeners.remove(mFacade.stageRef,"mouseMove",onMouseMove);
          }
-         mRoot.removeEventListener("mouseUp",onMouseUp);
-         mFacade.stageRef.removeEventListener("mouseUp",onMouseUp);
-         mFacade.stageRef.removeEventListener("mouseLeave",onStageMouseLeave);
+         EventListeners.remove(mRoot,"mouseUp",onMouseUp);
+         EventListeners.remove(mFacade.stageRef,"mouseUp",onMouseUp);
+         EventListeners.remove(mFacade.stageRef,"mouseLeave",onStageMouseLeave);
          if(!mEnabled || !mMouseDown)
          {
             return;
@@ -601,7 +657,7 @@ package Brain.UI
       protected function onRelease(event:MouseEvent) : void
       {
          mMouseDown = false;
-         showState(overState);
+         refreshVisualState();
          if(mReleaseCallback != null)
          {
             mReleaseCallback();
@@ -615,7 +671,7 @@ package Brain.UI
             return;
          }
          mMouseDown = false;
-         showState(overState);
+         refreshVisualState();
          if(mDragReleaseCallback != null)
          {
             mDragReleaseCallback();
@@ -625,27 +681,8 @@ package Brain.UI
       override protected function onRollOver(event:MouseEvent) : void
       {
          super.onRollOver(event);
-         if(mMouseDown)
-         {
-            showState(downState);
-         }
-         else
-         {
-            showState(overState);
-         }
-         if(mRolloverFilter)
-         {
-            mFiltersBeforeRollover = mRoot.filters.slice();
-            mRoot.filters = [mRolloverFilter];
-         }
-         if(mRollOverCallback != null)
-         {
-            mRollOverCallback();
-         }
-         if(mRollOverCursor)
-         {
-            mRollOverCursorKey = mFacade.mouseCursorManager.pushMouseCursor(mRollOverCursor,true);
-         }
+         refreshVisualState();
+         applyRolloverFilter();
       }
       
       protected function get downState() : uint
@@ -666,39 +703,61 @@ package Brain.UI
       override protected function onRollOut(event:MouseEvent) : void
       {
          super.onRollOut(event);
-         showState(upState);
-         if(mMouseDown)
+         refreshVisualState();
+         restoreFiltersBeforeRollover();
+      }
+      
+      override protected function onMouseRollOver(event:MouseEvent) : void
+      {
+         var _loc2_:Boolean = mIsHovered;
+         super.onMouseRollOver(event);
+         refreshVisualState();
+         if(_loc2_)
          {
-            if(mPressRollOutCallback != null)
-            {
-               mPressRollOutCallback();
-            }
+            return;
          }
-         if(mRolloverFilter)
+         if(mRollOverCursor)
          {
-            if(mRoot)
-            {
-               mRoot.filters = mFiltersBeforeRollover;
-            }
-            mFiltersBeforeRollover = null;
+            popRollOverMouseCursor();
+            mRollOverCursorKey = mFacade.mouseCursorManager.pushMouseCursor(mRollOverCursor,true);
          }
+         if(mRollOverCallback != null)
+         {
+            mRollOverCallback();
+         }
+      }
+      
+      override protected function onMouseRollOut(event:MouseEvent) : void
+      {
+         var _loc2_:Boolean = mIsHovered;
+         if(mIsHovered && mMouseDown && mPressRollOutCallback != null)
+         {
+            mPressRollOutCallback();
+         }
+         super.onMouseRollOut(event);
+         refreshVisualState();
+         if(!_loc2_)
+         {
+            return;
+         }
+         popRollOverMouseCursor();
          if(mRollOutCallback != null)
          {
             mRollOutCallback();
          }
-         popRollOverMouseCursor();
       }
       
       protected function onStageMouseLeave(event:Event) : void
       {
          hideTooltip();
-         mRoot.removeEventListener("mouseUp",onMouseUp);
-         mFacade.stageRef.removeEventListener("mouseUp",onMouseUp);
-         mFacade.stageRef.removeEventListener("mouseLeave",onStageMouseLeave);
-         showState(upState);
+         EventListeners.remove(mRoot,"mouseUp",onMouseUp);
+         EventListeners.remove(mFacade.stageRef,"mouseUp",onMouseUp);
+         EventListeners.remove(mFacade.stageRef,"mouseLeave",onStageMouseLeave);
+         onMouseRollOut(null);
+         refreshVisualState();
       }
       
-      override public function onSelected() : void
+      override public function onSelected(fromController:Boolean = false) : void
       {
          if(Boolean(mReleaseCallback))
          {

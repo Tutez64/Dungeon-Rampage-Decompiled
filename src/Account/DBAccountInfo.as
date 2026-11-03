@@ -4,13 +4,16 @@ package Account
    import Brain.AssetRepository.AssetLoadingComponent;
    import Brain.Clock.GameClock;
    import Brain.Event.EventComponent;
+   import Brain.Event.EventListeners;
    import Brain.Logger.Logger;
    import Brain.Utils.HttpStatusEventUtils;
    import Brain.Utils.MemoryTracker;
    import Brain.Utils.Utf8BitArray;
+   import Brain.WorkLoop.DoLater;
    import Brain.WorkLoop.LogicalWorkComponent;
-   import Brain.WorkLoop.Task;
    import Brain.jsonRPC.JSONRPCService;
+   import Collections.IMapIterator;
+   import Collections.Map;
    import Events.DBAccountLoadedEvent;
    import Events.DBAccountResponseEvent;
    import Events.FriendStatusEvent;
@@ -26,19 +29,11 @@ package Account
    import flash.net.URLRequest;
    import flash.net.URLRequestHeader;
    import flash.system.System;
-   import org.as3commons.collections.Map;
-   import org.as3commons.collections.framework.IMapIterator;
    
    public class DBAccountInfo
    {
       
-      public static const SFX_ATTRIBUTE_KEY:String = "optionsSFXVolume";
-      
-      public static const MUSIC_ATTRIBUTE_KEY:String = "optionsMusicVolume";
-      
-      public static const GRAPHICS_QUALITY_ATTRIBUTE_KEY:String = "optionsGraphicsQuality";
-      
-      public static const HUD_STYLE_ATTRIBUTE_KEY:String = "optionsHudStyle";
+      public static const REACHED_LEVEL_100_ATTRIBUTE_KEY:String = "hasReachedLevel100";
       
       private static const DB_ACCOUNT_INFO_SERVICE:String = "dbAccountInfo/accountdetails";
       
@@ -94,7 +89,7 @@ package Account
       
       protected var mEventComponent:EventComponent;
       
-      private var mOnlinePresenceTask:Task;
+      private var mOnlinePresenceTask:DoLater;
       
       public var SocketPingMilsecs:int;
       
@@ -165,16 +160,6 @@ package Account
          return mName;
       }
       
-      public function get facebookId() : String
-      {
-         return mDBFacade.facebookPlayerId;
-      }
-      
-      public function get kongregateId() : String
-      {
-         return mDBFacade.kongregatePlayerId;
-      }
-      
       public function get inventoryInfo() : DBInventoryInfo
       {
          return mInventory;
@@ -183,28 +168,6 @@ package Account
       public function get id() : uint
       {
          return mId;
-      }
-      
-      public function get currentFacebookFriendsHash() : String
-      {
-         return mCurrentFriendsHash;
-      }
-      
-      public function get currentKongregateFriendsHash() : String
-      {
-         return mCurrentFriendsHash;
-      }
-      
-      public function checkFriendsHash() : void
-      {
-         if(mDBFacade.facebookController)
-         {
-            mDBFacade.facebookController.getFacebookFriendsHash();
-         }
-         if(mDBFacade.isKongregatePlayer)
-         {
-            mDBFacade.facebookController.getKongregateFriendsHash();
-         }
       }
       
       public function getUsersFullAccountInfo() : void
@@ -219,11 +182,11 @@ package Account
          var _this:DBAccountInfo;
          var removeAllListeners:* = function():void
          {
-            loader.removeEventListener("httpResponseStatus",onAccountInfoLoaded);
-            loader.removeEventListener("complete",onAccountInfoLoaded);
-            loader.removeEventListener("securityError",onAccountInfoError);
-            loader.removeEventListener("certificateError",onAccountInfoError);
-            loader.removeEventListener("ioError",onAccountInfoError);
+            EventListeners.remove(loader,"httpResponseStatus",onAccountInfoLoaded);
+            EventListeners.remove(loader,"complete",onAccountInfoLoaded);
+            EventListeners.remove(loader,"securityError",onAccountInfoError);
+            EventListeners.remove(loader,"certificateError",onAccountInfoError);
+            EventListeners.remove(loader,"ioError",onAccountInfoError);
          };
          var onResponseStatus:* = function(param1:HTTPStatusEvent):void
          {
@@ -258,9 +221,9 @@ package Account
          };
          var onAccountInfoError:* = function(param1:Event):void
          {
+            var _loc2_:String = null;
             removeAllListeners();
             var _loc3_:String = "[" + responseStatusCode + "] Account info loading failed";
-            var _loc2_:String = "";
             if(param1 is IOErrorEvent)
             {
                _loc2_ = "IOError: " + (param1 as IOErrorEvent).text;
@@ -278,7 +241,7 @@ package Account
                _loc2_ += "; Response: " + param1.target.data;
             }
             Logger.warn(_loc3_ + (_loc2_ ? "; " + _loc2_ : "") + (traceInfo ? "; " + traceInfo : ""));
-            mDBFacade.errorPopup(Locale.getString("ERROR"),Locale.getError(100) + "\n[" + responseStatusCode + "]");
+            mDBFacade.errorPopup(Locale.getString("ERROR"),Locale.getError(100) + "\n[" + responseStatusCode + "]","ACCOUNT_ERROR_POPUP");
          };
          Logger.debug("DBAccountInfo.getUsersFullAccountInfo");
          accountId = mDBFacade.accountId;
@@ -295,11 +258,11 @@ package Account
          }
          loader = new URLLoader();
          responseStatusCode = 0;
-         loader.addEventListener("httpResponseStatus",onResponseStatus);
-         loader.addEventListener("complete",onAccountInfoLoaded);
-         loader.addEventListener("securityError",onAccountInfoError);
-         loader.addEventListener("certificateError",onAccountInfoError);
-         loader.addEventListener("ioError",onAccountInfoError);
+         EventListeners.add(loader,"httpResponseStatus",onResponseStatus);
+         EventListeners.add(loader,"complete",onAccountInfoLoaded);
+         EventListeners.add(loader,"securityError",onAccountInfoError);
+         EventListeners.add(loader,"certificateError",onAccountInfoError);
+         EventListeners.add(loader,"ioError",onAccountInfoError);
          _this = this;
          loader.load(req);
       }
@@ -426,18 +389,9 @@ package Account
             {
                successCallback();
             }
-            if(mDBFacade.steamAchievementsManager)
-            {
-               mDBFacade.steamAchievementsManager.setAchievement("SEND_A_GIFT");
-            }
+            mDBFacade.steamAchievementsHelper.unlockAchievement("SEND_A_GIFT");
          };
          rpcFunc(mDBFacade.dbAccountInfo.id,offerId,mDBFacade.dbConfigManager.networkId,requestIds,toIds,mDBFacade.validationToken,rpcSuccessCallback,parseError);
-      }
-      
-      public function sendFacebookRequestData(requestIds:Array, toIds:Array, successCallback:Function = null) : void
-      {
-         var _loc4_:Function = JSONRPCService.getFunction("AppRequests",mDBFacade.rpcRoot + "facebookrequests");
-         _loc4_(mDBFacade.dbAccountInfo.id,requestIds,toIds,mDBFacade.validationToken);
       }
       
       public function getGiftData(successCallback:Function = null) : void
@@ -458,7 +412,7 @@ package Account
       {
          var _loc3_:Array = null;
          var _loc2_:GiftInfo = null;
-         var _loc4_:* = 0;
+         var _loc4_:uint = 0;
          if(gifts)
          {
             if(gifts.excludeIds)
@@ -487,8 +441,8 @@ package Account
       {
          var _loc2_:Array = null;
          var _loc5_:FriendInfo = null;
-         var _loc4_:* = 0;
-         var _loc3_:* = 0;
+         var _loc4_:uint = 0;
+         var _loc3_:uint = 0;
          if(friends)
          {
             _loc2_ = friends as Array;
@@ -516,8 +470,8 @@ package Account
       {
          var _loc2_:Array = null;
          var _loc5_:* = null;
-         var _loc4_:* = 0;
-         var _loc3_:* = 0;
+         var _loc4_:uint = 0;
+         var _loc3_:uint = 0;
          if(friends)
          {
             _loc2_ = friends as Array;
@@ -587,8 +541,8 @@ package Account
       {
          var _loc2_:Array = null;
          var _loc5_:FriendInfo = null;
-         var _loc4_:* = 0;
-         var _loc3_:* = 0;
+         var _loc4_:uint = 0;
+         var _loc3_:uint = 0;
          if(ignoredFriends)
          {
             _loc2_ = ignoredFriends as Array;
@@ -614,7 +568,7 @@ package Account
       private function friendlistUpdate(event:FriendStatusEvent) : void
       {
          var successCallback:Function;
-         if(event.status == false || mFriendsInfo.hasKey(event.friendId))
+         if(!event.status || mFriendsInfo.hasKey(event.friendId))
          {
             return;
          }
@@ -636,8 +590,7 @@ package Account
             "account_id":this.mId,
             "name":this.mName,
             "trophies":this.trophies,
-            "facebook_id":mDBFacade.facebookPlayerId,
-            "kongregate_id":mDBFacade.kongregatePlayerId,
+            "steam_avatar_url":mDBFacade.mSteamAvatarUrl,
             "status_online":true,
             "in_dungeon":false
          };
@@ -647,6 +600,7 @@ package Account
          }
          if(!mFriendsInfo.hasKey(this.mId))
          {
+            myObject.steam_avatar_url = mDBFacade.mSteamAvatarUrl;
             myself = new FriendInfo(mDBFacade,myObject);
             mFriendsInfo.add(myself.id,myself);
          }
@@ -662,10 +616,6 @@ package Account
          });
          mLocalFriendInfo = myself;
          mEventComponent.addListener("FRIEND_STATUS_EVENT",friendlistUpdate);
-         if(mDBFacade.facebookController && activeAvatarInfo.level >= 5)
-         {
-            mDBFacade.facebookController.updateGuestAchievement(2);
-         }
          if(friends)
          {
             friendsArray = friends as Array;
@@ -688,25 +638,12 @@ package Account
          }
       }
       
-      public function addAchievement(achievementId:String, achievementURL:String, achievementCallback:Function) : void
-      {
-         var rpcFunc:Function = JSONRPCService.getFunction("AddAchievement",mDBFacade.rpcRoot + "achievement");
-         var successCallback:Function = function(param1:*):void
-         {
-            achievementCallback(achievementId);
-            Logger.info("achievement success");
-         };
-         var failCallback:Function = function(param1:*):void
-         {
-         };
-         rpcFunc(mDBFacade.accountId,mDBFacade.validationToken,mDBFacade.facebookPlayerId,achievementURL,successCallback,failCallback);
-      }
-      
       public function setPresenceTask(location:String) : void
       {
          if(mOnlinePresenceTask)
          {
-            mOnlinePresenceTask.destroy();
+            mDBFacade.realClockWorkManager.removeDoLater(mOnlinePresenceTask);
+            mOnlinePresenceTask = null;
          }
          SocketPingMilsecs = -1;
          mLastFPSTime = mDBFacade.gameClock.realTime;
@@ -738,14 +675,14 @@ package Account
          mDBFacade.metrics.log("Presence",_loc3_);
       }
       
-      public function getFacebookIdRPC(remoteId:uint, successCallback:Function) : void
+      public function getSteamAvatarUrlRPC(remoteId:uint, successCallback:Function) : void
       {
-         var rpcFunc:Function = JSONRPCService.getFunction("GetFacebookId",mDBFacade.rpcRoot + "account");
+         var rpcFunc:Function = JSONRPCService.getFunction("GetSteamAvatarPictureUrl",mDBFacade.rpcRoot + "account");
          var rpcSuccessCallback:Function = function(param1:String):void
          {
             successCallback(param1);
          };
-         rpcFunc(remoteId,id,mDBFacade.validationToken,rpcSuccessCallback,parseError);
+         rpcFunc(remoteId,rpcSuccessCallback,parseError);
       }
       
       public function get basicCurrency() : uint
@@ -765,11 +702,7 @@ package Account
       
       public function hasAllTrophies() : Boolean
       {
-         if(mTrophyCount >= 106)
-         {
-            return true;
-         }
-         return false;
+         return mTrophyCount >= 106;
       }
       
       public function get activeAvatarInfo() : AvatarInfo
@@ -847,7 +780,11 @@ package Account
          if(avatarInfo)
          {
             mActiveAvatar = avatarInfo;
-            mUpdateMessagePopup = new DBUIPopup(mDBFacade,Locale.getString("SHOP_UPDATING"),null,false);
+            if(mLocalFriendInfo)
+            {
+               mLocalFriendInfo.refreshOwnPortrait();
+            }
+            mUpdateMessagePopup = new DBUIPopup(mDBFacade,"",Locale.getString("SHOP_UPDATING"),null,false);
             MemoryTracker.track(mUpdateMessagePopup,"DBUIPopup - created in DBAccountInfo.changeActiveAvatarRPC()");
             rpcFunc(mDBFacade.validationToken,mDBFacade.dbAccountInfo.id,avatarInfo.id,avatarInfo.skinId,function(param1:*):void
             {
@@ -879,37 +816,6 @@ package Account
          },parseError);
       }
       
-      public function updateFacebookFriendsRPC(friends:Array, newFriendsHash:String, cascade:Boolean) : void
-      {
-         var rpcFunc:Function = JSONRPCService.getFunction("updateFBFriends",mDBFacade.rpcRoot + "leaderboard");
-         var callback:Function = function(param1:*):void
-         {
-            mCurrentFriendsHash = newFriendsHash;
-            parseFriendData(param1);
-            mEventComponent.dispatchEvent(new Event("REFRESH_FRIENDS_EVENT"));
-         };
-         rpcFunc(mDBFacade.dbAccountInfo.id,mDBFacade.validationToken,friends,newFriendsHash,cascade,callback);
-      }
-      
-      public function updateDRFriendsRPC(friends:Array, newFriendsHash:String) : void
-      {
-         var _loc3_:Function = JSONRPCService.getFunction("inviteNewDRFriends",mDBFacade.rpcRoot + "leaderboard");
-         mCurrentFriendsHash = newFriendsHash;
-         _loc3_(mDBFacade.dbAccountInfo.id,mDBFacade.validationToken,friends,newFriendsHash,mDBFacade.dbAccountInfo.name,mDBFacade.dbAccountInfo.trophies,mDBFacade.dbAccountInfo.activeAvatarSkinId,mDBFacade.dbAccountInfo.facebookId);
-      }
-      
-      public function updateKongregateFriendsRPC(friends:Array, newFriendsHash:String, cascade:Boolean) : void
-      {
-         var rpcFunc:Function = JSONRPCService.getFunction("updateKongregateFriends",mDBFacade.rpcRoot + "leaderboard");
-         var callback:Function = function(param1:*):void
-         {
-            mCurrentFriendsHash = newFriendsHash;
-            parseFriendData(param1);
-            mEventComponent.dispatchEvent(new Event("REFRESH_FRIENDS_EVENT"));
-         };
-         rpcFunc(mDBFacade.dbAccountInfo.id,mDBFacade.validationToken,friends,newFriendsHash,cascade,callback);
-      }
-      
       public function parseFriendResponse(details:*, callRefreshOnceDone:Boolean = true) : void
       {
          if(details.friends_hash)
@@ -930,7 +836,7 @@ package Account
          while(_loc3_.hasNext())
          {
             _loc3_.next();
-            _loc3_.current.parseChampionsboardData(_loc4_.accountIdToTopScoreMapnodeInfo.itemFor(_loc3_.current.id));
+            _loc3_.current.parseChampionsboardData(_loc4_.accountIdToTopScoreMapNodeInfo.itemFor(_loc3_.current.id));
             if(_loc3_.current.id == mDBFacade.accountId)
             {
                _loc3_.current.parseIIAvatarScoresData(details.avatar_scores);
@@ -950,6 +856,10 @@ package Account
          var _loc3_:int = int(details.active_avatar);
          mInventory.parseJson(details);
          mActiveAvatar = mInventory.getAvatarInfoForAvatarInstanceId(_loc3_);
+         if(mLocalFriendInfo)
+         {
+            mLocalFriendInfo.refreshOwnPortrait();
+         }
          mEventComponent.dispatchEvent(new Event("ACTIVE_AVATAR_CHANGED_EVENT"));
          parseCurrency(details);
          if(details.account_attributes)
@@ -980,7 +890,7 @@ package Account
          {
             return;
          }
-         mErrorPopUp = new DBUIPopup(mDBFacade,"Error getting account info.");
+         mErrorPopUp = new DBUIPopup(mDBFacade,"","Error getting account info.");
          MemoryTracker.track(mErrorPopUp,"DBUIPopup - created in DBAccountInfo.parseError()");
          mLogicalWorkComponent.doLater(1.5,killErrorPopUp);
       }
