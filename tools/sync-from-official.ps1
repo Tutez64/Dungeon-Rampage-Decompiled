@@ -22,6 +22,7 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $SrcDir = Join-Path $Root "src"
+$BytecodeSrcDir = Join-Path $Root "src-bytecode"
 $AneOut = Join-Path $Root "extensions\FRESteamWorks.ane"
 $BytecodeList = Join-Path $Root "tools\bytecode-classes.txt"
 $BytecodeSwc = Join-Path $Root "lib\bytecode.swc"
@@ -250,32 +251,54 @@ function Get-ClassesWithSectionSign {
     return $names
 }
 
-# Removes the sources of a -selectclass pattern from src/.
+# Moves a source file or directory of src/ (path relative to it) to src-bytecode/.
+function Move-ToBytecodeSources {
+    param([string]$Rel)
+    $from = Join-Path $SrcDir $Rel
+    if (-not (Test-Path -LiteralPath $from)) {
+        return
+    }
+    $to = Join-Path $BytecodeSrcDir $Rel
+    $toParent = Split-Path -Parent $to
+    if (-not (Test-Path -LiteralPath $toParent)) {
+        New-Item -ItemType Directory -Path $toParent -Force | Out-Null
+    }
+    if (Test-Path -LiteralPath $from -PathType Container) {
+        if (-not (Test-Path -LiteralPath $to)) {
+            New-Item -ItemType Directory -Path $to -Force | Out-Null
+        }
+        Copy-Item -Path (Join-Path $from "*") -Destination $to -Recurse -Force
+        Remove-Item -LiteralPath $from -Recurse -Force
+    }
+    else {
+        Move-Item -LiteralPath $from -Destination $to -Force
+    }
+}
+
+# Moves the sources of a -selectclass pattern from src/ to src-bytecode/: they do
+# not compile, but a converter can still read them.
 function Remove-ClassSources {
     param([string]$Pattern)
     if ($Pattern -match "^(.*)\.(\*\*|\+\+)$") {
-        $path = Join-Path $SrcDir ($Matches[1] -replace "\.", "\")
-        if (Test-Path -LiteralPath $path) {
-            Remove-Item -LiteralPath $path -Recurse -Force
-        }
+        Move-ToBytecodeSources -Rel ($Matches[1] -replace "\.", "\")
     }
     elseif ($Pattern -match "^(.*)\.(\*|\+)$") {
-        $path = Join-Path $SrcDir ($Matches[1] -replace "\.", "\")
+        $dir = $Matches[1] -replace "\.", "\"
+        $path = Join-Path $SrcDir $dir
         if (Test-Path -LiteralPath $path) {
-            Get-ChildItem -LiteralPath $path -Filter *.as -File | Remove-Item -Force
+            foreach ($file in @(Get-ChildItem -LiteralPath $path -Filter *.as -File)) {
+                Move-ToBytecodeSources -Rel (Join-Path $dir $file.Name)
+            }
         }
     }
     else {
-        $path = Join-Path $SrcDir (($Pattern -replace "\.", "\") + ".as")
-        if (Test-Path -LiteralPath $path) {
-            Remove-Item -LiteralPath $path -Force
-        }
+        Move-ToBytecodeSources -Rel (($Pattern -replace "\.", "\") + ".as")
     }
 }
 
 # Links the classes of tools/bytecode-classes.txt, and those whose sources
-# still contain the section sign, from the official bytecode: removes their sources and
-# exports them to lib/bytecode.swc, kept when neither the official SWF nor the
+# still contain the section sign, from the official bytecode: moves their sources to
+# src-bytecode/ and exports them to lib/bytecode.swc, kept when neither the official SWF nor the
 # class list changed (the SWC records its export time).
 function Install-BytecodeClasses {
     param(
@@ -296,6 +319,9 @@ function Install-BytecodeClasses {
         }
     }
 
+    if (Test-Path -LiteralPath $BytecodeSrcDir) {
+        Remove-Item -LiteralPath $BytecodeSrcDir -Recurse -Force
+    }
     foreach ($p in $patterns) {
         Remove-ClassSources -Pattern $p
     }
@@ -585,5 +611,5 @@ Build-Ane -Game $game
 Write-OfficialBuildId -BuildId (Get-OfficialBuildId -Game $game)
 
 Write-Host "Done."
-Write-Host "  src/, lib/bytecode.swc, data/, and application.xml refreshed from the official game"
+Write-Host "  src/, src-bytecode/, lib/bytecode.swc, data/, and application.xml refreshed from the official game"
 Write-Host "  $AneOut packed from the official native extension if payloads changed"

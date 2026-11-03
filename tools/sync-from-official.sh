@@ -5,6 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC_DIR="$ROOT/src"
+BYTECODE_SRC_DIR="$ROOT/src-bytecode"
 ANE_OUT="$ROOT/extensions/FRESteamWorks.ane"
 BYTECODE_LIST="$ROOT/tools/bytecode-classes.txt"
 BYTECODE_SWC="$ROOT/lib/bytecode.swc"
@@ -241,28 +242,47 @@ classes_with_section_sign() {
   (cd "$SRC_DIR" && grep -rl --include='*.as' $'\xc2\xa7' . || true) | sed 's|^\./||; s|\.as$||; s|/|.|g' | LC_ALL=C sort
 }
 
-# Removes the sources of a -selectclass pattern from src/.
+# Moves a source file or directory of src/ (path relative to it) to src-bytecode/.
+move_to_bytecode_sources() {
+  local rel="$1"
+  [[ -e "$SRC_DIR/$rel" ]] || return 0
+  mkdir -p "$(dirname "$BYTECODE_SRC_DIR/$rel")"
+  if [[ -d "$SRC_DIR/$rel" ]]; then
+    mkdir -p "$BYTECODE_SRC_DIR/$rel"
+    cp -a "$SRC_DIR/$rel"/. "$BYTECODE_SRC_DIR/$rel"/
+    rm -rf "${SRC_DIR:?}/$rel"
+  else
+    mv "$SRC_DIR/$rel" "$BYTECODE_SRC_DIR/$rel"
+  fi
+}
+
+# Moves the sources of a -selectclass pattern from src/ to src-bytecode/: they do
+# not compile, but a converter can still read them.
 remove_class_sources() {
   local pattern="$1"
-  local path
+  local dir
   case "$pattern" in
     *.\*\*|*.++)
-      path="$SRC_DIR/$(printf '%s' "${pattern%.*}" | tr . /)"
-      rm -rf "$path"
+      move_to_bytecode_sources "$(printf '%s' "${pattern%.*}" | tr . /)"
       ;;
     *.\*|*.+)
-      path="$SRC_DIR/$(printf '%s' "${pattern%.*}" | tr . /)"
-      [[ -d "$path" ]] && find "$path" -maxdepth 1 -name '*.as' -type f -delete
+      dir="$(printf '%s' "${pattern%.*}" | tr . /)"
+      if [[ -d "$SRC_DIR/$dir" ]]; then
+        local file
+        for file in "$SRC_DIR/$dir"/*.as; do
+          [[ -f "$file" ]] && move_to_bytecode_sources "$dir/$(basename "$file")"
+        done
+      fi
       ;;
     *)
-      rm -f "$SRC_DIR/$(printf '%s' "$pattern" | tr . /).as"
+      move_to_bytecode_sources "$(printf '%s' "$pattern" | tr . /).as"
       ;;
   esac
 }
 
 # Links the classes of tools/bytecode-classes.txt, and those whose sources
-# still contain §, from the official bytecode: removes their sources and
-# exports them to lib/bytecode.swc, kept when neither the official SWF nor the
+# still contain §, from the official bytecode: moves their sources to
+# src-bytecode/ and exports them to lib/bytecode.swc, kept when neither the official SWF nor the
 # class list changed (the SWC records its export time).
 install_bytecode_classes() {
   local ffdec_path="$1"
@@ -273,6 +293,7 @@ install_bytecode_classes() {
   auto="$(classes_with_section_sign | paste -sd, -)"
   [[ -n "$auto" ]] && echo "Linking from bytecode (sources with §): $auto"
 
+  rm -rf "$BYTECODE_SRC_DIR"
   local pattern
   while IFS= read -r pattern; do
     [[ -n "$pattern" ]] && remove_class_sources "$pattern"
@@ -455,5 +476,5 @@ build_ane "$GAME"
 write_official_buildid "$(read_official_buildid "$GAME")"
 
 echo "Done."
-echo "  src/, lib/bytecode.swc, data/, and application.xml refreshed from the official game"
+echo "  src/, src-bytecode/, lib/bytecode.swc, data/, and application.xml refreshed from the official game"
 echo "  $ANE_OUT packed from the official native extension if payloads changed"
