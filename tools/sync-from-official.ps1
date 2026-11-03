@@ -1,7 +1,8 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Decompile the official Steam SWF into src/, copy game assets and application.xml, and rebuild FRESteamWorks.ane.
+  Decompile the official Steam SWF into src/, link the classes that do not compile from its bytecode
+  (lib/bytecode.swc), copy game assets and application.xml, and rebuild FRESteamWorks.ane.
 
 .PARAMETER GameDir
   Official Dungeon Rampage install directory. Also accepted as DUNGEON_RAMPAGE_DIR.
@@ -22,6 +23,8 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $SrcDir = Join-Path $Root "src"
 $AneOut = Join-Path $Root "extensions\FRESteamWorks.ane"
+$BytecodeList = Join-Path $Root "tools\bytecode-classes.txt"
+$BytecodeSwc = Join-Path $Root "lib\bytecode.swc"
 $MimeType = "application/vnd.adobe.air-native-extension-package+zip"
 $ExtensionId = "com.amanitadesign.steam.FRESteamWorks"
 $SteamAppId = "3053950"
@@ -234,6 +237,103 @@ function Install-Src {
         Convert-CopiedFiles -Path $stampFile
     }
     Convert-CopiedFiles -Path $SrcDir
+}
+
+# Class names of the decompiled sources that still contain the section sign, which FFDec
+# prints for code with no ActionScript form.
+function Get-ClassesWithSectionSign {
+    $prefix = (Resolve-Path -LiteralPath $SrcDir).Path.TrimEnd("\") + "\"
+    $names = @(Get-ChildItem -LiteralPath $SrcDir -Recurse -Filter *.as -File |
+        Where-Object { [System.IO.File]::ReadAllText($_.FullName, [System.Text.Encoding]::UTF8).Contains([string][char]0xA7) } |
+        ForEach-Object { $_.FullName.Substring($prefix.Length) -replace "\.as$", "" -replace "\\", "." })
+    [Array]::Sort($names, [StringComparer]::Ordinal)
+    return $names
+}
+
+# Removes the sources of a -selectclass pattern from src/.
+function Remove-ClassSources {
+    param([string]$Pattern)
+    if ($Pattern -match "^(.*)\.(\*\*|\+\+)$") {
+        $path = Join-Path $SrcDir ($Matches[1] -replace "\.", "\")
+        if (Test-Path -LiteralPath $path) {
+            Remove-Item -LiteralPath $path -Recurse -Force
+        }
+    }
+    elseif ($Pattern -match "^(.*)\.(\*|\+)$") {
+        $path = Join-Path $SrcDir ($Matches[1] -replace "\.", "\")
+        if (Test-Path -LiteralPath $path) {
+            Get-ChildItem -LiteralPath $path -Filter *.as -File | Remove-Item -Force
+        }
+    }
+    else {
+        $path = Join-Path $SrcDir (($Pattern -replace "\.", "\") + ".as")
+        if (Test-Path -LiteralPath $path) {
+            Remove-Item -LiteralPath $path -Force
+        }
+    }
+}
+
+# Links the classes of tools/bytecode-classes.txt, and those whose sources
+# still contain the section sign, from the official bytecode: removes their sources and
+# exports them to lib/bytecode.swc, kept when neither the official SWF nor the
+# class list changed (the SWC records its export time).
+function Install-BytecodeClasses {
+    param(
+        [string]$FfdecPath,
+        [string]$SwfPath
+    )
+    $listed = @(Get-Content -LiteralPath $BytecodeList -Encoding UTF8 |
+        ForEach-Object { $_.TrimEnd() } |
+        Where-Object { $_ -and -not ($_.TrimStart().StartsWith("#")) })
+    $auto = @(Get-ClassesWithSectionSign)
+    if ($auto.Count -gt 0) {
+        Write-Host ("Linking from bytecode (sources with " + [char]0xA7 + "): " + ($auto -join ","))
+    }
+    $patterns = New-Object System.Collections.Generic.List[string]
+    foreach ($p in ($listed + $auto)) {
+        if (-not $patterns.Contains($p)) {
+            $patterns.Add($p)
+        }
+    }
+
+    foreach ($p in $patterns) {
+        Remove-ClassSources -Pattern $p
+    }
+    Get-ChildItem -LiteralPath $SrcDir -Recurse -Directory |
+        Sort-Object { $_.FullName.Length } -Descending |
+        Where-Object { -not (Get-ChildItem -LiteralPath $_.FullName -Force) } |
+        Remove-Item -Force
+
+    # Same bytes as the Linux script hashes: "<swf hash>\n" then one pattern per line
+    $stampFile = Join-Path $Root "tools\bytecode.swc.source.sha256"
+    $stampText = (Get-FileSha256 -Path $SwfPath) + "`n" + (($patterns | ForEach-Object { $_ + "`n" }) -join "")
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $hashBytes = $sha.ComputeHash((New-Object System.Text.UTF8Encoding $false).GetBytes($stampText))
+    $newStamp = -join ($hashBytes | ForEach-Object { $_.ToString("x2") })
+    if ((Test-Path -LiteralPath $BytecodeSwc) -and (Test-Path -LiteralPath $stampFile) -and
+            ([System.IO.File]::ReadAllText($stampFile)).Trim() -eq $newStamp) {
+        Write-Host "Keeping lib/bytecode.swc (official SWF and class list unchanged)"
+        return
+    }
+    Write-Host "Exporting lib/bytecode.swc ..."
+    $libDir = Split-Path -Parent $BytecodeSwc
+    if (-not (Test-Path -LiteralPath $libDir)) {
+        New-Item -ItemType Directory -Path $libDir | Out-Null
+    }
+    if (Test-Path -LiteralPath $BytecodeSwc) {
+        Remove-Item -LiteralPath $BytecodeSwc -Force
+    }
+    Invoke-Ffdec -FfdecPath $FfdecPath -FfdecArgs @(
+        "-selectclass", ($patterns -join ","),
+        "-swf2swc", $BytecodeSwc,
+        $SwfPath
+    )
+    if (-not (Test-Path -LiteralPath $BytecodeSwc)) {
+        throw "FFDec did not export $BytecodeSwc (its -swf2swc needs -selectclass support)"
+    }
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($stampFile, ($newStamp + "`n"), $utf8)
+    Convert-CopiedFiles -Path $stampFile
 }
 
 function Test-GitLfsPointer {
@@ -468,6 +568,7 @@ Write-Host "FFDec: $ffdec"
 try {
     Export-Scripts -FfdecPath $ffdec -SwfPath $swf -ExportDir $exportDir
     Install-Src -ExportDir $exportDir -SwfPath $swf
+    Install-BytecodeClasses -FfdecPath $ffdec -SwfPath $swf
 }
 finally {
     Remove-Item -LiteralPath $exportDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -484,5 +585,5 @@ Build-Ane -Game $game
 Write-OfficialBuildId -BuildId (Get-OfficialBuildId -Game $game)
 
 Write-Host "Done."
-Write-Host "  src/, data/, and application.xml refreshed from the official game"
+Write-Host "  src/, lib/bytecode.swc, data/, and application.xml refreshed from the official game"
 Write-Host "  $AneOut packed from the official native extension if payloads changed"

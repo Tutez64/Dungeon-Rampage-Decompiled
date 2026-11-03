@@ -7,13 +7,14 @@ See [Dungeon Rampage Haxe](https://github.com/Tutez64/Dungeon-Rampage-Haxe).
 
 ## Layout
 
-| Path              | Role                                                 |
-|-------------------|------------------------------------------------------|
-| `src/`            | Decompiled ActionScript                              |
-| `data/`           | Game resources (`Resources/` and `DbConfiguration/`) |
-| `extensions/`     | Steam ANE (`FRESteamWorks.ane`)                      |
-| `tools/`          | Sync scripts, SWF hash stamp, official BuildID       |
-| `application.xml` | AIR descriptor                                       |
+| Path              | Role                                                                  |
+|-------------------|-----------------------------------------------------------------------|
+| `src/`            | Decompiled ActionScript                                               |
+| `lib/`            | Original bytecode of the classes that do not compile (`bytecode.swc`) |
+| `data/`           | Game resources (`Resources/` and `DbConfiguration/`)                  |
+| `extensions/`     | Steam ANE (`FRESteamWorks.ane`)                                       |
+| `tools/`          | Sync scripts, class list, hash stamps, official BuildID               |
+| `application.xml` | AIR descriptor                                                        |
 
 ## Requirements
 
@@ -42,15 +43,15 @@ Use the **`dev`** branch of [my JPEXS FFDec fork](https://github.com/Tutez64/jpe
 
 Run the **Sync from official** IntelliJ configuration (or `./tools/sync-from-official.cmd`).
 
-This **replaces** `src/`, `data/Resources/`, `data/DbConfiguration/`, and `application.xml`. It decompiles `DungeonBustersProject.swf` with `paramNamesEnable=true`, copies assets and the AIR descriptor from the game install, writes `tools/official.buildid` from the Steam appmanifest, and rebuilds `extensions/FRESteamWorks.ane` only if the unpacked payloads differ from the official native extension (every platform directory the game ships, plus the matching Steam API library next to each native binary). `src/_assets/assets.swf` is kept unless the official SWF hash changed (FFDec reserializes that file, so the hash of `DungeonBustersProject.swf` is the stable check). Leftover Git metadata from the official install (`.gitattributes` and [Git LFS](https://git-lfs.com) pointer files) is dropped.
+This **replaces** `src/`, `lib/bytecode.swc`, `data/Resources/`, `data/DbConfiguration/`, and `application.xml`. It decompiles `DungeonBustersProject.swf` with `paramNamesEnable=true`, copies assets and the AIR descriptor from the game install, writes `tools/official.buildid` from the Steam appmanifest, and rebuilds `extensions/FRESteamWorks.ane` only if the unpacked payloads differ from the official native extension (every platform directory the game ships, plus the matching Steam API library next to each native binary). `src/_assets/assets.swf` is kept unless the official SWF hash changed (FFDec reserializes that file, so the hash of `DungeonBustersProject.swf` is the stable check). Leftover Git metadata from the official install (`.gitattributes` and [Git LFS](https://git-lfs.com) pointer files) is dropped.
 
 `data/` is a Flex source folder (not ActionScript). On compile, IntelliJ copies those files next to the SWF as `out/Resources/` and `out/DbConfiguration/`.
 
 Optional: `-GameDir` / `--game` / `DUNGEON_RAMPAGE_DIR`, and `-Ffdec` / `--ffdec` / `FFDEC_HOME`.
 
-### After a fresh decompile
+### Classes linked from the original bytecode
 
-GreenSock's `TimelineLite.goto` must be renamed (current upstream calls it `seek`) or the AIR compiler will reject it.
+Part of the game is compiled with Haxe (its standard library, Box2D, GameMasterDictionary, Collections, the junkbyte console), and some of that code has no ActionScript form. The sync links those classes from the official SWF instead: it removes their sources from `src/` and exports their bytecode to `lib/bytecode.swc` (FFDec `-selectclass ... -swf2swc`), which the module merges into the SWF. They are the classes of `tools/bytecode-classes.txt`, with the reason for each, and every class whose decompiled source still contains `§` (FFDec's marker for such code). `tools/bytecode.swc.source.sha256` keeps the SWC unchanged while neither the official SWF nor the class list changes.
 
 ## Build & run
 

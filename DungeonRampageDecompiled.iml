@@ -8,6 +8,9 @@
             <entry library-id="6f9cff4e-75b6-4d39-95c8-134f8255a1c8">
               <dependency linkage="External" />
             </entry>
+            <entry library-id="3329a1c0-f74f-41ee-a719-28f047331ab3">
+              <dependency linkage="Merged" />
+            </entry>
           </entries>
           <sdk name="AIRSDK_51.4.1" />
         </dependencies>
@@ -34,6 +37,16 @@
         <properties id="6f9cff4e-75b6-4d39-95c8-134f8255a1c8" />
         <CLASSES>
           <root url="file://$MODULE_DIR$/extensions/FRESteamWorks.ane" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="">
+      <library type="flex">
+        <properties id="3329a1c0-f74f-41ee-a719-28f047331ab3" />
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/bytecode.swc!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

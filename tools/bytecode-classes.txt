@@ -1,0 +1,31 @@
+# Classes linked from the official SWF's bytecode (lib/bytecode.swc) instead of
+# their decompiled sources, which do not compile as ActionScript. Haxe compiles
+# part of the game, and some of its code has no ActionScript form.
+#
+# One FFDec -selectclass pattern per line: a.b.C, a.b.* for the classes of a
+# package, a.b.** with its subpackages. The sync also adds every class whose
+# decompiled source still contains § (FFDec's marker for such code).
+
+# Haxe standard library
+Dynamic
+EReg
+Lambda
+Reflect
+Std
+StringBuf
+StringTools
+Type
+ValueType
+Xml
+_Xml.**
+flash.Boot
+flash.Lib
+haxe.**
+
+# A method named like its class
+Box2D.Dynamics.Joints.b2LineJointDef
+# Math members that flash.Boot adds at runtime (isNaN, POSITIVE_INFINITY)
+Box2D.Common.Math.b2Math
+# Haxe optional arguments, typed Object, passed as a Number or a Function
+com.junkbyte.console.core.Graphing
+com.junkbyte.console.view.ConsolePanel

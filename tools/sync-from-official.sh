@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Decompile the official Steam SWF into src/, copy game assets and application.xml, and rebuild FRESteamWorks.ane.
+# Decompile the official Steam SWF into src/, link the classes that do not compile from its bytecode
+# (lib/bytecode.swc), copy game assets and application.xml, and rebuild FRESteamWorks.ane.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC_DIR="$ROOT/src"
 ANE_OUT="$ROOT/extensions/FRESteamWorks.ane"
+BYTECODE_LIST="$ROOT/tools/bytecode-classes.txt"
+BYTECODE_SWC="$ROOT/lib/bytecode.swc"
 MIME_TYPE="application/vnd.adobe.air-native-extension-package+zip"
 EXTENSION_ID="com.amanitadesign.steam.FRESteamWorks"
 GAME_DIR="${DUNGEON_RAMPAGE_DIR:-}"
@@ -96,14 +99,15 @@ normalize_copied() {
     -exec sed -i 's/\r$//' {} +
 }
 
+# SHA-256 of a file, or of the standard input without an argument.
 file_sha256() {
   if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$1" | awk '{print $1}'
+    sha256sum "$@" | awk '{print $1}'
   elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 "$1" | awk '{print $1}'
+    shasum -a 256 "$@" | awk '{print $1}'
   else
     command -v openssl >/dev/null 2>&1 || die "sha256sum, shasum, or openssl is required"
-    openssl dgst -sha256 "$1" | awk '{print $NF}'
+    openssl dgst -sha256 "$@" | awk '{print $NF}'
   fi
 }
 
@@ -229,6 +233,66 @@ install_src() {
     normalize_copied "$stamp_file"
   fi
   normalize_copied "$SRC_DIR"
+}
+
+# Class names of the decompiled sources that still contain §, which FFDec
+# prints for code with no ActionScript form.
+classes_with_section_sign() {
+  (cd "$SRC_DIR" && grep -rl --include='*.as' $'\xc2\xa7' . || true) | sed 's|^\./||; s|\.as$||; s|/|.|g' | LC_ALL=C sort
+}
+
+# Removes the sources of a -selectclass pattern from src/.
+remove_class_sources() {
+  local pattern="$1"
+  local path
+  case "$pattern" in
+    *.\*\*|*.++)
+      path="$SRC_DIR/$(printf '%s' "${pattern%.*}" | tr . /)"
+      rm -rf "$path"
+      ;;
+    *.\*|*.+)
+      path="$SRC_DIR/$(printf '%s' "${pattern%.*}" | tr . /)"
+      [[ -d "$path" ]] && find "$path" -maxdepth 1 -name '*.as' -type f -delete
+      ;;
+    *)
+      rm -f "$SRC_DIR/$(printf '%s' "$pattern" | tr . /).as"
+      ;;
+  esac
+}
+
+# Links the classes of tools/bytecode-classes.txt, and those whose sources
+# still contain §, from the official bytecode: removes their sources and
+# exports them to lib/bytecode.swc, kept when neither the official SWF nor the
+# class list changed (the SWC records its export time).
+install_bytecode_classes() {
+  local ffdec_path="$1"
+  local swf_path="$2"
+  local patterns
+  patterns="$( { grep -Ev '^[[:space:]]*(#|$)' "$BYTECODE_LIST" | tr -d '\r' | sed 's/[[:space:]]*$//'; classes_with_section_sign; } | awk '!seen[$0]++')"
+  local auto
+  auto="$(classes_with_section_sign | paste -sd, -)"
+  [[ -n "$auto" ]] && echo "Linking from bytecode (sources with §): $auto"
+
+  local pattern
+  while IFS= read -r pattern; do
+    [[ -n "$pattern" ]] && remove_class_sources "$pattern"
+  done <<< "$patterns"
+  find "$SRC_DIR" -mindepth 1 -depth -type d -empty -delete
+
+  local stamp_file="$ROOT/tools/bytecode.swc.source.sha256"
+  local new_stamp
+  new_stamp="$( { file_sha256 "$swf_path"; printf '%s\n' "$patterns"; } | file_sha256)"
+  if [[ -f "$BYTECODE_SWC" && -f "$stamp_file" && "$(tr -d '[:space:]' < "$stamp_file")" == "$new_stamp" ]]; then
+    echo "Keeping lib/bytecode.swc (official SWF and class list unchanged)"
+    return 0
+  fi
+  echo "Exporting lib/bytecode.swc ..."
+  mkdir -p "$(dirname "$BYTECODE_SWC")"
+  rm -f "$BYTECODE_SWC"
+  run_ffdec "$ffdec_path" -selectclass "$(printf '%s' "$patterns" | paste -sd, -)" -swf2swc "$BYTECODE_SWC" "$swf_path"
+  [[ -f "$BYTECODE_SWC" ]] || die "FFDec did not export $BYTECODE_SWC (its -swf2swc needs -selectclass support)"
+  printf '%s\n' "$new_stamp" > "$stamp_file"
+  normalize_copied "$stamp_file"
 }
 
 is_git_lfs_pointer() {
@@ -381,6 +445,7 @@ trap cleanup EXIT
 
 export_scripts "$FFDEC_PATH" "$SWF" "$EXPORT_DIR"
 install_src "$EXPORT_DIR" "$SWF"
+install_bytecode_classes "$FFDEC_PATH" "$SWF"
 mkdir -p "$ROOT/data"
 copy_game_folder "$GAME/Resources" "$ROOT/data/Resources" "data/Resources"
 copy_game_folder "$GAME/DbConfiguration" "$ROOT/data/DbConfiguration" "data/DbConfiguration"
@@ -390,5 +455,5 @@ build_ane "$GAME"
 write_official_buildid "$(read_official_buildid "$GAME")"
 
 echo "Done."
-echo "  src/, data/, and application.xml refreshed from the official game"
+echo "  src/, lib/bytecode.swc, data/, and application.xml refreshed from the official game"
 echo "  $ANE_OUT packed from the official native extension if payloads changed"

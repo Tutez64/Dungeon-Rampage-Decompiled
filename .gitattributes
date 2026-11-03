@@ -15,6 +15,7 @@
 
 *.swf  binary -eol
 *.ane  binary -eol
+*.swc  binary -eol
 *.png  binary -eol
 *.jpg  binary -eol
 *.jpeg binary -eol
