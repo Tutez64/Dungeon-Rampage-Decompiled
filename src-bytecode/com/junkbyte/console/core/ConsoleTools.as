@@ -189,15 +189,12 @@ package com.junkbyte.console.core
          }
          if(obj is String)
          {
-            §§push("\"");
-            §§push(LogReferences);
             var _temp_1:* = obj;
-            §§push(_temp_1);
             if(!(_temp_1 is String))
             {
                throw "Class cast error";
             }
-            return §§pop() + §§pop().EscHTML(§§pop()) + "\"";
+            return "\"" + LogReferences.EscHTML(_temp_1) + "\"";
          }
          if(_loc5_ != "object" || depth == 0 || obj is ByteArray)
          {

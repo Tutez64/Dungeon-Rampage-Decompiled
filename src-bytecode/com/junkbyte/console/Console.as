@@ -160,12 +160,11 @@ package com.junkbyte.console
          if(obj is String)
          {
             var _temp_1:* = obj;
-            §§push(_temp_1);
             if(!(_temp_1 is String))
             {
                throw "Class cast error";
             }
-            return §§pop();
+            return _temp_1;
          }
          if(obj)
          {

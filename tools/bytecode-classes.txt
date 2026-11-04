@@ -29,3 +29,6 @@ Box2D.Common.Math.b2Math
 # Haxe optional arguments, typed Object, passed as a Number or a Function
 com.junkbyte.console.core.Graphing
 com.junkbyte.console.view.ConsolePanel
+# Haxe unchecked casts (cast x : T).f, which leave nothing in the bytecode
+com.junkbyte.console.Console
+com.junkbyte.console.core.ConsoleTools
