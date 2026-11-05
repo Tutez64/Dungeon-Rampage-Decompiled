@@ -101,6 +101,8 @@ package UI
       
       private var mEnabledChatEnterEvent:Boolean = true;
       
+      private var mMenuHadEnter:Boolean;
+      
       private var mRenderedVersion:int = -1;
       
       private var mRenderedLength:int = -1;
@@ -188,6 +190,7 @@ package UI
          EventListeners.add(mChatInputText.root,"focusIn",onChatTextFieldFocus);
          EventListeners.add(mChatInputText.root,"focusOut",onChatTextFieldLoseFocus);
          EventListeners.add(mDBFacade.stageRef,"keyDown",checkKeyEvent);
+         EventListeners.add(mDBFacade.stageRef,"keyDown",noteEnterOwner,false,1);
          EventListeners.add(mDBFacade.mSteamworks,SteamEvent.STEAM_RESPONSE,onSteamResponse);
       }
       
@@ -197,6 +200,7 @@ package UI
          EventListeners.remove(mChatInputText.root,"focusIn",onChatTextFieldFocus);
          EventListeners.remove(mChatInputText.root,"focusOut",onChatTextFieldLoseFocus);
          EventListeners.remove(mDBFacade.stageRef,"keyDown",checkKeyEvent);
+         EventListeners.remove(mDBFacade.stageRef,"keyDown",noteEnterOwner);
          EventListeners.remove(mDBFacade.mSteamworks,SteamEvent.STEAM_RESPONSE,onSteamResponse);
       }
       
@@ -243,6 +247,7 @@ package UI
          mChatInputText = new UIInputText(mDBFacade,chatTextField);
          mChatInputText.defaultText = Locale.getString("DEFAULT_CHAT_PROMPT");
          mChatInputText.enterCallback = sendChat;
+         mChatInputText.cancelCallback = leaveChatInput;
          mChatInputText.focusOutCallback = function():void
          {
             if(mChatInputText.text == "")
@@ -373,16 +378,44 @@ package UI
       {
          if(!Logger.isConsoleVisible())
          {
-            if(event.keyCode == 13 && mEnabledChatEnterEvent)
+            if(event.keyCode == 13 && mEnabledChatEnterEvent && !mMenuHadEnter)
             {
                focusChatInput();
             }
          }
       }
       
+      private function noteEnterOwner(event:KeyboardEvent) : void
+      {
+         if(event.keyCode == 13)
+         {
+            mMenuHadEnter = isMenuOpen();
+         }
+      }
+      
       public function focusChatInput() : void
       {
          mDBFacade.stageRef.focus = mChatInputText.textField;
+      }
+      
+      public function isMenuOpen() : Boolean
+      {
+         return mDBFacade.menuNavigationController != null && mDBFacade.menuNavigationController.layerDepth > 0;
+      }
+      
+      public function mayOpenChatFromAction() : Boolean
+      {
+         return !isMenuOpen() && !(mMenuHadEnter && mDBFacade.inputManager.released(13));
+      }
+      
+      private function leaveChatInput() : void
+      {
+         mDBFacade.regainFocus();
+         mDBFacade.inputManager.clear();
+         if(mChatInputText.text == "")
+         {
+            resetChatPrompt();
+         }
       }
       
       public function tryToggleChatLog() : void

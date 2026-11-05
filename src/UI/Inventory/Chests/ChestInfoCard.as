@@ -202,7 +202,8 @@ package UI.Inventory.Chests
       public function refreshChestInfoUI() : void
       {
          loadIcon();
-         TextUtil.setText(mChestCardMC.label,GameMasterLocale.getGameMasterSubString("CHEST_NAME",mChestInfo.gmChestInfo.Rarity));
+         var _loc1_:String = GameMasterLocale.getGameMasterSubString("CHEST_NAME",mChestInfo.gmChestInfo.Rarity);
+         TextUtil.setText(mChestCardMC.label,mChestInfo.count > 1 ? _loc1_ + " x" + mChestInfo.count : _loc1_);
          if(mChestInfo.isFromDungeonSummary())
          {
             mChestCardMC.selection_01.visible = false;

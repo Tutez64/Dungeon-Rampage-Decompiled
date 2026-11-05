@@ -183,6 +183,10 @@ package UI.FriendManager
             _loc4_.friend_pic.friend_offline.visible = false;
          }
          TextUtil.setText(_loc4_.friend_level.level,friend.trophies.toString());
+         _loc4_.friend_ascension.mouseEnabled = false;
+         _loc4_.friend_ascension.mouseChildren = false;
+         _loc4_.friend_ascension.visible = friend.ascensionLevel > 0;
+         TextUtil.setText(_loc4_.friend_ascension.level,friend.ascensionLevel.toString());
          var _loc13_:Boolean = mFriendsSelectedAcrossPages.hasKey(mCurrentPage * (5 * 3) + idx);
          var _loc5_:UIToggleButton = new UIToggleButton(mDBFacade,idx,_loc4_.friends_toggle,_loc13_,changeToggleStatusCallback);
          _loc5_.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;

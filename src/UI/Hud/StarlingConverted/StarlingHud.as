@@ -38,6 +38,7 @@ package UI.Hud.StarlingConverted
    import Settings.SettingsPopup;
    import SteamInput.OnSteamInputButtonReleasedEvent;
    import SteamInput.SteamInputGlyphsChangedEvent;
+   import UI.Hud.HudTopRightLayout;
    import UI.InfiniteIsland.II_UIExitDungeonPopUp;
    import UI.Popup.UILootLossPopup;
    import UI.UIChatLog;
@@ -78,6 +79,8 @@ package UI.Hud.StarlingConverted
       private var mRoot:starling.display.Sprite;
       
       private var mView:ArtView;
+      
+      private var mOptionsView:ArtView;
       
       private var mSettingsPopup:SettingsPopup;
       
@@ -418,21 +421,21 @@ package UI.Hud.StarlingConverted
       
       private function build(art:ArtNode) : void
       {
-         var _loc3_:String = null;
-         var _loc9_:StarlingButton = null;
-         var _loc10_:StarlingBuff = null;
+         var _loc6_:String = null;
+         var _loc13_:StarlingButton = null;
+         var _loc14_:StarlingBuff = null;
          var _loc2_:BuffGameObject = null;
-         var _loc4_:int = 0;
+         var _loc3_:int = 0;
          HudTransform.sync(mFacade,mRoot);
          if(art == null)
          {
             throw new Error("HUD layout unavailable");
          }
-         var _loc5_:Boolean = mBuiltHudType != int(mHudType);
-         var _loc6_:ArtView = ArtView.build(art,mTicker);
+         var _loc7_:Boolean = mBuiltHudType != int(mHudType);
+         var _loc8_:ArtView = ArtView.build(art,mTicker);
          mBuiltHudType = int(mHudType);
          disposeView();
-         mView = _loc6_;
+         mView = _loc8_;
          visible("UI_XP.xp_points",false);
          visible("UI_XP.xp_level_title",false);
          ArtDisplay(mView.root).advanceHiddenTimelines(true);
@@ -450,19 +453,23 @@ package UI.Hud.StarlingConverted
          mMana = new StarlingBar(node("UI_profile.mana_bar"),node("UI_profile.mana_bar_delta"),mTicker);
          mXp = new StarlingBar(node("UI_XP.xp_bar"),node("UI_XP.xp_bar_delta"),mTicker);
          visible("UI_XP.xp_bar_delta",true);
-         var _loc7_:DisplayObject = node("UI_XP.xp_bar_delta");
-         if(_loc7_ != null)
+         var _loc10_:DisplayObject = node("UI_XP.xp_bar_delta");
+         if(_loc10_ != null)
          {
-            _loc7_.alpha = 0.3;
+            _loc10_.alpha = 0.3;
          }
          mHealthFull = new StarlingFullMessage(mFacade,node("UI_profile.HP_full_text"),mTicker);
          mManaFull = new StarlingFullMessage(mFacade,node("UI_profile.mana_full_text"),mTicker);
          mHealthFull.changed = mManaFull.changed = invalidateBounds;
          mInput = new StarlingInput(mFacade);
          mInput.onError = failed;
-         var _loc8_:StarlingButton = new StarlingButton(mView,"close",mRoot);
-         _loc8_.releaseCallback = closeButtonReleased;
-         mInput.add(_loc8_);
+         var _loc4_:DisplayObject = node("close");
+         var _loc5_:Point = HudTopRightLayout.closePosition(_loc4_.scaleX,_loc4_.scaleY);
+         _loc4_.x = _loc5_.x;
+         _loc4_.y = _loc5_.y;
+         var _loc12_:StarlingButton = new StarlingButton(mView,"close",mRoot);
+         _loc12_.releaseCallback = closeButtonReleased;
+         mInput.add(_loc12_);
          buildSlots();
          mBuster = new StarlingBar(node("UI_buster.buster_bar"),null,mTicker);
          mBusterButton = new StarlingButton(mView,"UI_buster_active.buster_activated",mRoot);
@@ -483,31 +490,40 @@ package UI.Hud.StarlingConverted
          mStacks.root.x = 480;
          mStacks.root.y = 55;
          mRoot.addChild(mStacks.root);
-         for each(_loc3_ in new <String>["potion_slot_A","potion_slot_B","potion_slot_C"])
+         for each(_loc6_ in new <String>["potion_slot_A","potion_slot_B","potion_slot_C"])
          {
-            _loc9_ = new StarlingButton(mStacks,_loc3_,mRoot);
-            _loc9_.enabled = false;
-            mStackButtons.push(_loc9_);
+            _loc13_ = new StarlingButton(mStacks,_loc6_,mRoot);
+            _loc13_.enabled = false;
+            mStackButtons.push(_loc13_);
          }
          addHover("UI_profile",profileOver,profileOut);
          addHover("UI_XP",xpOver,xpOut);
-         buildFlashParts(_loc8_);
+         mOptionsView = ArtView.build(HudArt.art("options_panel_button"),mTicker);
+         var _loc9_:Point = HudTopRightLayout.gearPosition();
+         mOptionsView.root.x = _loc9_.x;
+         mOptionsView.root.y = _loc9_.y;
+         mOptionsView.root.scaleX = mOptionsView.root.scaleY = 0.9;
+         mRoot.addChild(mOptionsView.root);
+         var _loc11_:StarlingButton = new StarlingButton(mOptionsView,"",mRoot);
+         _loc11_.releaseCallback = toggleSettingsPopup;
+         mInput.add(_loc11_);
+         buildFlashParts(_loc12_,_loc11_);
          hideDeferredParts();
          hideBuster();
          updateStacks();
-         _loc4_ = 0;
-         while(_loc4_ < mBuffViews.length)
+         _loc3_ = 0;
+         while(_loc3_ < mBuffViews.length)
          {
-            _loc10_ = mBuffViews[_loc4_];
-            if(_loc10_.art != HudArt.art("buff_cooldown_icon"))
+            _loc14_ = mBuffViews[_loc3_];
+            if(_loc14_.art != HudArt.art("buff_cooldown_icon"))
             {
-               mBuffViews[_loc4_] = _loc10_.rebuild(mFacade,mTicker,mInput,mRoot);
+               mBuffViews[_loc3_] = _loc14_.rebuild(mFacade,mTicker,mInput,mRoot);
             }
             else
             {
-               _loc10_.rebindInput(mInput);
+               _loc14_.rebindInput(mInput);
             }
-            _loc4_++;
+            _loc3_++;
          }
          for each(_loc2_ in mBuffs)
          {
@@ -516,7 +532,7 @@ package UI.Hud.StarlingConverted
                createBuff(_loc2_);
             }
          }
-         if(_loc5_)
+         if(_loc7_)
          {
             resetBuffButtonPositions();
          }
@@ -544,15 +560,15 @@ package UI.Hud.StarlingConverted
          }
       }
       
-      private function buildFlashParts(close:StarlingButton) : void
+      private function buildFlashParts(close:StarlingButton, optionsButton:StarlingButton) : void
       {
-         var _loc2_:Class = HudArt.swfClass(mHudType == 1 ? "ui_hud" : "ui_hud_old");
-         var _loc3_:MovieClip = new _loc2_() as MovieClip;
+         var _loc4_:Class = HudArt.swfClass(mHudType == 1 ? "ui_hud" : "ui_hud_old");
+         var _loc6_:MovieClip = new _loc4_() as MovieClip;
          mChatHolder = new flash.display.Sprite();
          mChatHolder.name = "StarlingHud.chat";
-         mChatHolder.transform.matrix = _loc3_.transform.matrix;
-         mChatClip = _loc3_.UI_chat;
-         mChatContainer = _loc3_.chatLogContainer;
+         mChatHolder.transform.matrix = _loc6_.transform.matrix;
+         mChatClip = _loc6_.UI_chat;
+         mChatContainer = _loc6_.chatLogContainer;
          mChatHolder.addChild(mChatContainer);
          mChatHolder.addChild(mChatClip);
          mChat = new UIChatLog(mFacade,mChatContainer,mChatClip,mChatClip.log_btn,mChatClip.chat_btn);
@@ -561,17 +577,22 @@ package UI.Hud.StarlingConverted
             mChat.textSizeModifier = 1.18;
          }
          mChat.disable();
-         mConsumables[0].consumableTooltip = _loc3_.consumable_tooltip01;
-         mConsumables[1].consumableTooltip = _loc3_.consumable_tooltip02;
+         mConsumables[0].consumableTooltip = _loc6_.consumable_tooltip01;
+         mConsumables[1].consumableTooltip = _loc6_.consumable_tooltip02;
          mPetModel = new MovieClip();
-         mPetModel.pet = _loc3_.pet;
-         mPetModel.pet_none = _loc3_.hasOwnProperty("pet_none") ? _loc3_.pet_none : null;
-         buildModifiers(_loc3_);
+         mPetModel.pet = _loc6_.pet;
+         mPetModel.pet_none = _loc6_.hasOwnProperty("pet_none") ? _loc6_.pet_none : null;
+         buildModifiers(_loc6_);
          visible("UI_currency_coin.coin.add_coin_button",false);
          visible("UI_currency_cash.cash.add_cash_button",false);
-         buttonTooltip(_loc3_.close,close,mView,"close");
+         buttonTooltip(_loc6_.close,close,mView,"close");
+         var _loc5_:Class = HudArt.swfClass("options_panel_button");
+         var _loc3_:MovieClip = new _loc5_() as MovieClip;
+         buttonTooltip(_loc3_,optionsButton,mOptionsView);
          HudArtConverter.stopTree(_loc3_);
          _loc3_.removeChildren();
+         HudArtConverter.stopTree(_loc6_);
+         _loc6_.removeChildren();
          visible("UI_chat",false);
          visible("chatLogContainer",false);
          setAllKeyboardIconsVisibility(!mFacade.steamInputManager.wantsControllerPrompts);
@@ -1565,7 +1586,7 @@ package UI.Hud.StarlingConverted
       {
          try
          {
-            if(event.actionName == "menu_options" && mSettingsPopup != null)
+            if(event.actionName == "menu_options" && (mSettingsPopup != null || mFacade.menuNavigationController.getTopUILayer() == "REVIVE_MENU"))
             {
                toggleSettingsPopup();
             }
@@ -1833,6 +1854,8 @@ package UI.Hud.StarlingConverted
          disposeResource(mXp,"dispose");
          mHp = mInvulnerable = mMana = mXp = null;
          disposeResource(mView,"dispose");
+         disposeResource(mOptionsView,"dispose");
+         mOptionsView = null;
          mView = null;
          mProfile = mXpRoot = null;
          mCenterMessage = null;
@@ -2121,7 +2144,7 @@ package UI.Hud.StarlingConverted
             {
                mChat.tryToggleChatLog();
             }
-            else if(index == 3 && mChat != null && mFacade.steamInputManager.usesSteamOnScreenKeyboard)
+            else if(index == 3 && mChat != null && mFacade.steamInputManager.usesSteamOnScreenKeyboard && mChat.mayOpenChatFromAction())
             {
                mChat.focusChatInput();
             }
@@ -2351,11 +2374,26 @@ package UI.Hud.StarlingConverted
          {
             initStarlingGlyph("use_consumable_two",mConsumables[1].button.root,13,-50);
          }
-         initStarlingGlyph("toggle_menu",node("close"),-5,-27);
+         initTopRightGlyph("toggle_menu",node("close"),false);
+         if(mOptionsView != null)
+         {
+            initTopRightGlyph("open_options_menu",mOptionsView.root,true);
+         }
          initStarlingGlyph("use_dungeon_buster",node("UI_buster_active.buster_activated"),8,-8);
       }
       
-      private function initStarlingGlyph(action:String, owner:DisplayObject, x:Number, y:Number, size:Number = 25) : void
+      private function initTopRightGlyph(action:String, owner:DisplayObject, gear:Boolean) : void
+      {
+         if(owner == null)
+         {
+            return;
+         }
+         var _loc5_:Point = HudTopRightLayout.glyphPosition(gear,owner.scaleX,owner.scaleY);
+         var _loc4_:Point = HudTopRightLayout.glyphSize(owner.scaleX,owner.scaleY);
+         initStarlingGlyph(action,owner,_loc5_.x,_loc5_.y,_loc4_.x,_loc4_.y);
+      }
+      
+      private function initStarlingGlyph(action:String, owner:DisplayObject, x:Number, y:Number, size:Number = 25, height:Number = 0) : void
       {
          var path:String;
          var generation:uint;
@@ -2398,7 +2436,8 @@ package UI.Hud.StarlingConverted
                _loc2_.touchable = false;
                _loc2_.x = x;
                _loc2_.y = y;
-               _loc2_.width = _loc2_.height = size;
+               _loc2_.width = size;
+               _loc2_.height = height > 0 ? height : size;
                container.addChild(_loc2_);
                mStarlingGlyphs[action] = _loc2_;
                if(action == "use_consumable_one" && mConsumables.length > 0 && !mConsumables[0].button.enabled || action == "use_consumable_two" && mConsumables.length > 1 && !mConsumables[1].button.enabled)
@@ -2445,6 +2484,14 @@ package UI.Hud.StarlingConverted
       public function get chatLog() : UIChatLog
       {
          return mChat;
+      }
+      
+      public function useFlashChatBar(value:Boolean) : void
+      {
+         if(mChatPrompt != null)
+         {
+            mChatPrompt.useFlashBar(value);
+         }
       }
       
       public function get floaterTextClass() : Class

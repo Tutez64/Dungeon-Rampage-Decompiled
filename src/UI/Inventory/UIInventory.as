@@ -114,6 +114,8 @@ package UI.Inventory
       
       private var mNewChestIds:Array;
       
+      private var mLastActedChestGmId:uint = 0;
+      
       private var mNewStackableIds:Array;
       
       private var mNewPetIds:Array;
@@ -494,9 +496,39 @@ package UI.Inventory
       {
       }
       
+      private function currentChestStack(chestInfo:ChestInfo) : ChestInfo
+      {
+         if(chestInfo == null || chestInfo.isFromDungeonSummary())
+         {
+            return chestInfo;
+         }
+         var _loc3_:DBInventoryInfo = mDBFacade.dbAccountInfo.inventoryInfo;
+         for each(var _loc2_:ChestInfo in _loc3_.chests)
+         {
+            if(_loc2_.containsDatabaseId(chestInfo.databaseId))
+            {
+               return _loc2_;
+            }
+         }
+         return _loc3_.getChestStack(chestInfo.gmId);
+      }
+      
       private function abandonChest(chestInfo:ChestInfo) : void
       {
          var index:int;
+         chestInfo = currentChestStack(chestInfo);
+         if(chestInfo == null)
+         {
+            return;
+         }
+         if(mDBFacade.dbAccountInfo.inventoryInfo.isChestRequestPending(chestInfo.databaseId))
+         {
+            return;
+         }
+         if(!chestInfo.isFromDungeonSummary())
+         {
+            mLastActedChestGmId = chestInfo.gmId;
+         }
          mAbandonChestPopUp = new UIAbandonChestPopup(mDBFacade,closeAbandonChestPopUp,function():void
          {
             mDBFacade.metrics.log("ChestAbandoned",{
@@ -538,15 +570,35 @@ package UI.Inventory
       
       private function openChest(chestInfo:ChestInfo) : void
       {
-         var _loc4_:uint = 0;
-         var _loc6_:uint = 0;
-         var _loc2_:uint = 0;
-         var _loc3_:ChestInfoCard = mChestCard;
+         var _loc2_:DBInventoryInfo = null;
+         var _loc5_:uint = 0;
+         var _loc7_:uint = 0;
+         var _loc3_:uint = 0;
+         chestInfo = currentChestStack(chestInfo);
+         if(chestInfo == null)
+         {
+            return;
+         }
+         if(!chestInfo.isFromDungeonSummary())
+         {
+            _loc2_ = mDBFacade.dbAccountInfo.inventoryInfo;
+            if(_loc2_.isChestRequestPending(chestInfo.databaseId))
+            {
+               return;
+            }
+            if(!_loc2_.hasRoomToOpenChest(chestInfo.gmId))
+            {
+               showChestOpenFullPopUp("UIInventory.openChest()");
+               return;
+            }
+            mLastActedChestGmId = chestInfo.gmId;
+         }
+         var _loc4_:ChestInfoCard = mChestCard;
          if(UIHud.isThisAConsumbleChestId(chestInfo.gmChestInfo.Id))
          {
-            _loc3_ = mConsumableChestCard;
+            _loc4_ = mConsumableChestCard;
          }
-         if(_loc3_.canChestBeOpened())
+         if(_loc4_.canChestBeOpened())
          {
             if(chestInfo.isFromDungeonSummary())
             {
@@ -554,21 +606,21 @@ package UI.Inventory
             }
             else
             {
-               _loc3_.createRevealPopUp(closeRevealPopUp,goToStorage);
-               _loc4_ = mHeroWithEquipPicker.currentlySelectedHero.Id;
-               _loc6_ = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(_loc4_).id;
-               _loc2_ = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(_loc4_).skinId;
-               mDBFacade.dbAccountInfo.inventoryInfo.openChest(chestInfo.databaseId,_loc6_,_loc2_,updateRevealLoot,openChestFailedPopUp);
+               _loc4_.createRevealPopUp(closeRevealPopUp,goToStorage);
+               _loc5_ = mHeroWithEquipPicker.currentlySelectedHero.Id;
+               _loc7_ = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(_loc5_).id;
+               _loc3_ = mDBFacade.dbAccountInfo.inventoryInfo.getAvatarInfoForHeroType(_loc5_).skinId;
+               mDBFacade.dbAccountInfo.inventoryInfo.openChest(chestInfo.databaseId,_loc7_,_loc3_,updateRevealLoot,openChestFailedPopUp);
             }
          }
          else
          {
-            _loc3_.showBuyKeysPopUp();
+            _loc4_.showBuyKeysPopUp();
          }
-         var _loc5_:int = mNewChestIds.indexOf(chestInfo.databaseId);
-         if(_loc5_ != -1)
+         var _loc6_:int = mNewChestIds.indexOf(chestInfo.databaseId);
+         if(_loc6_ != -1)
          {
-            mNewChestIds.splice(_loc5_,1);
+            mNewChestIds.splice(_loc6_,1);
          }
       }
       
@@ -644,17 +696,26 @@ package UI.Inventory
       {
          if(mDungeonSummary && !mDBFacade.dbAccountInfo.inventoryInfo.isThereEmptySpaceInWeaponStorage())
          {
-            mChestOpenFullPopUp = new DBUIOneButtonPopup(mDBFacade,"POPUP_STORAGE_FULL",Locale.getString("STORAGE_FULL"),Locale.getString("CLEAR_INVENTORY"),Locale.getString("RETURN"),returnFromOpenFullPopUp,true,returnFromOpenFullPopUp);
-            MemoryTracker.track(mChestOpenFullPopUp,"DBUIOneButtonPopup - created in UIInventory.openChestDS()");
-            mSceneGraphComponent.addChild(mChestOpenFullPopUp.root,105);
+            showChestOpenFullPopUp("UIInventory.openChestDS()");
             return;
          }
          openChest(chestInfo);
       }
       
+      private function showChestOpenFullPopUp(createdIn:String) : void
+      {
+         if(mChestOpenFullPopUp)
+         {
+            return;
+         }
+         mChestOpenFullPopUp = new DBUIOneButtonPopup(mDBFacade,"POPUP_STORAGE_FULL",Locale.getString("STORAGE_FULL"),Locale.getString("CLEAR_INVENTORY"),Locale.getString("RETURN"),returnFromOpenFullPopUp,true,returnFromOpenFullPopUp);
+         MemoryTracker.track(mChestOpenFullPopUp,"DBUIOneButtonPopup - created in " + createdIn);
+         mSceneGraphComponent.addChild(mChestOpenFullPopUp.root,105);
+      }
+      
       private function keepChestDS(chestInfo:ChestInfo) : void
       {
-         if(mDungeonSummary && !mDBFacade.dbAccountInfo.inventoryInfo.isThereEmptySpaceInWeaponStorage())
+         if(mDungeonSummary && !mDBFacade.dbAccountInfo.inventoryInfo.hasRoomForChest(chestInfo.gmId))
          {
             mChestOpenFullPopUp = new DBUIOneButtonPopup(mDBFacade,"POPUP_STORAGE_FULL",Locale.getString("STORAGE_FULL"),Locale.getString("CLEAR_INVENTORY"),Locale.getString("RETURN"),returnFromOpenFullPopUp,true,returnFromOpenFullPopUp);
             MemoryTracker.track(mChestOpenFullPopUp,"DBUIOneButtonPopup - created in UIInventory.keepChestDS()");
@@ -680,17 +741,7 @@ package UI.Inventory
       
       private function removeChestFromInventory(chestInstanceId:uint) : void
       {
-         var _loc2_:uint = 0;
-         _loc2_ = 0;
-         while(_loc2_ < mDBFacade.dbAccountInfo.inventoryInfo.chests.length)
-         {
-            if(mDBFacade.dbAccountInfo.inventoryInfo.chests[_loc2_].gmId == chestInstanceId)
-            {
-               mDBFacade.dbAccountInfo.inventoryInfo.chests.splice(_loc2_,1);
-               break;
-            }
-            _loc2_++;
-         }
+         mDBFacade.dbAccountInfo.inventoryInfo.removeChestRow(chestInstanceId);
          takeItemCallback();
       }
       
@@ -857,7 +908,15 @@ package UI.Inventory
             }
             return ItemInfo(infoB).requiredLevel - ItemInfo(infoA).requiredLevel;
          }
-         return infoB.gmId - infoA.gmId;
+         if(infoA.gmId != infoB.gmId)
+         {
+            return infoB.gmId - infoA.gmId;
+         }
+         if(infoA is ChestInfo && infoB is ChestInfo)
+         {
+            return infoA.databaseId < infoB.databaseId ? -1 : (infoA.databaseId > infoB.databaseId ? 1 : 0);
+         }
+         return 0;
       }
       
       private function weaponSortComparator(infoA:InventoryBaseInfo, infoB:InventoryBaseInfo) : int
@@ -934,6 +993,18 @@ package UI.Inventory
          if(!dontRefreshChestSelection)
          {
             mSelectedItemInfo = checkIfRevealedWeaponExists();
+            if(mSelectedItemInfo != null)
+            {
+               mLastActedChestGmId = 0;
+            }
+            else if(mLastActedChestGmId != 0)
+            {
+               mSelectedItemInfo = mDBFacade.dbAccountInfo.inventoryInfo.getChestStack(mLastActedChestGmId);
+               if(mSelectedItemInfo == null)
+               {
+                  mLastActedChestGmId = 0;
+               }
+            }
          }
          if(mSelectedItemInfo != null && mSelectedItemInfo is ItemInfo)
          {
@@ -1324,6 +1395,10 @@ package UI.Inventory
          restoreBoosterItemNavigation();
          mSelectedItemInfo = info;
          mSelectedItemNavigationSource = navigationSource;
+         if(!(info is ChestInfo) || info.gmId != mLastActedChestGmId)
+         {
+            mLastActedChestGmId = 0;
+         }
          var _loc4_:Boolean = false;
          if(info is StackableInfo)
          {

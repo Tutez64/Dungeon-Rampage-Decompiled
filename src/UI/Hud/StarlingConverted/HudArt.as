@@ -181,7 +181,7 @@ package UI.Hud.StarlingConverted
          {
             return;
          }
-         sSymbols = new <String>["ui_hud_old","ui_hud","stacks_hud","buff_cooldown_icon","floater_text","UI_widget","UI_nametag","UI_speechbubble_typing","UI_teamloot_basic","UI_teamloot_uncommon","UI_teamloot_rare","UI_teamloot_legendary","UI_teamloot_box_small","UI_teamloot_box_royal"];
+         sSymbols = new <String>["ui_hud_old","ui_hud","stacks_hud","buff_cooldown_icon","floater_text","options_panel_button","UI_widget","UI_nametag","UI_speechbubble_typing","UI_teamloot_basic","UI_teamloot_uncommon","UI_teamloot_rare","UI_teamloot_legendary","UI_teamloot_box_small","UI_teamloot_box_royal"];
          sClasses = {};
          sArt = {};
          if(sCallbacks == null)
@@ -219,7 +219,7 @@ package UI.Hud.StarlingConverted
          _loc2_ = 0;
          while(_loc2_ < sSymbols.length)
          {
-            if(sSymbols[_loc2_] != "UI_widget" && sSymbols[_loc2_] != "UI_nametag" && sSymbols[_loc2_] != "UI_speechbubble_typing")
+            if(sSymbols[_loc2_] != "options_panel_button" && sSymbols[_loc2_] != "UI_widget" && sSymbols[_loc2_] != "UI_nametag" && sSymbols[_loc2_] != "UI_speechbubble_typing")
             {
                sClasses[sSymbols[_loc2_]] = requireClass(asset,"Resources/Art2D/UI/db_UI_HUD.swf",sSymbols[_loc2_]);
             }
@@ -232,6 +232,7 @@ package UI.Hud.StarlingConverted
       {
          TimelineMasks.register(asset);
          sSwfs.push(asset);
+         sClasses.options_panel_button = requireClass(asset,"Resources/Art2D/UI/db_UI_town.swf","options_panel_button");
          sClasses.legendary_background_icon = requireClass(asset,"Resources/Art2D/UI/db_UI_town.swf","legendary_background_icon");
          loaded();
       }
@@ -635,6 +636,10 @@ package UI.Hud.StarlingConverted
       
       private static function symbolScale(symbol:String) : Number
       {
+         if(symbol == "options_panel_button")
+         {
+            return 0.9;
+         }
          if(symbol.indexOf("UI_teamloot_") == 0)
          {
             return 1.8;

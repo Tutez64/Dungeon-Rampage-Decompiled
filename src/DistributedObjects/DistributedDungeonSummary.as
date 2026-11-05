@@ -667,7 +667,7 @@ package DistributedObjects
                         gmHero = mDBFacade.gameMaster.heroById.itemFor(mDungeonReport[i].type);
                         oldLevel = gmHero.getLevelFromExp(mDungeonReport[i].xp + mBonusXPTick[i],mDungeonReport[i].ascension_level);
                         allFinished = false;
-                        mBonusXPTick[i] += speed;
+                        mBonusXPTick[i] = Math.min(mBonusXPTick[i] + speed,mDungeonReport[i].xp_bonus);
                         currentExp = mDungeonReport[i].xp + mBonusXPTick[i];
                         level = gmHero.getLevelFromExp(currentExp,mDungeonReport[i].ascension_level);
                         levelIndex = uint(gmHero.getLevelIndex(currentExp,mDungeonReport[i].ascension_level));
@@ -749,7 +749,7 @@ package DistributedObjects
                         gmHeroTeam = mDBFacade.gameMaster.heroById.itemFor(mDungeonReport[i].type);
                         oldLevelTeam = gmHeroTeam.getLevelFromExp(mDungeonReport[i].xp + mBonusXPTick[i],mDungeonReport[i].ascension_level);
                         allFinished = false;
-                        mTeamBonusXPTick[i] += speedTeam;
+                        mTeamBonusXPTick[i] = Math.min(mTeamBonusXPTick[i] + speedTeam,mDungeonReport[i].team_xp_bonus);
                         currentExpTeam = mDungeonReport[i].xp + mBonusXPTick[i] + mTeamBonusXPTick[i];
                         levelTeam = gmHeroTeam.getLevelFromExp(currentExpTeam,mDungeonReport[i].ascension_level);
                         levelIndexTeam = uint(gmHeroTeam.getLevelIndex(currentExpTeam,mDungeonReport[i].ascension_level));
@@ -1080,6 +1080,7 @@ package DistributedObjects
          var _loc2_:GMSkin = null;
          var _loc3_:uint = 0;
          var _loc1_:TextField = null;
+         var _loc5_:MovieClip = null;
          TextUtil.setText(mScoreReportRoot.stats_a.stats.player_name,mDungeonReport[0].name,Locale.summaryNameSizeModifier);
          TextUtil.setText(mScoreReportRoot.stats_b.stats.player_name,mDungeonReport[1].name,Locale.summaryNameSizeModifier);
          TextUtil.setText(mScoreReportRoot.stats_c.stats.player_name,mDungeonReport[2].name,Locale.summaryNameSizeModifier);
@@ -1088,7 +1089,7 @@ package DistributedObjects
          mScoreReportRoot.stats_b.stats.player_name.textColor = PlayerSpecialStatus.getSpecialTextColor(mDungeonReport[1].name,mScoreReportRoot.stats_b.stats.player_name.textColor);
          mScoreReportRoot.stats_c.stats.player_name.textColor = PlayerSpecialStatus.getSpecialTextColor(mDungeonReport[2].name,mScoreReportRoot.stats_c.stats.player_name.textColor);
          mScoreReportRoot.stats_d.stats.player_name.textColor = PlayerSpecialStatus.getSpecialTextColor(mDungeonReport[3].name,mScoreReportRoot.stats_d.stats.player_name.textColor);
-         var _loc5_:Array = [mScoreReportRoot.stats_a.stats.avatar,mScoreReportRoot.stats_b.stats.avatar,mScoreReportRoot.stats_c.stats.avatar,mScoreReportRoot.stats_d.stats.avatar];
+         var _loc6_:Array = [mScoreReportRoot.stats_a.stats.avatar,mScoreReportRoot.stats_b.stats.avatar,mScoreReportRoot.stats_c.stats.avatar,mScoreReportRoot.stats_d.stats.avatar];
          var _loc4_:Array = [mScoreReportRoot.stats_a,mScoreReportRoot.stats_b,mScoreReportRoot.stats_c,mScoreReportRoot.stats_d];
          _loc3_ = 0;
          while(_loc3_ < 4)
@@ -1097,6 +1098,11 @@ package DistributedObjects
             {
                _loc1_ = _loc4_[_loc3_].stats.trophies.trophies;
                TextUtil.setText(_loc1_,mDungeonReport[_loc3_].trophyCount.toString());
+               _loc5_ = _loc4_[_loc3_].stats.ascension;
+               _loc5_.mouseEnabled = false;
+               _loc5_.mouseChildren = false;
+               _loc5_.visible = mDungeonReport[_loc3_].ascension_level > 0;
+               TextUtil.setText(_loc5_.level,mDungeonReport[_loc3_].ascension_level.toString());
                _loc2_ = mDBFacade.gameMaster.getSkinByType(mDungeonReport[_loc3_].skin_type);
                if(_loc2_ == null)
                {
@@ -1104,12 +1110,12 @@ package DistributedObjects
                }
                else
                {
-                  loadPortraitForReport(mDungeonReport[_loc3_],_loc2_,_loc5_[_loc3_],_loc3_);
+                  loadPortraitForReport(mDungeonReport[_loc3_],_loc2_,_loc6_[_loc3_],_loc3_);
                }
             }
             else
             {
-               _loc5_[_loc3_].visible = false;
+               _loc6_[_loc3_].visible = false;
             }
             _loc3_++;
          }
@@ -1995,7 +2001,7 @@ package DistributedObjects
       
       private function keepChestCallback() : void
       {
-         if(mDBFacade.dbAccountInfo.inventoryInfo.isThereEmptySpaceInWeaponStorage())
+         if(mDBFacade.dbAccountInfo.inventoryInfo.hasRoomForChest(mSelectedGMChest.Id))
          {
             closeKeyChestPopup();
             keepChestFromInventory(mSelectedItemSlot,false);

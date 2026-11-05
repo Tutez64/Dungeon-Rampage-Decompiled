@@ -30,10 +30,12 @@ package Actor.StateMachine
    import GameMasterDictionary.GMDoober;
    import GameMasterDictionary.GMOffer;
    import GeneratedCode.InfiniteRewardData;
+   import Input.MenuNavigationController;
    import StateMachine.MainStateMachine.DungeonTutorial;
    import SteamInput.UnboundActionEvent;
    import UI.InfiniteIsland.II_UIExitDungeonPopUp;
    import UI.Popup.UILootLossPopup;
+   import UI.UIChatLog;
    import flash.display.DisplayObject;
    import flash.display.MovieClip;
    import flash.events.Event;
@@ -65,6 +67,8 @@ package Actor.StateMachine
       
       public static const BOMB_BUTTON_LOCK_DURATION:Number = 2;
       
+      private static const HUD_MENU_INDEX_OPTIONS:uint = 1;
+      
       private static const CONTROLLER_ICON_POSITION_FOR_REVIVE:Vector3D = new Vector3D(15,26);
       
       private static const CONTROLLER_GLYPH_SCALE_REVIVE:Point = new Point(20,20);
@@ -72,6 +76,8 @@ package Actor.StateMachine
       private static const CONTROLLER_ICON_POSITION_FOR_SPECTATE:Vector3D = new Vector3D(50,-60);
       
       private static const CONTROLLER_GLYPH_SCALE_SPECTATE:Point = new Point(50,50);
+      
+      private static const DISABLED_LOOK:ColorMatrixFilter = new ColorMatrixFilter([0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0.3086,0.6094,0.082,0,0,0,0,0,1,0]);
       
       protected var mAssetLoadingComponent:AssetLoadingComponent;
       
@@ -90,6 +96,14 @@ package Actor.StateMachine
       protected var mDestroyTimerTask:Task;
       
       protected var mSpaceBarTask:Task;
+      
+      private var mPanelTask:Task;
+      
+      private var mReviveMenuWanted:Boolean;
+      
+      private var mLinkedChatButtons:Array = [];
+      
+      private var mChatBarLocked:Boolean;
       
       protected var mLoadReviveTriggerTask:Task;
       
@@ -154,7 +168,7 @@ package Actor.StateMachine
          {
             if(mRevivePanel)
             {
-               mRevivePanel.visible = false;
+               hideRevivePanel();
             }
          });
          mEventComponent.addListener("UI_HIDE_TOGGLE_CHANGED",function(param1:Event):void
@@ -603,7 +617,7 @@ package Actor.StateMachine
             Locale.setText(mRevivePanel.prompt_button_1_buy_all.use_buy_me,"REVIVE_PANEL_USE");
             reviveAllCallback = function():void
             {
-               mRevivePanel.visible = false;
+               hideRevivePanel();
                useRezAllPotion();
             };
          }
@@ -622,7 +636,7 @@ package Actor.StateMachine
             {
                if(offer.CurrencyType == GMOffer.PREMIUM_CURRENCY && mDBFacade.dbAccountInfo.premiumCurrency >= offer.Price)
                {
-                  mRevivePanel.visible = false;
+                  hideRevivePanel();
                   EventListeners.add(mRevivePanel,"purchaseReviveAll-failed",handleReviveAllPurchaseFail);
                }
                buyReviveAll();
@@ -661,7 +675,7 @@ package Actor.StateMachine
             Locale.setText(mRevivePanel.prompt_button_1_buy_me.use_buy_me,"REVIVE_PANEL_USE");
             reviveMeCallback = function():void
             {
-               mRevivePanel.visible = false;
+               hideRevivePanel();
                useRezMePotion();
             };
          }
@@ -683,7 +697,7 @@ package Actor.StateMachine
             {
                if(offer.CurrencyType == GMOffer.PREMIUM_CURRENCY && mDBFacade.dbAccountInfo.premiumCurrency >= offer.Price)
                {
-                  mRevivePanel.visible = false;
+                  hideRevivePanel();
                }
                buyReviveMe();
             };
@@ -776,13 +790,11 @@ package Actor.StateMachine
             mHitTabClip.tab.visible = false;
             mDBFacade.hud.initControllerIcon("revive_ally",mHitTabClip,CONTROLLER_ICON_POSITION_FOR_SPECTATE,CONTROLLER_GLYPH_SCALE_SPECTATE);
          }
-         lockBombButtons();
-         if(mDBFacade.steamInputManager.isSteamInputReady)
-         {
-            mDBFacade.menuNavigationController.pushNewLayer("REVIVE_MENU",popReviveMenuLayer,mReturnToTownButton);
-            mSelfReviveMeButton.isAbove(mSelfReviveAllButton);
-            mSelfReviveAllButton.isAbove(mReturnToTownButton);
-         }
+         lockPanelButtons();
+         mReviveMenuWanted = true;
+         mSelfReviveMeButton.isAbove(mSelfReviveAllButton);
+         mSelfReviveAllButton.isAbove(mReturnToTownButton);
+         startPanelTask();
          setUpLimitedHealthBombGUI(mHeroGameObject.healthBombUsesRemaining,mRevivePanel);
          setUpLimitedPartyBombGUI(mHeroGameObject.partyBombUsesRemaining,mRevivePanel);
       }
@@ -905,7 +917,7 @@ package Actor.StateMachine
             Locale.setText(mRevivePanel.prompt_button_1_buy_all.use_buy_all,"REVIVE_PANEL_USE");
             reviveAllCallback = function():void
             {
-               mRevivePanel.visible = false;
+               hideRevivePanel();
                useRezAllPotion();
             };
          }
@@ -926,7 +938,7 @@ package Actor.StateMachine
             {
                if(offer.CurrencyType == GMOffer.PREMIUM_CURRENCY && mDBFacade.dbAccountInfo.premiumCurrency >= offer.Price)
                {
-                  mRevivePanel.visible = false;
+                  hideRevivePanel();
                   EventListeners.add(mRevivePanel,"purchaseReviveAll-failed",handleReviveAllPurchaseFail);
                }
                buyReviveAll();
@@ -954,7 +966,7 @@ package Actor.StateMachine
             Locale.setText(mRevivePanel.prompt_button_1_buy_me.use_buy_me,"REVIVE_PANEL_USE");
             reviveMeCallback = function():void
             {
-               mRevivePanel.visible = false;
+               hideRevivePanel();
                useRezMePotion();
             };
          }
@@ -978,7 +990,7 @@ package Actor.StateMachine
             {
                if(offer.CurrencyType == GMOffer.PREMIUM_CURRENCY && mDBFacade.dbAccountInfo.premiumCurrency >= offer.Price)
                {
-                  mRevivePanel.visible = false;
+                  hideRevivePanel();
                }
                buyReviveMe();
             };
@@ -1016,22 +1028,199 @@ package Actor.StateMachine
             mHitTabClip.tab.visible = false;
             mDBFacade.hud.initControllerIcon("revive_ally",mHitTabClip,CONTROLLER_ICON_POSITION_FOR_SPECTATE,CONTROLLER_GLYPH_SCALE_SPECTATE);
          }
-         lockBombButtons();
-         if(mDBFacade.steamInputManager.isSteamInputReady)
+         lockPanelButtons();
+         mReviveMenuWanted = true;
+         mSelfReviveMeButton.isToTheLeftOf(mSelfReviveAllButton);
+         mSelfReviveMeButton.isAbove(mReturnToTownButton);
+         startPanelTask();
+      }
+      
+      private function get chatBarButtons() : Array
+      {
+         var _loc1_:UIChatLog = mDBFacade.hud != null ? mDBFacade.hud.chatLog : null;
+         if(_loc1_ == null || _loc1_.chatLogButton == null || _loc1_.chatSendButton == null)
          {
-            mDBFacade.menuNavigationController.pushNewLayer("REVIVE_MENU",popReviveMenuLayer,mReturnToTownButton);
-            mSelfReviveMeButton.isToTheLeftOf(mSelfReviveAllButton);
-            mSelfReviveMeButton.isAbove(mReturnToTownButton);
+            return [];
+         }
+         var _loc2_:Array = [_loc1_.chatLogButton,_loc1_.chatSendButton];
+         if(_loc2_[1].root.localToGlobal(new Point()).x < _loc2_[0].root.localToGlobal(new Point()).x)
+         {
+            _loc2_.reverse();
+         }
+         return _loc2_;
+      }
+      
+      private function linkChatBar() : void
+      {
+         var _loc3_:Array = chatBarButtons;
+         if(_loc3_.length == mLinkedChatButtons.length && (_loc3_.length == 0 || _loc3_[0] == mLinkedChatButtons[0]))
+         {
+            return;
+         }
+         var _loc2_:MenuNavigationController = mDBFacade.menuNavigationController;
+         var _loc4_:int = int(_loc2_.getTopUILayer() == "REVIVE_MENU" ? mLinkedChatButtons.indexOf(_loc2_.focusedUiObject) : -1);
+         unlinkChatBar();
+         if(_loc3_.length == 0 || mReturnToTownButton == null)
+         {
+            return;
+         }
+         var _loc5_:UIButton = _loc3_[0];
+         var _loc6_:UIButton = _loc3_[1];
+         for each(var _loc1_:UIButton in _loc3_)
+         {
+            _loc1_.clearNavigationAndInteractions();
+         }
+         mReturnToTownButton.isAbove(_loc5_);
+         _loc6_.upNavigation = mReturnToTownButton;
+         _loc5_.isToTheLeftOf(_loc6_);
+         mLinkedChatButtons = _loc3_;
+         if(mDBFacade.hud != null)
+         {
+            mDBFacade.hud.useFlashChatBar(true);
+         }
+         if(mBombButtonLockTask != null)
+         {
+            lockChatBar();
+         }
+         if(_loc4_ >= 0)
+         {
+            _loc2_.setFocusedUiObject(_loc3_[_loc4_]);
          }
       }
       
-      private function lockBombButtons() : void
+      private function unlinkChatBar() : void
+      {
+         unlockChatBar();
+         if(mLinkedChatButtons.length > 0 && mDBFacade.hud != null)
+         {
+            mDBFacade.hud.useFlashChatBar(false);
+         }
+         for each(var _loc1_:UIButton in mLinkedChatButtons)
+         {
+            if(_loc1_.root != null)
+            {
+               _loc1_.clearNavigationAndInteractions();
+            }
+         }
+         if(mReturnToTownButton != null && mReturnToTownButton.root != null)
+         {
+            mReturnToTownButton.clearDownNavigation();
+         }
+         mLinkedChatButtons = [];
+      }
+      
+      private function setLockedLook(button:UIButton, locked:Boolean) : void
+      {
+         if(button == null || button.root == null)
+         {
+            return;
+         }
+         var _loc3_:DisplayObject = button.root.getChildByName("up");
+         if(_loc3_ == null)
+         {
+            _loc3_ = button.root;
+         }
+         button.enabled = !locked;
+         _loc3_.filters = locked ? [DISABLED_LOOK] : [];
+      }
+      
+      private function lockChatBar() : void
+      {
+         for each(var _loc1_:UIButton in mLinkedChatButtons)
+         {
+            setLockedLook(_loc1_,true);
+         }
+         mChatBarLocked = true;
+      }
+      
+      private function unlockChatBar() : void
+      {
+         if(!mChatBarLocked)
+         {
+            return;
+         }
+         mChatBarLocked = false;
+         for each(var _loc1_:UIButton in mLinkedChatButtons)
+         {
+            setLockedLook(_loc1_,false);
+         }
+      }
+      
+      private function openExitConfirmation() : void
+      {
+         if(mDBFacade.inputManager.check(27) && !mDBFacade.inputManager.pressed(27))
+         {
+            return;
+         }
+         var _loc1_:Function = mReturnToTownButton != null ? mReturnToTownButton.releaseCallback : null;
+         if(_loc1_ != null)
+         {
+            _loc1_();
+         }
+      }
+      
+      private function startPanelTask() : void
+      {
+         linkChatBar();
+         pushReviveMenuWhenFree(false);
+         if(mPanelTask)
+         {
+            mPanelTask.destroy();
+         }
+         mPanelTask = mLogicalWorkComponent.doEveryFrame(function(param1:GameClock):void
+         {
+            pushReviveMenuWhenFree(true);
+            linkChatBar();
+            if(mLinkedChatButtons.length > 0 && mDBFacade.hud != null)
+            {
+               mDBFacade.hud.useFlashChatBar(true);
+            }
+            if(mDBFacade.hud != null && mDBFacade.keyBindings != null && mDBFacade.keyBindings.wasReleased("openOptionsMenu"))
+            {
+               mDBFacade.hud.handleMenuButtonPressed(1);
+            }
+         });
+      }
+      
+      private function pushReviveMenuWhenFree(deferred:Boolean) : void
+      {
+         if(!mReviveMenuWanted || mDBFacade.menuNavigationController.layerDepth > 0)
+         {
+            return;
+         }
+         mReviveMenuWanted = false;
+         if(deferred && mBombButtonLockTask == null)
+         {
+            lockPanelButtons();
+         }
+         mDBFacade.menuNavigationController.pushNewLayer("REVIVE_MENU",openExitConfirmation,mSelfReviveMeButton);
+      }
+      
+      private function hideRevivePanel() : void
+      {
+         mRevivePanel.visible = false;
+         mReviveMenuWanted = false;
+         removeReviveMenuLayer();
+         unlinkChatBar();
+      }
+      
+      private function removeReviveMenuLayer() : void
+      {
+         if(!(mHeroGameObject is HeroGameObjectOwner))
+         {
+            return;
+         }
+         mDBFacade.menuNavigationController.removeLayer("REVIVE_MENU");
+      }
+      
+      private function lockPanelButtons() : void
       {
          var reviveMeEnabled:Boolean = mSelfReviveMeButton.enabled;
          var reviveAllEnabled:Boolean = mSelfReviveAllButton.enabled;
          mSelfReviveMeButton.enabled = false;
          mSelfReviveAllButton.enabled = false;
-         mReturnToTownButton.enabled = true;
+         setLockedLook(mReturnToTownButton,true);
+         lockChatBar();
          if(mBombButtonLockTask)
          {
             mBombButtonLockTask.destroy();
@@ -1047,20 +1236,9 @@ package Actor.StateMachine
             {
                mSelfReviveAllButton.enabled = reviveAllEnabled;
             }
+            setLockedLook(mReturnToTownButton,false);
+            unlockChatBar();
          });
-      }
-      
-      private function popReviveMenuLayer() : void
-      {
-         if(!(mHeroGameObject is HeroGameObjectOwner))
-         {
-            return;
-         }
-         if(mDBFacade.menuNavigationController.getTopUILayer() != "REVIVE_MENU")
-         {
-            return;
-         }
-         mDBFacade.menuNavigationController.popLayer("REVIVE_MENU");
       }
       
       private function popForfeitConfirmLayer() : void
@@ -1077,7 +1255,7 @@ package Actor.StateMachine
       
       protected function handleReviveAllPurchaseFail(event:Event) : void
       {
-         mRevivePanel.visible = false;
+         hideRevivePanel();
       }
       
       private function getHealthBombSplitTestMultiplier() : Number
@@ -1151,7 +1329,11 @@ package Actor.StateMachine
       
       public function destroyUI() : void
       {
-         popReviveMenuLayer();
+         removeReviveMenuLayer();
+         if(mHeroGameObject is HeroGameObjectOwner)
+         {
+            unlinkChatBar();
+         }
          if(mHeroGameObject is HeroGameObjectOwner)
          {
             saturate(100);
@@ -1171,6 +1353,12 @@ package Actor.StateMachine
             mBombButtonLockTask.destroy();
             mBombButtonLockTask = null;
          }
+         if(mPanelTask)
+         {
+            mPanelTask.destroy();
+            mPanelTask = null;
+         }
+         mReviveMenuWanted = false;
          if(mDeadPlayerEffect)
          {
             if(mHeroGameObject.view.root.contains(mDeadPlayerEffect))

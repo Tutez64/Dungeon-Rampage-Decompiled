@@ -52,6 +52,8 @@ package UI.Leaderboard
       
       private var mFriendLevel:MovieClip;
       
+      private var mFriendAscension:MovieClip;
+      
       private var mOnlinePopup:MovieClip;
       
       private var mOfflinePopup:MovieClip;
@@ -108,6 +110,9 @@ package UI.Leaderboard
          mFriendLevel = mFriendSlot.friend_level;
          mFriendLevel.mouseEnabled = false;
          mFriendLevel.mouseChildren = false;
+         mFriendAscension = mFriendSlot.friend_ascension;
+         mFriendAscension.mouseEnabled = false;
+         mFriendAscension.mouseChildren = false;
          mFriendInviteButton = new UIButton(mDBFacade,mFriendSlot.invite_friend);
          Locale.setText(mFriendInviteButton.label,"LEADERBOARD_INVITE_FRIEND");
          mFriendInviteButton.rolloverFilter = DBGlobal.UI_ROLLOVER_FILTER;
@@ -193,6 +198,8 @@ package UI.Leaderboard
             applyFriendNameSize();
             mFriendName.textColor = PlayerSpecialStatus.getSpecialTextColor(data.name,mFriendName.textColor);
             TextUtil.setText(mFriendLevel.level,String(data.trophies));
+            mFriendAscension.visible = data.ascensionLevel > 0;
+            TextUtil.setText(mFriendAscension.level,String(data.ascensionLevel));
             if(data.isOnline() && data.isInDungeon())
             {
                mJoinOnlineClip.visible = true;
@@ -264,6 +271,7 @@ package UI.Leaderboard
             mFriendOnlineClip.visible = false;
             mMeOnlineClip.visible = false;
             mFriendLevel.visible = false;
+            mFriendAscension.visible = false;
          }
       }
       
@@ -419,6 +427,7 @@ package UI.Leaderboard
          mFriendOfflineClip = null;
          mMeOnlineClip = null;
          mFriendLevel = null;
+         mFriendAscension = null;
          mOnlinePopup = null;
          mOfflinePopup = null;
          mFriendInfo = null;

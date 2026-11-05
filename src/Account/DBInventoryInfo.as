@@ -30,7 +30,7 @@ package Account
       
       private var mChests:Vector.<ChestInfo>;
       
-      private var mLastPendingChest:int;
+      private var mPendingChestRows:Object = {};
       
       private var mKeys:Vector.<KeyInfo>;
       
@@ -67,7 +67,6 @@ package Account
          mAvatars = new Map();
          mItems = new Map();
          mChests = new Vector.<ChestInfo>();
-         mLastPendingChest = -1;
          mKeys = new Vector.<KeyInfo>();
          mStackablesByDatabaseId = new Map();
          mStackablesByStackableId = new Map();
@@ -613,39 +612,98 @@ package Account
       
       private function parseChests(chestsJson:Object) : void
       {
-         var _loc6_:ChestInfo = null;
-         var _loc7_:uint = 0;
-         var _loc5_:Boolean = false;
-         var _loc3_:Vector.<ChestInfo> = mChests.slice();
-         mChests.splice(0,mChests.length);
-         var _loc2_:Array = chestsJson as Array;
-         _loc7_ = 0;
-         while(_loc7_ < _loc2_.length)
+         var _loc9_:uint = 0;
+         var _loc8_:Boolean = false;
+         var _loc4_:Object = {};
+         for each(var _loc3_:ChestInfo in mChests)
          {
-            _loc5_ = false;
-            if(!mFirstParse)
+            for each(var _loc6_:uint in _loc3_.databaseIds)
             {
-               for each(var _loc4_:ChestInfo in _loc3_)
-               {
-                  if(_loc4_.databaseId == _loc2_[_loc7_].id)
-                  {
-                     _loc5_ = true;
-                     break;
-                  }
-               }
+               _loc4_[_loc6_] = true;
+            }
+         }
+         mChests.splice(0,mChests.length);
+         var _loc7_:Array = (chestsJson as Array).slice();
+         _loc7_.sortOn(["chest_id","id"],[16,16]);
+         var _loc2_:ChestInfo = null;
+         for each(var _loc5_:Object in _loc7_)
+         {
+            _loc9_ = _loc5_.id as uint;
+            _loc8_ = !mFirstParse && !_loc4_[_loc9_];
+            if(_loc2_ != null && _loc2_.gmId == _loc5_.chest_id as uint && !_loc2_.isFull)
+            {
+               _loc2_.addDatabaseId(_loc9_);
             }
             else
             {
-               _loc5_ = true;
+               _loc2_ = new ChestInfo(mDBFacade,_loc5_);
+               mChests.push(_loc2_);
             }
-            _loc6_ = new ChestInfo(mDBFacade,_loc2_[_loc7_]);
-            if(!_loc5_)
+            if(_loc8_)
             {
-               _loc6_.isNew = true;
+               _loc2_.isNew = true;
             }
-            mChests.push(_loc6_);
-            _loc7_++;
          }
+      }
+      
+      public function getChestStack(gmChestId:uint) : ChestInfo
+      {
+         for each(var _loc2_:ChestInfo in mChests)
+         {
+            if(_loc2_.gmId == gmChestId)
+            {
+               return _loc2_;
+            }
+         }
+         return null;
+      }
+      
+      public function removeChestRow(chestRowId:uint) : void
+      {
+         var _loc2_:uint = 0;
+         _loc2_ = 0;
+         while(_loc2_ < mChests.length)
+         {
+            if(mChests[_loc2_].containsDatabaseId(chestRowId))
+            {
+               if(!mChests[_loc2_].removeDatabaseId(chestRowId))
+               {
+                  mChests.splice(_loc2_,1);
+               }
+               return;
+            }
+            _loc2_++;
+         }
+      }
+      
+      public function chestCountOfType(gmChestId:uint) : uint
+      {
+         var _loc2_:uint = 0;
+         for each(var _loc3_:ChestInfo in mChests)
+         {
+            if(_loc3_.gmId == gmChestId)
+            {
+               _loc2_ += _loc3_.count;
+            }
+         }
+         return _loc2_;
+      }
+      
+      public function hasRoomToOpenChest(gmChestId:uint) : Boolean
+      {
+         return isThereEmptySpaceInWeaponStorage() || chestCountOfType(gmChestId) % 99 == 1;
+      }
+      
+      public function hasRoomForChest(gmChestId:uint) : Boolean
+      {
+         for each(var _loc2_:ChestInfo in mChests)
+         {
+            if(_loc2_.gmId == gmChestId && !_loc2_.isFull)
+            {
+               return true;
+            }
+         }
+         return isThereEmptySpaceInWeaponStorage();
       }
       
       private function parseKeys(accountsJson:Object) : void
@@ -764,16 +822,14 @@ package Account
       public function openChest(chestInstanceId:uint, forHeroId:uint, forHeroSkinId:uint, responseFinishedCallback:Function = null, errorCallback:Function = null) : void
       {
          var rpcFunc:Function;
-         if(mLastPendingChest == chestInstanceId && 0)
+         if(!beginChestRequest(chestInstanceId))
          {
-            Logger.error("Chest has already been opened on Server. Chest id:" + chestInstanceId);
-            mLastPendingChest = -1;
             return;
          }
-         mLastPendingChest = chestInstanceId;
          rpcFunc = JSONRPCService.getFunction("OpenChest",mDBFacade.rpcRoot + "account");
          rpcFunc(mDBFacade.dbAccountInfo.id,chestInstanceId,mDBFacade.validationToken,forHeroId,forHeroSkinId,function(param1:*):void
          {
+            delete mPendingChestRows[chestInstanceId];
             mResponseCallback(param1);
             if(responseFinishedCallback != null)
             {
@@ -781,6 +837,7 @@ package Account
             }
          },function(param1:Error):void
          {
+            delete mPendingChestRows[chestInstanceId];
             mParseErrorCallback(param1);
             errorCallback();
          });
@@ -788,9 +845,15 @@ package Account
       
       public function dropChest(chestInstanceId:uint, responseFinishedCallback:Function = null, errorCallback:Function = null) : void
       {
-         var rpcFunc:Function = JSONRPCService.getFunction("DropChest",mDBFacade.rpcRoot + "account");
+         var rpcFunc:Function;
+         if(!beginChestRequest(chestInstanceId))
+         {
+            return;
+         }
+         rpcFunc = JSONRPCService.getFunction("DropChest",mDBFacade.rpcRoot + "account");
          rpcFunc(mDBFacade.dbAccountInfo.id,chestInstanceId,mDBFacade.validationToken,function(param1:*):void
          {
+            delete mPendingChestRows[chestInstanceId];
             mResponseCallback(param1);
             if(responseFinishedCallback != null)
             {
@@ -798,9 +861,26 @@ package Account
             }
          },function(param1:Error):void
          {
+            delete mPendingChestRows[chestInstanceId];
             mParseErrorCallback(param1);
             errorCallback();
          });
+      }
+      
+      private function beginChestRequest(chestRowId:uint) : Boolean
+      {
+         if(mPendingChestRows[chestRowId])
+         {
+            Logger.warn("Ignoring a repeated request for chest row " + chestRowId + " while one is pending");
+            return false;
+         }
+         mPendingChestRows[chestRowId] = true;
+         return true;
+      }
+      
+      public function isChestRequestPending(chestRowId:uint) : Boolean
+      {
+         return mPendingChestRows[chestRowId] == true;
       }
       
       public function canThisAvatarEquipThisItem(avatarInfo:AvatarInfo, itemInfo:ItemInfo) : Boolean

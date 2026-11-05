@@ -590,6 +590,7 @@ package Account
             "account_id":this.mId,
             "name":this.mName,
             "trophies":this.trophies,
+            "ascension_level":activeAscensionLevel,
             "steam_avatar_url":mDBFacade.mSteamAvatarUrl,
             "status_online":true,
             "in_dungeon":false
@@ -698,6 +699,11 @@ package Account
       public function get trophies() : uint
       {
          return mTrophyCount;
+      }
+      
+      private function get activeAscensionLevel() : uint
+      {
+         return mActiveAvatar ? mActiveAvatar.mAscensionLevel : 0;
       }
       
       public function hasAllTrophies() : Boolean
@@ -859,6 +865,11 @@ package Account
          if(mLocalFriendInfo)
          {
             mLocalFriendInfo.refreshOwnPortrait();
+            if(mLocalFriendInfo.ascensionLevel != activeAscensionLevel)
+            {
+               mLocalFriendInfo.ascensionLevel = activeAscensionLevel;
+               mEventComponent.dispatchEvent(new Event("REFRESH_FRIENDS_EVENT"));
+            }
          }
          mEventComponent.dispatchEvent(new Event("ACTIVE_AVATAR_CHANGED_EVENT"));
          parseCurrency(details);

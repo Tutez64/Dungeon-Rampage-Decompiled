@@ -1,5 +1,6 @@
 package UI.Inventory
 {
+   import Account.ChestInfo;
    import Account.InventoryBaseInfo;
    import Account.ItemInfo;
    import Account.StackableInfo;
@@ -129,6 +130,11 @@ package UI.Inventory
             {
                _loc2_ = uint(StackableInfo(mInfo).count);
                TextUtil.setText(mStackCountLabel,"x" + _loc2_.toString());
+               mStackCountLabel.visible = true;
+            }
+            else if(mInfo is ChestInfo && ChestInfo(mInfo).count > 1)
+            {
+               TextUtil.setText(mStackCountLabel,"x" + ChestInfo(mInfo).count.toString());
                mStackCountLabel.visible = true;
             }
          }

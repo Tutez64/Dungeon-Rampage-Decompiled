@@ -29,6 +29,8 @@ package Account
       
       private var mTrophies:uint;
       
+      private var mAscensionLevel:uint;
+      
       private var mDBFacade:DBFacade;
       
       private var mResponseCallback:Function;
@@ -58,6 +60,7 @@ package Account
          mAccountId = friendJson.account_id as uint;
          mFriendName = friendJson.name as String;
          mTrophies = friendJson.trophies as uint;
+         mAscensionLevel = friendJson.hasOwnProperty("ascension_level") ? uint(friendJson.ascension_level) : 0;
          mSteamAvatarUrl = friendJson.steam_avatar_url as String;
          var _loc3_:uint = mSkinId;
          var _loc2_:String = mPortraitUrl;
@@ -135,6 +138,16 @@ package Account
       public function set trophies(value:uint) : void
       {
          mTrophies = value;
+      }
+      
+      public function get ascensionLevel() : uint
+      {
+         return mAscensionLevel;
+      }
+      
+      public function set ascensionLevel(value:uint) : void
+      {
+         mAscensionLevel = value;
       }
       
       public function get lastMapNode() : uint

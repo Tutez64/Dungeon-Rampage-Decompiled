@@ -16,7 +16,7 @@ package Input
       
       private static const MAX_NAVIGATION_ITERATIONS:uint = 150;
       
-      private static const RETURN_LAYERS:Array = ["EXIT_DUNGEON","EXIT_INFINITE_DUNGEON","TOWN_MENU","EXIT_POPUP"];
+      private static const RETURN_LAYERS:Array = ["EXIT_DUNGEON","EXIT_INFINITE_DUNGEON","TOWN_MENU","EXIT_POPUP","REVIVE_MENU"];
       
       private var mTopLayer:uint = 0;
       
@@ -424,8 +424,18 @@ package Input
       
       public function onKeyPressed(inputCode:int, fromController:Boolean = false) : void
       {
+         var _loc5_:UIObject = null;
          var _loc4_:UIObject = null;
          var _loc3_:String = mUILayerConstants[mTopLayer];
+         if(mFocusedUiObject != null && mFocusedUiObject.root == null && inputCode != 27 && inputCode != 81 && inputCode != 69)
+         {
+            _loc5_ = mDefaultUIObjs[_loc3_];
+            if(_loc5_ != null && _loc5_.root != null)
+            {
+               setFocusedUiObject(_loc5_);
+            }
+            return;
+         }
          if(inputCode == 81)
          {
             if(mLayerPreviousCategoryCallbacks[_loc3_] != null)
@@ -522,6 +532,10 @@ package Input
             }
             else if(inputCode == 27)
             {
+               if(fromController && _loc3_ == "REVIVE_MENU")
+               {
+                  return;
+               }
                if(mLayerExitCallbacks[mUILayerConstants[mTopLayer]])
                {
                   mLayerExitCallbacks[mUILayerConstants[mTopLayer]]();

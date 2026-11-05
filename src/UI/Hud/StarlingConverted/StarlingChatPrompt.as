@@ -218,6 +218,26 @@ package UI.Hud.StarlingConverted
          }
       }
       
+      public function useFlashBar(value:Boolean) : void
+      {
+         var _loc3_:int = 0;
+         if(mDisposed)
+         {
+            return;
+         }
+         mBar.visible = !value;
+         for each(var _loc2_:StarlingButton in mButtons)
+         {
+            _loc2_.enabled = !value;
+         }
+         _loc3_ = 0;
+         while(_loc3_ < mFlashParts.length)
+         {
+            mFlashParts[_loc3_].visible = value && mFlashShown[_loc3_];
+            _loc3_++;
+         }
+      }
+      
       internal function get labelShown() : Boolean
       {
          return !mDisposed && mLabel.visible;

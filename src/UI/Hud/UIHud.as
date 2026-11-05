@@ -148,10 +148,6 @@ package UI.Hud
       
       private static const CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS:Point = new Point(25,25);
       
-      private static const CONTROLLER_ICON_POSITION_FOR_CLOSE_BUTTON:Vector3D = new Vector3D(-5,-27);
-      
-      private static const CONTROLLER_GLYPH_SCALE_CLOSE_BUTTON:Point = new Point(25,25);
-      
       private static const CONTROLLER_ICON_POSITION_FOR_CHAT_SEND_BUTTON:Vector3D = new Vector3D(32,-10);
       
       private static const CONTROLLER_ICON_POSITION_FOR_CHAT_LOG_BUTTON:Vector3D = new Vector3D(25,-10);
@@ -278,6 +274,10 @@ package UI.Hud
       
       private var mCoinBonusText:TextField;
       
+      private var mOptionsButton:UIButton;
+      
+      private var mOptionsClip:MovieClip;
+      
       private var mSettingsPopup:SettingsPopup;
       
       private var mSettingsModel:SettingsModel;
@@ -387,6 +387,7 @@ package UI.Hud
          {
             setupUI(param1,uint(settingsModel.getValue("hudStyle")));
          });
+         mAssetLoadingComponent.getSwfAsset(DBFacade.buildFullDownloadPath("Resources/Art2D/UI/db_UI_town.swf"),setupOptions);
          mXpBulgeTask = null;
          mProfileBulgeTask = null;
          mBuffs = new Vector.<BuffGameObject>();
@@ -468,6 +469,30 @@ package UI.Hud
          return mSwfAsset;
       }
       
+      private function setupOptions(swfAsset:SwfAsset) : void
+      {
+         if(mDBFacade == null || mRoot == null || mOptionsButton != null)
+         {
+            return;
+         }
+         var _loc2_:Class = swfAsset.getClass("options_panel_button");
+         if(_loc2_ == null)
+         {
+            Logger.warn("HUD settings gear art missing");
+            return;
+         }
+         var _loc4_:MovieClip = new _loc2_() as MovieClip;
+         var _loc3_:Point = HudTopRightLayout.gearPosition();
+         _loc4_.x = _loc3_.x;
+         _loc4_.y = _loc3_.y;
+         _loc4_.scaleX = _loc4_.scaleY = 0.9;
+         mOptionsClip = _loc4_;
+         mOptionsButton = new UIButton(mDBFacade,_loc4_);
+         mOptionsButton.releaseCallback = toggleSettingsPopup;
+         mRoot.addChild(_loc4_);
+         initTopRightControllerIcon("open_options_menu",_loc4_,true);
+      }
+      
       private function setDooberLocations(hudType:uint) : void
       {
          switch(int(hudType))
@@ -503,6 +528,7 @@ package UI.Hud
          var cooldownIndex:int;
          var hudClassName:String;
          var hudClass:Class;
+         var closePosition:Point;
          var i:uint;
          var tooltipOffsset:Point;
          mHudType = hudType;
@@ -665,6 +691,10 @@ package UI.Hud
          hudClass = swfAsset.getClass(hudClassName);
          mUIRoot = new hudClass();
          mRoot.addChild(mUIRoot);
+         if(mOptionsClip != null)
+         {
+            mRoot.setChildIndex(mOptionsClip,mRoot.numChildren - 1);
+         }
          mFloaterTextClass = swfAsset.getClass("floater_text");
          mStacksHud.initializeHud(swfAsset.getClass("stacks_hud"));
          if(mUIChatLog)
@@ -676,6 +706,9 @@ package UI.Hud
          {
             mUIChatLog.textSizeModifier = 1.18;
          }
+         closePosition = HudTopRightLayout.closePosition(mUIRoot.close.scaleX,mUIRoot.close.scaleY);
+         mUIRoot.close.x = closePosition.x;
+         mUIRoot.close.y = closePosition.y;
          mCloseButton = new UIButton(mDBFacade,mUIRoot.close);
          mCloseButton.releaseCallback = function():void
          {
@@ -859,7 +892,7 @@ package UI.Hud
          initControllerIconOn("use_consumable_one",mConsumable1Button,CONTROLLER_ICON_POSITION_FOR_WEAPON_BUTTONS,CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS);
          initControllerIconOn("use_consumable_two",mConsumable2Button,CONTROLLER_ICON_POSITION_FOR_WEAPON_BUTTONS,CONTROLLER_GLYPH_SCALE_WEAPON_BUTTONS);
          initControllerIconOn("use_dungeon_buster",mDungeonBusterButton,CONTROLLER_ICON_POSITION_FOR_DUNGEON_BUSTER,CONTROLLER_GLYPH_SCALE_DUNGEON_BUSTER);
-         initControllerIconOn("toggle_menu",mCloseButton,CONTROLLER_ICON_POSITION_FOR_CLOSE_BUTTON,CONTROLLER_GLYPH_SCALE_CLOSE_BUTTON);
+         initTopRightControllerIcon("toggle_menu",mCloseButton != null ? mCloseButton.root : null,false);
          initControllerIconOn("toggle_chat_log",mUIChatLog ? mUIChatLog.chatLogButton : null,CONTROLLER_ICON_POSITION_FOR_CHAT_LOG_BUTTON,CONTROLLER_GLYPH_SCALE_CHAT_BUTTONS);
          if(mDBFacade.steamInputManager.usesSteamOnScreenKeyboard)
          {
@@ -903,6 +936,16 @@ package UI.Hud
          var _loc1_:String = Locale.getString("PRESS_BUSTER_BUTTON_KEYBOARD") + _loc2_.displayNameFor("useDungeonBuster");
          TextUtil.setText(mUIRoot.UI_buster_active.buster_activated.up.db_pressbutton_text,_loc1_);
          TextUtil.setText(mUIRoot.UI_buster_active.buster_activated.over.mc.db_pressbutton_text,_loc1_);
+      }
+      
+      private function initTopRightControllerIcon(action:String, owner:MovieClip, gear:Boolean) : void
+      {
+         if(owner == null)
+         {
+            return;
+         }
+         var _loc4_:Point = HudTopRightLayout.glyphPosition(gear,owner.scaleX,owner.scaleY);
+         addControllerIcon(gear ? mExternalControllerIcons : mHudControllerIcons,action,owner,new Vector3D(_loc4_.x,_loc4_.y),HudTopRightLayout.glyphSize(owner.scaleX,owner.scaleY));
       }
       
       private function initControllerIconOn(inActionName:String, inButton:UIButton, iconPosition:Vector3D, iconScale:Point) : void
@@ -1131,7 +1174,7 @@ package UI.Hud
       
       private function onSteamInputButtonReleased(event:OnSteamInputButtonReleasedEvent) : void
       {
-         if(event.actionName == "menu_options" && mSettingsPopup)
+         if(event.actionName == "menu_options" && (mSettingsPopup || mDBFacade.menuNavigationController.getTopUILayer() == "REVIVE_MENU"))
          {
             toggleSettingsPopup();
          }
@@ -2326,6 +2369,13 @@ package UI.Hud
             mBoosterTimer.stop();
             mBoosterTimer = null;
          }
+         if(mOptionsButton != null)
+         {
+            removeControllerIcons(mOptionsClip);
+            mOptionsButton.destroy();
+            mOptionsButton = null;
+            mOptionsClip = null;
+         }
          mDBFacade = null;
          if(mSettingsPopup)
          {
@@ -2578,6 +2628,10 @@ package UI.Hud
       public function get chatLog() : UIChatLog
       {
          return mUIChatLog;
+      }
+      
+      public function useFlashChatBar(value:Boolean) : void
+      {
       }
       
       public function isInCooldown() : void
@@ -2833,7 +2887,7 @@ package UI.Hud
          }
          else if(index == 3)
          {
-            if(mDBFacade.steamInputManager.usesSteamOnScreenKeyboard)
+            if(mDBFacade.steamInputManager.usesSteamOnScreenKeyboard && mUIChatLog.mayOpenChatFromAction())
             {
                mUIChatLog.focusChatInput();
             }

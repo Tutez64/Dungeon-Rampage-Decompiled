@@ -27,6 +27,8 @@ package UI.Hud.StarlingConverted
       
       function get chatLog() : UIChatLog;
       
+      function useFlashChatBar(value:Boolean) : void;
+      
       function get floaterTextClass() : Class;
       
       function get teamLootDestination() : Vector3D;

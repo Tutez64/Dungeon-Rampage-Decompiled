@@ -13,14 +13,22 @@ package Account
    public class ChestInfo extends InventoryBaseInfo
    {
       
+      public static const STACK_SIZE:uint = 99;
+      
       private var mGMChestData:GMChest;
       
       private var mIsFromDungeonSummary:Boolean;
+      
+      private var mDatabaseIds:Vector.<uint> = new Vector.<uint>();
       
       public function ChestInfo(dbFacade:DBFacade, json:Object)
       {
          super(dbFacade,json);
          mIsFromDungeonSummary = false;
+         if(json != null)
+         {
+            mDatabaseIds.push(mDatabaseId);
+         }
          if(json == null)
          {
             return;
@@ -98,6 +106,45 @@ package Account
             Logger.error("GMChest (setParams) is null cannot find item for ID: " + mGMId);
          }
          mGMChestInfo = mGMChestData;
+      }
+      
+      public function get count() : uint
+      {
+         return mDatabaseIds.length > 0 ? mDatabaseIds.length : 1;
+      }
+      
+      public function get isFull() : Boolean
+      {
+         return mDatabaseIds.length >= 99;
+      }
+      
+      public function get databaseIds() : Vector.<uint>
+      {
+         return mDatabaseIds;
+      }
+      
+      public function containsDatabaseId(id:uint) : Boolean
+      {
+         return mDatabaseIds.indexOf(id) != -1;
+      }
+      
+      public function addDatabaseId(id:uint) : void
+      {
+         mDatabaseIds.push(id);
+      }
+      
+      public function removeDatabaseId(id:uint) : Boolean
+      {
+         var _loc2_:int = mDatabaseIds.indexOf(id);
+         if(_loc2_ != -1)
+         {
+            mDatabaseIds.splice(_loc2_,1);
+         }
+         if(mDatabaseIds.length > 0)
+         {
+            mDatabaseId = mDatabaseIds[0];
+         }
+         return mDatabaseIds.length > 0;
       }
       
       public function isFromDungeonSummary() : Boolean
