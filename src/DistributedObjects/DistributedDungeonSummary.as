@@ -244,6 +244,10 @@ package DistributedObjects
       
       private var mDungeonAchievementPanelMovieClipRenderer:MovieClipRenderer;
       
+      private var mEarnedTrophy:Boolean;
+      
+      private var mHideTrophyArtTask:Task;
+      
       private var mTransactionSuccessCallback:Function;
       
       private var mSteamAvatarHolder:MovieClip;
@@ -433,6 +437,9 @@ package DistributedObjects
             Logger.error("Couldn\'t find GMMapNode for node id : " + mMapNodeId);
             return;
          }
+         var _loc1_:AvatarInfo = mDBFacade.dbAccountInfo.activeAvatarInfo;
+         mEarnedTrophy = mDungeonReport[0].receivedTrophy && (_loc1_ == null || !_loc1_.hasTrophy(mCurrentMapNode.BitIndex));
+         mDBFacade.steamAchievementsHelper.updateTrophiesEarnedStat(mDBFacade.dbAccountInfo.trophies + (mEarnedTrophy ? 1 : 0));
          mDungeonName = GameMasterLocale.getGameMasterSubString("DUNGEON_NAME",mCurrentMapNode.Constant).toUpperCase();
          if(this.dungeonSuccess)
          {
@@ -568,7 +575,6 @@ package DistributedObjects
                            mDBFacade.steamAchievementsHelper.unlockAchievement("CHALLENGE_COLLECT_NO_COINS_IN_DUNGEON");
                         }
                         mDBFacade.steamAchievementsHelper.addValueToStatInt(mDungeonReport[i].kills,"ENEMIES_KILLED");
-                        mDBFacade.steamAchievementsHelper.addValueToStatInt(mDungeonReport[i].receivedTrophy,"TROPHIES_EARNED");
                      }
                   }
                   i = i + 1;
@@ -596,19 +602,33 @@ package DistributedObjects
                setRevealState(20,0.45);
                break;
             case 20:
-               if(!mDungeonReport[0].receivedTrophy)
+               if(!mEarnedTrophy && !(mDungeonReport[0].receivedTrophy && mCurrentMapNode.InfiniteDungeon == null))
                {
                   setRevealState(2,0.45);
                }
                else
                {
                   mDungeonAchievementPanelMovieClipRenderer.clip.visible = true;
-                  mScoreReportRoot.stats_a.stats.trophies.filters = [new GlowFilter(16633879,1,8,8,10)];
-                  trophies = int(mScoreReportRoot.stats_a.stats.trophies.trophies.text);
-                  trophies = trophies + 1;
-                  TextUtil.setText(mScoreReportRoot.stats_a.stats.trophies.trophies,trophies.toString());
+                  if(mEarnedTrophy)
+                  {
+                     mScoreReportRoot.stats_a.stats.trophies.filters = [new GlowFilter(16633879,1,8,8,10)];
+                     trophies = int(mScoreReportRoot.stats_a.stats.trophies.trophies.text);
+                     trophies = trophies + 1;
+                     TextUtil.setText(mScoreReportRoot.stats_a.stats.trophies.trophies,trophies.toString());
+                  }
                   trophyGetClipLength = 4;
                   mDungeonAchievementPanelMovieClipRenderer.play();
+                  if(!mEarnedTrophy)
+                  {
+                     mHideTrophyArtTask = mLogicalWorkComponent.doEveryFrame(function(param1:GameClock):void
+                     {
+                        var _loc2_:DisplayObject = mScoreReportRoot.achievement.trophy as DisplayObject;
+                        if(_loc2_ != null)
+                        {
+                           _loc2_.visible = false;
+                        }
+                     });
+                  }
                   if(mSmashSfx)
                   {
                      mSoundComponent.playSfxOneShot(mSmashSfx);
@@ -624,6 +644,11 @@ package DistributedObjects
                }
                break;
             case 25:
+               if(mHideTrophyArtTask != null)
+               {
+                  mHideTrophyArtTask.destroy();
+                  mHideTrophyArtTask = null;
+               }
                mDungeonAchievementPanelMovieClipRenderer.stop();
                mDungeonAchievementPanelMovieClipRenderer.clip.visible = false;
                setRevealState(2,0.45);

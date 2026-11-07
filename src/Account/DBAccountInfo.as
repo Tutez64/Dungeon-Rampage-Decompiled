@@ -67,6 +67,8 @@ package Account
       
       private var mInventoryLimitWeapons:uint;
       
+      private var mAscensionStorageSlots:uint;
+      
       private var mFriendsInfo:Map;
       
       private var mGiftsInfo:Map;
@@ -148,6 +150,11 @@ package Account
       public function get inventoryLimitWeapons() : uint
       {
          return mInventoryLimitWeapons;
+      }
+      
+      public function get ascensionStorageSlots() : uint
+      {
+         return mAscensionStorageSlots;
       }
       
       public function get inventoryLimitOther() : uint
@@ -880,6 +887,7 @@ package Account
          mId = details.id;
          mName = details.name;
          mInventoryLimitWeapons = details.buckets_weapon;
+         mAscensionStorageSlots = details.ascension_storage_slots ? uint(details.ascension_storage_slots) : 0;
          mInventoryLimitOther = details.buckets_other;
          mAccountCreatedDate = details.created as String;
          mDungeonsCompleted = details.completed_dungeons;

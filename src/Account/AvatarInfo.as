@@ -67,6 +67,8 @@ package Account
       
       public var mCompletedMapnodeMask:Utf8BitArray;
       
+      public var mTrophyMapnodeMask:Utf8BitArray;
+      
       private var mGMHero:GMHero;
       
       public function AvatarInfo(dbFacade:DBFacade, avatarJson:Object, responseCallback:Function)
@@ -75,6 +77,7 @@ package Account
          mMapNodes = new Vector.<AvatarMapNodeInfo>();
          mEquippedConsumables = new Vector.<Consumable>();
          mCompletedMapnodeMask = new Utf8BitArray();
+         mTrophyMapnodeMask = new Utf8BitArray();
          mDBFacade = dbFacade;
          mResponseCallback = responseCallback;
          init(avatarJson);
@@ -84,6 +87,11 @@ package Account
       public function get mapNodes() : Vector.<AvatarMapNodeInfo>
       {
          return mMapNodes;
+      }
+      
+      public function hasTrophy(bitIndex:uint) : Boolean
+      {
+         return mTrophyMapnodeMask.getBit(bitIndex);
       }
       
       public function destroy() : void
@@ -193,6 +201,7 @@ package Account
             return;
          }
          mCompletedMapnodeMask.init(avatarJson.completed_mapnode_mask);
+         mTrophyMapnodeMask.init(avatarJson.trophy_mapnode_mask);
          accountId = avatarJson.account_id as uint;
          avatarType = avatarJson.avatar_id as uint;
          created = avatarJson.created as String;

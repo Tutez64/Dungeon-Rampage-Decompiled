@@ -37,7 +37,7 @@ package Account
       
       public static const COIN_OFFERS:Vector.<uint> = new <uint>[51102,51103,51104];
       
-      public static const STORAGE_OFFERS:Vector.<uint> = new <uint>[51401,51402,51403];
+      public static const STORAGE_OFFERS:Vector.<uint> = new <uint>[51404,51402,51403];
       
       public static const GIFT_OFFERS:Vector.<uint> = new <uint>[51301,51399,51398];
       
@@ -274,16 +274,22 @@ package Account
       
       public static function weaponStorageWouldOverflow(dbFacade:DBFacade, gmOffer:GMOffer) : Boolean
       {
-         var _loc5_:uint = 0;
-         for each(var _loc4_:GMOfferDetail in gmOffer.Details)
+         var _loc4_:uint = 0;
+         for each(var _loc3_:GMOfferDetail in gmOffer.Details)
          {
-            _loc5_ += _loc4_.WeaponSlots;
+            _loc4_ += _loc3_.WeaponSlots;
          }
-         if(_loc5_ == 0)
+         if(_loc4_ == 0)
          {
             return false;
          }
-         return _loc5_ + dbFacade.dbAccountInfo.inventoryLimitWeapons > 120;
+         return storagePurchaseWouldExceedCap(_loc4_,dbFacade.dbAccountInfo.inventoryLimitWeapons,dbFacade.dbAccountInfo.ascensionStorageSlots);
+      }
+      
+      public static function storagePurchaseWouldExceedCap(weaponSlots:uint, inventoryLimit:uint, ascensionStorageSlots:uint) : Boolean
+      {
+         var _loc4_:int = Math.max(0,int(inventoryLimit) - int(ascensionStorageSlots));
+         return weaponSlots + _loc4_ > 120;
       }
       
       public static function requiredHeroForWeapon(dbFacade:DBFacade, gmOffer:GMOffer) : uint

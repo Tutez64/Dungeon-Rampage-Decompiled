@@ -72,29 +72,34 @@ package SteamAchievements
          }
       }
       
-      public function updateMapsAtFloor25Stat(inMapNode:GMMapNode) : Boolean
+      public function updateTrophiesEarnedStat(inTrophies:uint) : void
       {
-         var _loc5_:String = null;
-         if(inMapNode.NodeType != GMMapNode.INFINITE_NODE_TYPE || mDBFacade.steamAchievementsManager == null)
+         setHighestStatValueAchieved(int(inTrophies),"TROPHIES_EARNED");
+      }
+      
+      public function updateMapsAtFloor25Stat() : Boolean
+      {
+         var _loc4_:String = null;
+         if(mDBFacade.steamAchievementsManager == null)
          {
             return false;
          }
-         var _loc2_:int = 0;
-         for each(var _loc3_:GMMapNode in mDBFacade.gameMaster.MapNodes)
+         var _loc1_:int = 0;
+         for each(var _loc2_:GMMapNode in mDBFacade.gameMaster.MapNodes)
          {
-            if(_loc3_.NodeType == GMMapNode.INFINITE_NODE_TYPE)
+            if(_loc2_.NodeType == GMMapNode.INFINITE_NODE_TYPE)
             {
-               _loc5_ = SteamAPINames.getUltimateRampageHighestFloorStatAPIName(_loc3_.Constant);
-               if(mDBFacade.steamAchievementsManager.getCurrentSteamStatIntValue(_loc5_) >= 25)
+               _loc4_ = SteamAPINames.getUltimateRampageHighestFloorStatAPIName(_loc2_.Constant);
+               if(mDBFacade.steamAchievementsManager.getCurrentSteamStatIntValue(_loc4_) >= 25)
                {
-                  _loc2_++;
+                  _loc1_++;
                }
             }
          }
-         var _loc4_:int = mDBFacade.steamAchievementsManager.getCurrentSteamStatIntValue("ULTIMATE_RAMPAGE_MAPS_AT_FLOOR_25");
-         if(_loc2_ != _loc4_)
+         var _loc3_:int = mDBFacade.steamAchievementsManager.getCurrentSteamStatIntValue("ULTIMATE_RAMPAGE_MAPS_AT_FLOOR_25");
+         if(_loc1_ != _loc3_)
          {
-            return setValueToStatInt(_loc2_,"ULTIMATE_RAMPAGE_MAPS_AT_FLOOR_25");
+            return setValueToStatInt(_loc1_,"ULTIMATE_RAMPAGE_MAPS_AT_FLOOR_25");
          }
          return false;
       }
@@ -112,14 +117,14 @@ package SteamAchievements
          }
       }
       
-      public function checkHighestUltimateRampageFloorAchieved(inMapNode:GMMapNode, inCurrentFloor:uint) : void
+      public function checkHighestUltimateRampageFloorAchieved(inMapNode:GMMapNode, inFloorsCleared:int) : void
       {
-         if(inMapNode.NodeType != GMMapNode.INFINITE_NODE_TYPE)
+         if(inMapNode.NodeType != GMMapNode.INFINITE_NODE_TYPE || inFloorsCleared <= 0)
          {
             return;
          }
          var _loc3_:String = SteamAPINames.getUltimateRampageHighestFloorStatAPIName(inMapNode.Constant);
-         setHighestStatValueAchieved(int(inCurrentFloor),_loc3_);
+         setHighestStatValueAchieved(inFloorsCleared,_loc3_);
       }
       
       public function checkStorageAchievements(inStorageSlots:int) : Boolean
